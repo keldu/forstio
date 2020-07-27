@@ -1,2 +1,2 @@
-# kelgin-core
+# kelgin
 
