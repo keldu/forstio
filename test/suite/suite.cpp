@@ -5,7 +5,7 @@
 #include <chrono>
 #include <iostream>
 
-namespace ent {
+namespace gin {
 namespace test {
 
 	TestCase* testCaseHead = nullptr;
@@ -101,7 +101,7 @@ namespace test {
 }
 
 int main() {
-	ent::test::TestRunner runner;
+	gin::test::TestRunner runner;
 	runner.allowAll();
 	int rv = runner.run();
 	return rv<0?-1:0;

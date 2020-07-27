@@ -4,11 +4,9 @@
 #include <memory>
 #include <stdexcept>
 
-#define KEL_CONCAT_(x,y) x##y
-#define KEL_CONCAT(x,y) KEL_CONCAT_(x,y)
-#define KEL_UNIQUE_NAME(prefix) KEL_CONCAT(prefix, __LINE__)
+#include "common.h"
 
-namespace ent {
+namespace gin {
 namespace test {
 class TestRunner;
 class TestCase {
@@ -29,15 +27,15 @@ public:
 };
 }
 }
-#define KEL_TEST(description) \
-	class KEL_UNIQUE_NAME(TestCase) : public ::ent::test::TestCase { \
+#define GIN_TEST(description) \
+	class GIN_UNIQUE_NAME(TestCase) : public ::gin::test::TestCase { \
 	public: \
-		KEL_UNIQUE_NAME(TestCase)(): ::ent::test::TestCase(__FILE__,__LINE__,description) {} \
+		GIN_UNIQUE_NAME(TestCase)(): ::gin::test::TestCase(__FILE__,__LINE__,description) {} \
 		void run() override; \
-	}KEL_UNIQUE_NAME(testCase); \
-	void KEL_UNIQUE_NAME(TestCase)::run()
+	}GIN_UNIQUE_NAME(testCase); \
+	void GIN_UNIQUE_NAME(TestCase)::run()
 
-#define KEL_EXPECT(expr, msg) \
+#define GIN_EXPECT(expr, msg) \
 	if( ! (expr) ){ \
 		throw std::runtime_error{msg}; \
 	}
