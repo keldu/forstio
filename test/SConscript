@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+
+import os
+import os.path
+import glob
+
+Import('env')
+
+dir_path = Dir('.').abspath
+env.test_sources = sorted(glob.glob(dir_path + "/*.cpp"))
+
+env_test = env.Clone()
+env.test_objects = []
+env.test_sources.append(dir_path+'/suite/suite.cpp')
+
+env.test_program = env_test.Program('#bin/test', [env.test_sources, env.objects])
