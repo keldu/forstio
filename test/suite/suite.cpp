@@ -100,9 +100,13 @@ namespace test {
 }
 }
 
+#if GIN_COMPILE_TEST_BINARY
+
 int main() {
 	gin::test::TestRunner runner;
 	runner.allowAll();
 	int rv = runner.run();
 	return rv<0?-1:0;
 }
+
+#endif

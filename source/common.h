@@ -14,6 +14,8 @@ namespace gin {
 	classname(const classname&) = delete; \
 	classname& operator=(const classname&) = delete
 
+// Need logger for that
+//#define GIN_REQUIRE(statement, str) \
 
 template<typename T>
 using Maybe = std::optional<T>;
