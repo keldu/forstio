@@ -6,7 +6,10 @@
 #include <list>
 
 namespace gin {
-class ConveyorNode;
+class ConveyorNode {
+public:
+	virtual ~ConveyorNode() = default;
+};
 
 class ConveyorBase {
 private:
@@ -17,7 +20,8 @@ public:
 
 template<T>
 class Conveyor : public ConveyorBase {
-
+private:
+public:
 };
 
 class EventLoop;
