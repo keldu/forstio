@@ -127,7 +127,19 @@ void EventLoop::leaveScope(){
 	local_loop = nullptr;
 }
 
-bool EventLoop::poll(int timeout){
+bool EventLoop::wait(const std::chrono::steady_clock::duration& duration){
+	return false;
+}
+
+bool EventLoop::wait(const std::chrono::steady_clock::time_point& time_point){
+	return false;
+}
+
+bool EventLoop::wait(){
+	return false;
+}
+
+bool EventLoop::poll(){
 	return false;
 }
 
@@ -142,7 +154,15 @@ WaitScope::~WaitScope(){
 }
 
 void WaitScope::wait(){
+	loop.wait();
+}
 
+void WaitScope::wait(const std::chrono::steady_clock::duration& duration){
+	loop.wait(duration);
+}
+
+void WaitScope::wait(const std::chrono::steady_clock::time_point& time_point){
+	loop.wait(time_point);
 }
 
 void WaitScope::poll(){

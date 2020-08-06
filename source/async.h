@@ -1,21 +1,31 @@
 #pragma once
 
-#include "time.h"
+#include "timer.h"
 #include "common.h"
 
 #include <list>
 
 namespace gin {
+class ConveyorNode;
+
 class ConveyorBase {
+private:
+	Own<ConveyorNode> node;
 public:
 	virtual ~ConveyorBase() = default;
 };
+
+template<T>
+class Conveyor : public ConveyorBase {
+
+};
+
 class EventLoop;
 class Event {
 private:
 	EventLoop& loop;
-	Event* prev = nullptr;
-	Event** next = nullptr;
+	Event** prev = nullptr;
+	Event* next = nullptr;
 public:
 	Event(EventLoop& loop);
 	virtual ~Event();
@@ -44,16 +54,14 @@ private:
 	friend class WaitScope;
 	void enterScope();
 	void leaveScope();
-
-	bool wait();
-	bool wait(const std::chrono::steady_clock::duration&);
-	bool poll();
-
-	class Impl;
-	Own<Impl> impl;
 public:
 	EventLoop();
 	~EventLoop();
+
+	bool wait();
+	bool wait(const std::chrono::steady_clock::duration&);
+	void wait(const std::chrono::steady_clock::time_point&);
+	bool poll();
 };
 
 class WaitScope {
@@ -65,7 +73,11 @@ public:
 
 	void wait();
 	void wait(const std::chrono::steady_clock::duration&);
-	void wait(const std::chrono::steady_clock::timepoint&);
+	void wait(const std::chrono::steady_clock::time_point&);
 	void poll();
 };
+}
+// Template inlining
+namespace ent {
+
 }

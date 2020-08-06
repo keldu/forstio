@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <utility>
+#include <optional>
 
 namespace gin {
 
@@ -14,8 +15,6 @@ namespace gin {
 	classname(const classname&) = delete; \
 	classname& operator=(const classname&) = delete
 
-// Need logger for that
-//#define GIN_REQUIRE(statement, str) \
 
 template<typename T>
 using Maybe = std::optional<T>;
@@ -35,7 +34,7 @@ Own<T> heap(Args&&... args){
 }
 
 template<typename T, class... Args>
-Share<T> share(Args&&... args){
+Our<T> share(Args&&... args){
 	return std::make_shared<T>(std::forward<Args>(args)...);
 }
 
