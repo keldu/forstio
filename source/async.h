@@ -80,6 +80,21 @@ public:
 	void wait(const std::chrono::steady_clock::time_point&);
 	void poll();
 };
+class InputConveyorNode : public ConveyorNode {
+public:
+};
+
+template<typename T>
+class ConvertConveyorNode : public ConveyorNode {
+
+};
+
+template<typename T, size_t S>
+class ArrayBufferConveyorNode : public ConveyorNode, public Event {
+private:
+	std::array<T,S> storage;
+public:
+};
 }
 // Template inlining
 namespace ent {
