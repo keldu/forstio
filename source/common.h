@@ -35,4 +35,14 @@ struct Void {};
 
 template <typename T> T instance() noexcept;
 
+template <typename Func, typename T> struct ReturnTypeHelper {
+	typedef decltype(instance<Func>()(instance<T>())) Type;
+};
+template <typename Func> struct ReturnTypeHelper<Func, void> {
+	typedef decltype(instance<Func>()()) Type;
+};
+
+template <typename Func, typename T>
+using ReturnType = typename ReturnTypeHelper<Func, T>::Type;
+
 } // namespace gin

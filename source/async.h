@@ -19,16 +19,6 @@ public:
 	virtual ~ConveyorBase() = default;
 };
 
-template <typename Func, typename T> struct ReturnTypeHelper {
-	typedef decltype(instance<Func>()(instance<T>())) Type;
-};
-template <typename Func> struct ReturnTypeHelper<Func, void> {
-	typedef decltype(instance<Func>()()) Type;
-};
-
-template <typename Func, typename T>
-using ReturnType = typename ReturnTypeHelper<Func, T>::Type;
-
 template <typename T> class Conveyor;
 
 template <typename T> Conveyor<T> chainedConveyorType(T *);
@@ -46,6 +36,18 @@ private:
 public:
 	template <typename Func, typename ErrorFunc>
 	ConveyorResult<Func, T> then(Func &&func, ErrorFunc &&error_func);
+};
+
+struct PropagateError {
+public:
+	struct PropagateErrorHelper {
+		Error error;
+
+		PropagateError asError();
+	};
+
+	PropagateErrorHelper operator(const Error& error) const;
+	PropagateErrorHelper operator(Error&& error);
 };
 
 class EventLoop;
