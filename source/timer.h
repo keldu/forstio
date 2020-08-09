@@ -2,6 +2,4 @@
 
 #include <chrono>
 
-namespace gin {
-
-}
+namespace gin {}
