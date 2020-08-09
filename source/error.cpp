@@ -6,10 +6,10 @@ Error::Error() : error_{0} {}
 Error::Error(const std::string &msg) : error_message{msg}, error_{1} {}
 
 Error::Error(const std::string &msg, int8_t code)
-    : error_message{msg}, error_{code} {}
+	: error_message{msg}, error_{code} {}
 
 Error::Error(const Error &error)
-    : error_message{error.error_message}, error_{error.error_} {}
+	: error_message{error.error_message}, error_{error.error_} {}
 
 const std::string &Error::message() const { return error_message; }
 
