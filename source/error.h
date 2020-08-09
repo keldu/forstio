@@ -5,11 +5,11 @@
 
 namespace gin {
 class Error {
-  private:
+private:
 	std::string error_message;
 	int8_t error_;
 
-  public:
+public:
 	Error();
 	Error(const std::string &msg);
 	Error(const std::string &msg, int8_t code);
@@ -27,15 +27,15 @@ Error recoverableError(const std::string &msg);
 Error noError();
 
 class ErrorOrValue {
-  public:
+public:
 	virtual ~ErrorOrValue() = default;
 };
 
 template <typename T> class ErrorOr : public ErrorOrValue {
-  private:
+private:
 	std::variant<T, Error> value_or_error;
 
-  public:
+public:
 	ErrorOr(const T &value) : value_or_error{value} {}
 
 	ErrorOr(T &&value) : value_or_error{std::move(value)} {}

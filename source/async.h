@@ -7,15 +7,15 @@
 
 namespace gin {
 class ConveyorNode {
-  public:
+public:
 	virtual ~ConveyorNode() = default;
 };
 
 class ConveyorBase {
-  private:
+private:
 	Own<ConveyorNode> node;
 
-  public:
+public:
 	virtual ~ConveyorBase() = default;
 };
 
@@ -42,20 +42,20 @@ template <typename Func, typename T>
 using ConveyorResult = ChainedConveyors<ReturnType<Func, T>>;
 
 template <typename T> class Conveyor : public ConveyorBase {
-  private:
-  public:
+private:
+public:
 	template <typename Func, typename ErrorFunc>
 	ConveyorResult<Func, T> then(Func &&func, ErrorFunc &&error_func);
 };
 
 class EventLoop;
 class Event {
-  private:
+private:
 	EventLoop &loop;
 	Event **prev = nullptr;
 	Event *next = nullptr;
 
-  public:
+public:
 	Event(EventLoop &loop);
 	virtual ~Event();
 
@@ -68,7 +68,7 @@ class Event {
 };
 
 class EventLoop {
-  private:
+private:
 	friend class Event;
 	Event *head = nullptr;
 	Event **tail = &head;
@@ -84,7 +84,7 @@ class EventLoop {
 	void enterScope();
 	void leaveScope();
 
-  public:
+public:
 	EventLoop();
 	~EventLoop();
 
@@ -95,10 +95,10 @@ class EventLoop {
 };
 
 class WaitScope {
-  private:
+private:
 	EventLoop &loop;
 
-  public:
+public:
 	WaitScope(EventLoop &loop);
 	~WaitScope();
 
@@ -109,17 +109,17 @@ class WaitScope {
 };
 
 class InputConveyorNode : public ConveyorNode {
-  public:
+public:
 };
 
 template <typename T> class ConvertConveyorNode : public ConveyorNode {};
 
 template <typename T, size_t S>
 class ArrayBufferConveyorNode : public ConveyorNode, public Event {
-  private:
+private:
 	std::array<T, S> storage;
 
-  public:
+public:
 };
 } // namespace gin
 // Template inlining

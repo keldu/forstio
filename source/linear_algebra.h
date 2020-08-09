@@ -5,10 +5,10 @@
 
 namespace gin {
 template <typename T, size_t M, size_t N> class Matrix {
-  private:
+private:
 	std::array<T, M * N> data;
 
-  public:
+public:
 	Matrix();
 
 	T &operator()(size_t i, size_t j);
@@ -21,10 +21,10 @@ template <typename T, size_t M, size_t N> class Matrix {
 };
 
 template <typename T, size_t N> class Vector {
-  private:
+private:
 	std::array<T, N> data;
 
-  public:
+public:
 	Vector();
 
 	T operator*(const Vector<T, N> &rhs) const;
