@@ -7,62 +7,56 @@
 
 namespace gin {
 class ConveyorNode {
- public:
+public:
   virtual ~ConveyorNode() = default;
 };
 
 class ConveyorBase {
- private:
+private:
   Own<ConveyorNode> node;
 
- public:
+public:
   virtual ~ConveyorBase() = default;
 };
 
-template <typename Func, typename T>
-struct ReturnTypeHelper {
+template <typename Func, typename T> struct ReturnTypeHelper {
   typedef decltype(instance<Func>()(instance<T>())) Type;
 };
-template <typename Func>
-struct ReturnTypeHelper<Func, void> {
+template <typename Func> struct ReturnTypeHelper<Func, void> {
   typedef decltype(instance<Func>()()) Type;
 };
 
 template <typename Func, typename T>
 using ReturnType = typename ReturnTypeHelper<Func, T>::Type;
 
-template <typename T>
-class Conveyor;
+template <typename T> class Conveyor;
+
+template <typename T> Conveyor<T> chainedConveyorType(T *);
+
+template <typename T> Conveyor<T> chainedConveyorType(Conveyor<T> *);
 
 template <typename T>
-Conveyor<T> chainedConveyorType(T*);
-
-template <typename T>
-Conveyor<T> chainedConveyorType(Conveyor<T>*);
-
-template <typename T>
-using ChainedConveyors = decltype(chainedConveyorType((T*)nullptr));
+using ChainedConveyors = decltype(chainedConveyorType((T *)nullptr));
 
 template <typename Func, typename T>
 using ConveyorResult = ChainedConveyors<ReturnType<Func, T>>;
 
-template <typename T>
-class Conveyor : public ConveyorBase {
- private:
- public:
+template <typename T> class Conveyor : public ConveyorBase {
+private:
+public:
   template <typename Func, typename ErrorFunc>
-  ConveyorResult<Func, T> then(Func&& func, ErrorFunc&& error_func);
+  ConveyorResult<Func, T> then(Func &&func, ErrorFunc &&error_func);
 };
 
 class EventLoop;
 class Event {
- private:
-  EventLoop& loop;
-  Event** prev = nullptr;
-  Event* next = nullptr;
+private:
+  EventLoop &loop;
+  Event **prev = nullptr;
+  Event *next = nullptr;
 
- public:
-  Event(EventLoop& loop);
+public:
+  Event(EventLoop &loop);
   virtual ~Event();
 
   virtual void fire() = 0;
@@ -74,12 +68,12 @@ class Event {
 };
 
 class EventLoop {
- private:
+private:
   friend class Event;
-  Event* head = nullptr;
-  Event** tail = &head;
-  Event** next_insert_point = &head;
-  Event** later_insert_point = &head;
+  Event *head = nullptr;
+  Event **tail = &head;
+  Event **next_insert_point = &head;
+  Event **later_insert_point = &head;
 
   bool is_runnable = false;
 
@@ -90,44 +84,43 @@ class EventLoop {
   void enterScope();
   void leaveScope();
 
- public:
+public:
   EventLoop();
   ~EventLoop();
 
   bool wait();
-  bool wait(const std::chrono::steady_clock::duration&);
-  bool wait(const std::chrono::steady_clock::time_point&);
+  bool wait(const std::chrono::steady_clock::duration &);
+  bool wait(const std::chrono::steady_clock::time_point &);
   bool poll();
 };
 
 class WaitScope {
- private:
-  EventLoop& loop;
+private:
+  EventLoop &loop;
 
- public:
-  WaitScope(EventLoop& loop);
+public:
+  WaitScope(EventLoop &loop);
   ~WaitScope();
 
   void wait();
-  void wait(const std::chrono::steady_clock::duration&);
-  void wait(const std::chrono::steady_clock::time_point&);
+  void wait(const std::chrono::steady_clock::duration &);
+  void wait(const std::chrono::steady_clock::time_point &);
   void poll();
 };
 
 class InputConveyorNode : public ConveyorNode {
- public:
+public:
 };
 
-template <typename T>
-class ConvertConveyorNode : public ConveyorNode {};
+template <typename T> class ConvertConveyorNode : public ConveyorNode {};
 
 template <typename T, size_t S>
 class ArrayBufferConveyorNode : public ConveyorNode, public Event {
- private:
+private:
   std::array<T, S> storage;
 
- public:
+public:
 };
-}  // namespace gin
+} // namespace gin
 // Template inlining
 namespace ent {}
