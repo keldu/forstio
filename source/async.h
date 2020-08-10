@@ -7,15 +7,22 @@
 
 namespace gin {
 class ConveyorNode {
+private:
+	Own<ConveyorNode> node;
+	ConveyorNode* parent = nullptr;
 public:
+	ConveyorNode();
+	ConveyorNode(Own<ConveyorNode>&& node);
 	virtual ~ConveyorNode() = default;
+
+	void setParent(ConveyorNode* p);
 };
 
 class ConveyorBase {
 private:
 	Own<ConveyorNode> node;
-
 public:
+	ConveyorBase(Own<ConveyorNode>&& node);
 	virtual ~ConveyorBase() = default;
 };
 
@@ -31,13 +38,6 @@ using ChainedConveyors = decltype(chainedConveyorType((T *)nullptr));
 template <typename Func, typename T>
 using ConveyorResult = ChainedConveyors<ReturnType<Func, T>>;
 
-template <typename T> class Conveyor : public ConveyorBase {
-private:
-public:
-	template <typename Func, typename ErrorFunc>
-	ConveyorResult<Func, T> then(Func &&func, ErrorFunc &&error_func);
-};
-
 struct PropagateError {
 public:
 	struct PropagateErrorHelper {
@@ -49,6 +49,35 @@ public:
 	PropagateErrorHelper operator(const Error& error) const;
 	PropagateErrorHelper operator(Error&& error);
 };
+
+template <typename T> class Conveyor : public ConveyorBase {
+private:
+public:
+	template <typename Func, typename ErrorFunc>
+	ConveyorResult<Func, T> then(Func &&func, ErrorFunc &&error_func);
+};
+
+template<typename T>
+class ConveyorFeeder {
+private:
+	Conveyor<T>* entry = nullptr;
+
+	friend class Conveyor<T>;
+
+	void entryDestroyed();
+public:
+	ConveyorFeeder(Conveyor<T>& conv);
+	void feed(T&& data);
+};
+
+template<typename T>
+struct ConveyorAndFeeder {
+	Own<ConveyorFeeder<T>> feeder;
+	Conveyor<T> conveyor;
+};
+
+template<typename T>
+ConveyorFeeder<T> newConveyorAndFeeder();
 
 class EventLoop;
 class Event {
@@ -110,18 +139,22 @@ public:
 	void poll();
 };
 
-class InputConveyorNode : public ConveyorNode {
-public:
-};
-
 template <typename T> class ConvertConveyorNode : public ConveyorNode {};
 
 template <typename T, size_t S>
-class ArrayBufferConveyorNode : public ConveyorNode, public Event {
+class QueueBufferConveyorNode : public ConveyorNode, public Event {
 private:
-	std::array<T, S> storage;
-
+	std::queue<T, std::array<T,S>> storage;
 public:
+	void fire() override;
+};
+
+template<typename T>
+class QueueBufferConveyorNode<T> : public ConveyorNode, public Event {
+private:
+	std::queue<T> storage;
+public:
+	void fire() override;
 };
 } // namespace gin
 // Template inlining
