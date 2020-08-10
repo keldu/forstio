@@ -3,6 +3,7 @@
 #include <list>
 
 #include "common.h"
+#include "error.h"
 #include "timer.h"
 
 namespace gin {
@@ -40,14 +41,17 @@ public:
 
 struct PropagateError {
 public:
-	struct PropagateErrorHelper {
+	struct Helper {
+	private:
 		Error error;
+	public:
+		Helper(Error&& error);
 
 		PropagateError asError();
 	};
 
-	PropagateErrorHelper operator(const Error& error) const;
-	PropagateErrorHelper operator(Error&& error);
+	PropagateError::Helper operator()(const Error& error) const;
+	PropagateError::Helper operator()(Error&& error);
 };
 
 class EventLoop;
