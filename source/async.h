@@ -55,6 +55,8 @@ public:
 	struct Helper {
 	private:
 		Error error;
+	public:
+		Helper(Error&& error);
 
 	public:
 		Helper(Error &&error);
@@ -62,8 +64,8 @@ public:
 		Error asError();
 	};
 
-	PropagateError::Helper operator()(const Error &error) const;
-	PropagateError::Helper operator()(Error &&error);
+	PropagateError::Helper operator()(const Error& error) const;
+	PropagateError::Helper operator()(Error&& error);
 };
 
 template <typename T> class Conveyor : public ConveyorBase {
