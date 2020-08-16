@@ -5,6 +5,32 @@
 namespace gin {
 namespace {
 thread_local EventLoop *local_loop = nullptr;
+
+EventLoop &currentEventLoop() {
+	EventLoop *loop = local_loop;
+	assert(loop);
+	return *loop;
+}
+} // namespace
+
+ConveyorNode::ConveyorNode() : child{nullptr}, parent{nullptr} {}
+
+ConveyorNode::ConveyorNode(Own<ConveyorNode> &&node)
+	: child{std::move(node)}, parent{nullptr} {}
+
+void ConveyorNode::setParent(ConveyorNode *p) { parent = p; }
+
+PropagateError::Helper::Helper(Error &&error) : error{std::move(error)} {}
+
+Error PropagateError::Helper::asError() { return std::move(error); }
+
+PropagateError::Helper PropagateError::operator()(const Error &error) const {
+	Error err{error};
+	return PropagateError::Helper{std::move(err)};
+}
+
+PropagateError::Helper PropagateError::operator()(Error &&error) {
+	return PropagateError::Helper{std::move(error)};
 }
 
 Event::Event(EventLoop &loop) : loop{loop} {}
@@ -146,4 +172,6 @@ void WaitScope::wait(const std::chrono::steady_clock::time_point &time_point) {
 }
 
 void WaitScope::poll() { loop.poll(); }
+
+class YieldConveyorNode final : public ConveyorNode {};
 } // namespace gin
