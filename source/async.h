@@ -1,6 +1,7 @@
 #pragma once
 
 #include <list>
+#include <limits>
 #include <queue>
 
 #include "common.h"
@@ -165,9 +166,6 @@ template <typename T> class AdaptConveyorNode;
 template <typename T> class AdaptConveyorFeeder : public ConveyorFeeder<T> {
 private:
 	AdaptConveyorNode<T> *feedee = nullptr;
-
-	std::queue<T> storage;
-
 public:
 	~AdaptConveyorFeeder();
 
@@ -185,10 +183,14 @@ class AdaptConveyorNode : public ConveyorNode, public ConveyorStorage {
 private:
 	AdaptConveyorFeeder<T> *feeder = nullptr;
 
+	std::queue<ErrorOr<T>> storage;
 public:
 	~AdaptConveyorNode();
 
 	void setFeeder(AdaptConveyorFeeder<T> *feeder);
+
+	void feed(T &&value);
+	void fail(Error &&error);
 
 	size_t space() const override;
 	size_t queued() const override;
@@ -206,7 +208,7 @@ template <typename T, size_t S>
 class QueueBufferConveyorNode : public QueueBufferConveyorNodeBase,
 								public Event {
 private:
-	std::queue<T, std::array<T, S>> storage;
+	std::queue<ErrorOr<T>, std::array<ErrorOr<T>, S>> storage;
 
 public:
 	void fire() override;
@@ -216,7 +218,7 @@ template <typename T>
 class QueueBufferConveyorNode<T, 0> : public QueueBufferConveyorNodeBase,
 									  public Event {
 private:
-	std::queue<T> storage;
+	std::queue<ErrorOr<T>> storage;
 
 public:
 	void fire() override;
@@ -246,6 +248,36 @@ void AdaptConveyorFeeder<T>::setFeedee(AdaptConveyorNode<T> *feedee_p) {
 	feedee = feedee_p;
 }
 
+template <typename T>
+void AdaptConveyorFeeder<T>::feed(T&& value) {
+	if(feedee){
+		feedee->push(std::move(value));
+	}
+}
+
+template <typename T>
+void AdaptConveyorFeeder<T>::fail(Error&& error) {
+	if(feedee){
+		feedee->fail(std::move(error));
+	}
+}
+
+template <typename T>
+size_t AdaptConveyorFeeder<T>::queued() const {
+	if(feedee){
+		return feedee->queued();
+	}
+	return 0;
+}
+
+template <typename T>
+size_t AdaptConveyorFeeder<T>::space() const {
+	if(feedee){
+		return feedee->space();
+	}
+	return 0;
+}
+
 template <typename T> AdaptConveyorNode<T>::~AdaptConveyorNode() {
 	if (feeder) {
 		feeder->setFeedee(nullptr);
@@ -256,5 +288,25 @@ template <typename T> AdaptConveyorNode<T>::~AdaptConveyorNode() {
 template <typename T>
 void AdaptConveyorNode<T>::setFeeder(AdaptConveyorFeeder<T> *feeder_p) {
 	feeder = feeder_p;
+}
+
+template <typename T>
+void AdaptConveyorNode<T>::feed(T&& value){
+	storage.push(std::move(value));
+}
+
+template <typename T>
+void AdaptConveyorNode<T>::fail(Error&& error){
+	storage.push(std::move(error));
+}
+
+template <typename T>
+size_t AdaptConveyorNode<T>::queued() const {
+	return storage.size();
+}
+
+template <typename T>
+size_t AdaptConveyorNode<T>::space() const {
+	return std::numeric_limits<size_t>::max() - storage.size();
 }
 } // namespace gin
