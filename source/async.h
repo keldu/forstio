@@ -56,9 +56,6 @@ public:
 	private:
 		Error error;
 	public:
-		Helper(Error&& error);
-
-	public:
 		Helper(Error &&error);
 
 		Error asError();
@@ -74,6 +71,13 @@ public:
 	template <typename Func, typename ErrorFunc = PropagateError>
 	ConveyorResult<Func, T> then(Func &&func,
 								 ErrorFunc &&error_func = PropagateError());
+
+
+	// Waiting and resolving
+
+
+	//
+	static Conveyor<T> toConveyor(Own<ConveyorNode>&& node, ConveyorStorage* is_storage = nullptr);
 };
 
 template <typename T> class ConveyorFeeder {
@@ -143,7 +147,6 @@ public:
 class WaitScope {
 private:
 	EventLoop &loop;
-
 public:
 	WaitScope(EventLoop &loop);
 	~WaitScope();
@@ -221,6 +224,16 @@ public:
 } // namespace gin
 // Template inlining
 namespace gin {
+template <typename T> ConveyorFeeder<T> newConveyorAndFeeder(){
+	Own<AdaptConveyorFeeder<T>> feeder = heap<AdaptConveyorFeeder<T>>();
+	Own<AdaptConveyorNode<T>> node = heap<AdaptConveyorNode<T>>();
+
+	feeder->setFeedee(node.get());
+	node->setFeeder(feeder.get());
+
+	return ConveyorFeeder<T>{std::move(feeder), Conveyor<T>::toConveyor(std::move(node))};
+}
+
 template <typename T> AdaptConveyorFeeder<T>::~AdaptConveyorFeeder() {
 	if (feedee) {
 		feedee->setFeeder(nullptr);

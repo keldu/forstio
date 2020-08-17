@@ -2,12 +2,20 @@
 
 #include "async.h"
 
-using namespace gin;
 
 GIN_TEST("Async"){
-	EventLoop event_loop;
+	using namespace gin;
 
+	EventLoop event_loop;
 	WaitScope wait_scope{event_loop};
 
 	wait_scope.wait(std::chrono::seconds{1});
+
+	auto feeder_conveyor = newConveyorAndFeeder<size_t>();
+
+	feeder_conveyor.feeder->feed(5);
+
+	size_t foo = feeder_conveyor.conveyor->take();
+
+	GIN_EXPECT(foo == 5, "Values not 5");
 }
