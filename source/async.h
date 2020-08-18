@@ -75,7 +75,7 @@ public:
 
 
 	// Waiting and resolving
-
+	ErrorOr<T> take();
 
 	//
 	static Conveyor<T> toConveyor(Own<ConveyorNode>&& node, ConveyorStorage* is_storage = nullptr);
@@ -97,7 +97,7 @@ template <typename T> struct ConveyorAndFeeder {
 	Conveyor<T> conveyor;
 };
 
-template <typename T> ConveyorFeeder<T> newConveyorAndFeeder();
+template <typename T> ConveyorAndFeeder<T> newConveyorAndFeeder();
 
 class EventLoop;
 class Event {
@@ -226,14 +226,14 @@ public:
 } // namespace gin
 // Template inlining
 namespace gin {
-template <typename T> ConveyorFeeder<T> newConveyorAndFeeder(){
+template <typename T> ConveyorAndFeeder<T> newConveyorAndFeeder(){
 	Own<AdaptConveyorFeeder<T>> feeder = heap<AdaptConveyorFeeder<T>>();
 	Own<AdaptConveyorNode<T>> node = heap<AdaptConveyorNode<T>>();
 
 	feeder->setFeedee(node.get());
 	node->setFeeder(feeder.get());
 
-	return ConveyorFeeder<T>{std::move(feeder), Conveyor<T>::toConveyor(std::move(node))};
+	return ConveyorAndFeeder<T>{std::move(feeder), Conveyor<T>::toConveyor(std::move(node))};
 }
 
 template <typename T> AdaptConveyorFeeder<T>::~AdaptConveyorFeeder() {
@@ -251,7 +251,7 @@ void AdaptConveyorFeeder<T>::setFeedee(AdaptConveyorNode<T> *feedee_p) {
 template <typename T>
 void AdaptConveyorFeeder<T>::feed(T&& value) {
 	if(feedee){
-		feedee->push(std::move(value));
+		feedee->feed(std::move(value));
 	}
 }
 
