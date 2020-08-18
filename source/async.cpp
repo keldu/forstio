@@ -20,6 +20,13 @@ ConveyorNode::ConveyorNode(Own<ConveyorNode> &&node)
 
 void ConveyorNode::setParent(ConveyorNode *p) { parent = p; }
 
+ConveyorBase::ConveyorBase(Own<ConveyorNode>&& node_p, ConveyorStorage* storage_p):
+	node{std::move(node_p)},
+	storage{storage_p}
+{
+
+}
+
 PropagateError::Helper::Helper(Error &&error) : error{std::move(error)} {}
 
 Error PropagateError::Helper::asError() { return std::move(error); }

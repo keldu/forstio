@@ -22,21 +22,22 @@ public:
 	void setParent(ConveyorNode *p);
 };
 
-class ConveyorBase {
-private:
-	Own<ConveyorNode> node;
-
-public:
-	ConveyorBase(Own<ConveyorNode> &&node);
-	virtual ~ConveyorBase() = default;
-};
-
 class ConveyorStorage {
 public:
 	virtual ~ConveyorStorage() = default;
 
 	virtual size_t space() const = 0;
 	virtual size_t queued() const = 0;
+};
+
+class ConveyorBase {
+protected:
+	Own<ConveyorNode> node;
+	
+	ConveyorStorage* storage;
+public:
+	ConveyorBase(Own<ConveyorNode> &&node_p, ConveyorStorage* storage_p = nullptr);
+	virtual ~ConveyorBase() = default;
 };
 
 template <typename T> class Conveyor;
@@ -67,15 +68,16 @@ public:
 };
 
 template <typename T> class Conveyor : public ConveyorBase {
-private:
 public:
+	Conveyor(Own<ConveyorNode>&& node_p, ConveyorStorage* storage_p);
+
 	template <typename Func, typename ErrorFunc = PropagateError>
 	ConveyorResult<Func, T> then(Func &&func,
 								 ErrorFunc &&error_func = PropagateError());
 
 
 	// Waiting and resolving
-
+	ErrorOr<T> take();
 
 	//
 	static Conveyor<T> toConveyor(Own<ConveyorNode>&& node, ConveyorStorage* is_storage = nullptr);
@@ -226,7 +228,32 @@ public:
 } // namespace gin
 // Template inlining
 namespace gin {
-template <typename T> ConveyorFeeder<T> newConveyorAndFeeder(){
+template <typename T>
+Conveyor<T>::Conveyor(Own<ConveyorNode>&& node_p, ConveyorStorage* storage_p):
+	ConveyorBase(std::move(node_p), storage_p)
+{}
+
+template <typename T>
+Conveyor<T> Conveyor<T>::toConveyor(Own<ConveyorNode>&& node, ConveyorStorage* storage){
+	return Conveyor<T>{std::move(node), storage};
+}
+
+template <typename T>
+ErrorOr<T> Conveyor<T>::take(){
+	if(storage){
+		if(storage->queued() > 0){
+			ErrorOr<T> result;
+			node->get(result);
+			return result;
+		}else{
+			return recoverableError("Conveyor buffer has no elements");
+		}
+	}else{
+		return criticalError("Conveyor in invalid state");
+	}
+}
+
+template <typename T> ConveyorAndFeeder<T> newConveyorAndFeeder(){
 	Own<AdaptConveyorFeeder<T>> feeder = heap<AdaptConveyorFeeder<T>>();
 	Own<AdaptConveyorNode<T>> node = heap<AdaptConveyorNode<T>>();
 
@@ -251,7 +278,7 @@ void AdaptConveyorFeeder<T>::setFeedee(AdaptConveyorNode<T> *feedee_p) {
 template <typename T>
 void AdaptConveyorFeeder<T>::feed(T&& value) {
 	if(feedee){
-		feedee->push(std::move(value));
+		feedee->feed(std::move(value));
 	}
 }
 
