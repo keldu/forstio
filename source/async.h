@@ -99,7 +99,7 @@ template <typename T> struct ConveyorAndFeeder {
 	Conveyor<T> conveyor;
 };
 
-template <typename T> ConveyorFeeder<T> newConveyorAndFeeder();
+template <typename T> ConveyorAndFeeder<T> newConveyorAndFeeder();
 
 class EventLoop;
 class Event {
@@ -260,7 +260,7 @@ template <typename T> ConveyorAndFeeder<T> newConveyorAndFeeder(){
 	feeder->setFeedee(node.get());
 	node->setFeeder(feeder.get());
 
-	return ConveyorFeeder<T>{std::move(feeder), Conveyor<T>::toConveyor(std::move(node))};
+	return ConveyorAndFeeder<T>{std::move(feeder), Conveyor<T>::toConveyor(std::move(node))};
 }
 
 template <typename T> AdaptConveyorFeeder<T>::~AdaptConveyorFeeder() {
