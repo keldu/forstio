@@ -11,6 +11,9 @@ Error::Error(const std::string &msg, int8_t code)
 Error::Error(const Error &error)
 	: error_message{error.error_message}, error_{error.error_} {}
 
+Error::Error(Error &&error)
+	: error_message{std::move(error.error_message)}, error_{std::move(error.error_)} {}
+
 const std::string &Error::message() const { return error_message; }
 
 bool Error::failed() const { return error_ != 0; }

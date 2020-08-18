@@ -79,7 +79,6 @@ public:
 	ConveyorResult<Func, T> then(Func &&func,
 								 ErrorFunc &&error_func = PropagateError());
 
-
 	// Waiting and resolving
 	ErrorOr<T> take();
 
@@ -344,9 +343,9 @@ size_t AdaptConveyorNode<T>::space() const {
 }
 
 template <typename T>
-void AdaptConveyorNode<T>::get(ErrorOrValue& err_or_val) override {
+void AdaptConveyorNode<T>::get(ErrorOrValue& err_or_val) {
 	if(storage.size() > 0){
-		err_or_val.as<>() = 0;
+		err_or_val.as<T>() = 0;
 	}
 }
 } // namespace gin
