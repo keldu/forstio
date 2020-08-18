@@ -15,7 +15,7 @@ GIN_TEST("Async"){
 
 	feeder_conveyor.feeder->feed(5);
 
-	ErrorOr<size_t> foo = feeder_conveyor.conveyor->take();
+	ErrorOr<size_t> foo = feeder_conveyor.conveyor.take();
 
-	GIN_EXPECT(foo == 5, "Values not 5");
+	GIN_EXPECT(foo.isValue() && foo.value() == 5, "Values not 5");
 }

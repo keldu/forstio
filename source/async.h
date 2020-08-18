@@ -20,6 +20,8 @@ public:
 	virtual ~ConveyorNode() = default;
 
 	void setParent(ConveyorNode *p);
+
+	virtual void get(ErrorOrValue& err_or_val) = 0;
 };
 
 class ConveyorStorage {
@@ -38,6 +40,8 @@ protected:
 public:
 	ConveyorBase(Own<ConveyorNode> &&node_p, ConveyorStorage* storage_p = nullptr);
 	virtual ~ConveyorBase() = default;
+
+	void get(ErrorOrValue& err_or_val);
 };
 
 template <typename T> class Conveyor;
@@ -196,6 +200,8 @@ public:
 
 	size_t space() const override;
 	size_t queued() const override;
+
+	void get(ErrorOrValue& err_or_val) override;
 };
 
 template <typename T> class ConvertConveyorNode : public ConveyorNode {};
@@ -244,12 +250,12 @@ ErrorOr<T> Conveyor<T>::take(){
 		if(storage->queued() > 0){
 			ErrorOr<T> result;
 			node->get(result);
-			return result;
+			return ErrorOr<T>{result};
 		}else{
-			return recoverableError("Conveyor buffer has no elements");
+			return ErrorOr<T>{recoverableError("Conveyor buffer has no elements")};
 		}
 	}else{
-		return criticalError("Conveyor in invalid state");
+		return ErrorOr<T>{criticalError("Conveyor in invalid state")};
 	}
 }
 
@@ -335,5 +341,12 @@ size_t AdaptConveyorNode<T>::queued() const {
 template <typename T>
 size_t AdaptConveyorNode<T>::space() const {
 	return std::numeric_limits<size_t>::max() - storage.size();
+}
+
+template <typename T>
+void AdaptConveyorNode<T>::get(ErrorOrValue& err_or_val) override {
+	if(storage.size() > 0){
+		err_or_val.as<>() = 0;
+	}
 }
 } // namespace gin

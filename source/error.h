@@ -29,6 +29,16 @@ Error noError();
 class ErrorOrValue {
 public:
 	virtual ~ErrorOrValue() = default;
+
+	template<typename T>
+	ErrorOr<T>& as(){
+		return reinterpret_cast<ErrorOr<T>&>(*this);
+	}
+
+	template<typename T>
+	const ErrorOr<T>& as() const {
+		return reinterpret_cast<const ErrorOr<T>&>(*this);
+	}
 };
 
 template <typename T> class ErrorOr : public ErrorOrValue {
@@ -36,6 +46,7 @@ private:
 	std::variant<T, Error> value_or_error;
 
 public:
+	ErrorOr() = default;
 	ErrorOr(const T &value) : value_or_error{value} {}
 
 	ErrorOr(T &&value) : value_or_error{std::move(value)} {}
