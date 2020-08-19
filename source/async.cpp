@@ -152,23 +152,23 @@ void EventLoop::leaveScope() {
 	local_loop = nullptr;
 }
 
-bool EventLoop::turn(){
-	Event* event = head;
+bool EventLoop::turn() {
+	Event *event = head;
 
-	if(!event){
+	if (!event) {
 		return false;
 	}
 
 	head = event->next;
-	if(head){
+	if (head) {
 		head->prev = &head;
 	}
 
 	next_insert_point = &head;
-	if(later_insert_point == &event->next){
+	if (later_insert_point == &event->next) {
 		later_insert_point = &head;
 	}
-	if(tail == &event->next){
+	if (tail == &event->next) {
 		tail = &head;
 	}
 
@@ -193,11 +193,11 @@ bool EventLoop::wait(const std::chrono::steady_clock::time_point &time_point) {
 bool EventLoop::wait() { return false; }
 
 bool EventLoop::poll() {
-	while(head){
-		if(!turn()){
+	while (head) {
+		if (!turn()) {
 			return false;
 		}
-	} 
+	}
 	return true;
 }
 

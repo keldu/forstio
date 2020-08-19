@@ -130,6 +130,7 @@ private:
 	Event *next = nullptr;
 
 	friend class EventLoop;
+
 public:
 	Event();
 	Event(EventLoop &loop);
@@ -163,6 +164,7 @@ private:
 	void leaveScope();
 
 	bool turn();
+
 public:
 	EventLoop();
 	~EventLoop();
@@ -284,7 +286,7 @@ public:
 			ErrorOr<T> eov;
 			child->getResult(eov);
 			storage.push(std::move(eov));
-			if(!isArmed()){
+			if (!isArmed()) {
 				armLater();
 			}
 		}
