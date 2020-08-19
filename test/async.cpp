@@ -114,17 +114,23 @@ GIN_TEST("Async Scheduling"){
 
 	auto feeder_conveyor = newConveyorAndFeeder<size_t>();
 
-	Conveyor<std::string> string_conveyor = feeder_conveyor.conveyor.
-	then([](size_t foo){
+	Conveyor<std::string> string_conveyor = feeder_conveyor.conveyor
+	.then([](size_t foo){
 		return std::to_string(foo);
 	})
 	.buffer(10)
 	.then([](const std::string& value){
 		return value + std::string{"post"};
 	})
+	.buffer(10)
+	.then([](const std::string& value){
+		return std::string{"pre"} + value;
+	})
 	.buffer(10);
 
 	feeder_conveyor.feeder->feed(10);
+	feeder_conveyor.feeder->feed(20);
+	feeder_conveyor.feeder->feed(30);
 
 	wait_scope.poll();
 
@@ -132,5 +138,17 @@ GIN_TEST("Async Scheduling"){
 
 	GIN_EXPECT(!foo.isError(), "Return is an error: " + foo.error().message());
 	GIN_EXPECT(foo.isValue(), "Return is not a value");
-	GIN_EXPECT(foo.value() == (std::to_string(10)+std::string{"post"}), "Values is not 10, but " + foo.value());
+	GIN_EXPECT(foo.value() == (std::string{"pre"} + std::to_string(10) + std::string{"post"}), "Values is not pre10post, but " + foo.value());
+
+	ErrorOr<std::string> foo_20 = string_conveyor.take();
+
+	GIN_EXPECT(!foo_20.isError(), "Return is an error: " + foo_20.error().message());
+	GIN_EXPECT(foo_20.isValue(), "Return is not a value");
+	GIN_EXPECT(foo_20.value() == (std::string{"pre"} + std::to_string(20) + std::string{"post"}), "Values is not pre10post, but " + foo_20.value());
+
+	ErrorOr<std::string> foo_30 = string_conveyor.take();
+
+	GIN_EXPECT(!foo_30.isError(), "Return is an error: " + foo_30.error().message());
+	GIN_EXPECT(foo_30.isValue(), "Return is not a value");
+	GIN_EXPECT(foo_30.value() == (std::string{"pre"} + std::to_string(30) + std::string{"post"}), "Values is not pre30post, but " + foo_30.value());
 }
