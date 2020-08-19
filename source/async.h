@@ -129,6 +129,7 @@ private:
 	Event **prev = nullptr;
 	Event *next = nullptr;
 
+	friend class EventLoop;
 public:
 	Event();
 	Event(EventLoop &loop);
@@ -161,6 +162,7 @@ private:
 	void enterScope();
 	void leaveScope();
 
+	bool turn();
 public:
 	EventLoop();
 	~EventLoop();
@@ -282,6 +284,9 @@ public:
 			ErrorOr<T> eov;
 			child->getResult(eov);
 			storage.push(std::move(eov));
+			if(!isArmed()){
+				armLater();
+			}
 		}
 	}
 };
@@ -440,6 +445,7 @@ void AdaptConveyorNode<T>::setFeeder(AdaptConveyorFeeder<T> *feeder_p) {
 
 template <typename T> void AdaptConveyorNode<T>::feed(T &&value) {
 	storage.push(std::move(value));
+	armNext();
 }
 
 template <typename T> void AdaptConveyorNode<T>::fail(Error &&error) {

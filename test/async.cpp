@@ -116,13 +116,17 @@ GIN_TEST("Async Scheduling"){
 
 	Conveyor<std::string> string_conveyor = feeder_conveyor.conveyor.then([](size_t foo){
 		return std::to_string(foo);
+	}).buffer(10).then([](const std::string& value){
+		return value + std::string{"post"};
 	}).buffer(10);
 
 	feeder_conveyor.feeder->feed(10);
+
+	wait_scope.poll();
 
 	ErrorOr<std::string> foo = string_conveyor.take();
 
 	GIN_EXPECT(!foo.isError(), "Return is an error: " + foo.error().message());
 	GIN_EXPECT(foo.isValue(), "Return is not a value");
-	GIN_EXPECT(foo.value() == std::to_string(10), "Values is not 10, but " + foo.value());
+	GIN_EXPECT(foo.value() == (std::to_string(10)+std::string{"post"}), "Values is not 10, but " + foo.value());
 }
