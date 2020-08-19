@@ -14,10 +14,10 @@ public:
 	Error(const std::string &msg);
 	Error(const std::string &msg, int8_t code);
 	Error(const Error &error);
-	Error(Error&& error);
+	Error(Error &&error);
 
-	Error& operator=(const Error&) = default;
-	Error& operator=(Error&&) = default;
+	Error &operator=(const Error &) = default;
+	Error &operator=(Error &&) = default;
 
 	const std::string &message() const;
 	bool failed() const;
@@ -30,21 +30,18 @@ Error criticalError(const std::string &msg);
 Error recoverableError(const std::string &msg);
 Error noError();
 
-template<typename T>
-class ErrorOr;
+template <typename T> class ErrorOr;
 
 class ErrorOrValue {
 public:
 	virtual ~ErrorOrValue() = default;
 
-	template<typename T>
-	ErrorOr<T>& as(){
-		return reinterpret_cast<ErrorOr<T>&>(*this);
+	template <typename T> ErrorOr<T> &as() {
+		return reinterpret_cast<ErrorOr<T> &>(*this);
 	}
 
-	template<typename T>
-	const ErrorOr<T>& as() const {
-		return reinterpret_cast<const ErrorOr<T>&>(*this);
+	template <typename T> const ErrorOr<T> &as() const {
+		return reinterpret_cast<const ErrorOr<T> &>(*this);
 	}
 };
 

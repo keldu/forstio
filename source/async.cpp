@@ -13,19 +13,15 @@ EventLoop &currentEventLoop() {
 }
 } // namespace
 
-ConveyorNode::ConveyorNode() : child{nullptr}, parent{nullptr} {}
+ConveyorNode::ConveyorNode() : child{nullptr} {}
 
-ConveyorNode::ConveyorNode(Own<ConveyorNode> &&node)
-	: child{std::move(node)}, parent{nullptr} {}
+ConveyorNode::ConveyorNode(Own<ConveyorNode> &&node) : child{std::move(node)} {}
 
-void ConveyorNode::setParent(ConveyorNode *p) { parent = p; }
+void ConveyorStorage::setParent(ConveyorStorage *p) { parent = p; }
 
-ConveyorBase::ConveyorBase(Own<ConveyorNode>&& node_p, ConveyorStorage* storage_p):
-	node{std::move(node_p)},
-	storage{storage_p}
-{
-
-}
+ConveyorBase::ConveyorBase(Own<ConveyorNode> &&node_p,
+						   ConveyorStorage *storage_p)
+	: node{std::move(node_p)}, storage{storage_p} {}
 
 PropagateError::Helper::Helper(Error &&error) : error{std::move(error)} {}
 
@@ -39,6 +35,8 @@ PropagateError::Helper PropagateError::operator()(const Error &error) const {
 PropagateError::Helper PropagateError::operator()(Error &&error) {
 	return PropagateError::Helper{std::move(error)};
 }
+
+Event::Event() : Event(currentEventLoop()) {}
 
 Event::Event(EventLoop &loop) : loop{loop} {}
 
@@ -117,7 +115,7 @@ void Event::armLast() {
 }
 
 void Event::disarm() {
-	if (!prev) {
+	if (prev != nullptr) {
 		if (loop.tail == &next) {
 			loop.tail = prev;
 		}
@@ -135,6 +133,8 @@ void Event::disarm() {
 		next = nullptr;
 	}
 }
+
+bool Event::isArmed() const { return prev != nullptr; }
 
 void EventLoop::setRunnable(bool runnable) { is_runnable = runnable; }
 
@@ -180,5 +180,10 @@ void WaitScope::wait(const std::chrono::steady_clock::time_point &time_point) {
 
 void WaitScope::poll() { loop.poll(); }
 
-class YieldConveyorNode final : public ConveyorNode {};
+ConvertConveyorNodeBase::ConvertConveyorNodeBase(Own<ConveyorNode> &&dep)
+	: ConveyorNode{std::move(dep)} {}
+
+void ConvertConveyorNodeBase::getResult(ErrorOrValue &err_or_val) {
+	getImpl(err_or_val);
+}
 } // namespace gin
