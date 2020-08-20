@@ -11,5 +11,3 @@ dir_path = Dir('.').abspath
 
 env.sources += sorted(glob.glob(dir_path + "/*.cpp"))
 env.headers += sorted(glob.glob(dir_path + "/*.h"))
-
-env.add_source_files(env.objects, env.sources)

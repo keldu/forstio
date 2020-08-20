@@ -8,6 +8,7 @@
 
 # Object files
 *.o
+*.os
 *.ko
 *.obj
 *.elf
