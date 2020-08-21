@@ -43,18 +43,6 @@ env.objects = []
 Export('env')
 SConscript('source/SConscript')
 
-# Clang format part
-env.Append(BUILDERS={'ClangFormat' : Builder(action = 'clang-format --style=file -i $SOURCE')})
-env.format_actions = []
-def format_iter(env,files):
-    for f in files:
-        env.format_actions.append(env.AlwaysBuild(env.ClangFormat(target=f+"-clang-format",source=f)))
-    pass
-
-format_iter(env,env.sources + env.headers)
-
-env.Alias('format', env.format_actions)
-
 # Library build
 
 env_library = env.Clone()
@@ -78,3 +66,14 @@ SConscript('test/SConscript')
 
 env.Alias('test', env.test_program)
 
+# Clang format part
+env.Append(BUILDERS={'ClangFormat' : Builder(action = 'clang-format --style=file -i $SOURCE')})
+env.format_actions = []
+def format_iter(env,files):
+    for f in files:
+        env.format_actions.append(env.AlwaysBuild(env.ClangFormat(target=f+"-clang-format",source=f)))
+    pass
+
+format_iter(env,env.sources + env.headers)
+
+env.Alias('format', env.format_actions)
