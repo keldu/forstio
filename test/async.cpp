@@ -144,7 +144,7 @@ GIN_TEST("Async Scheduling"){
 
 	GIN_EXPECT(!foo_20.isError(), "Return is an error: " + foo_20.error().message());
 	GIN_EXPECT(foo_20.isValue(), "Return is not a value");
-	GIN_EXPECT(foo_20.value() == (std::string{"pre"} + std::to_string(20) + std::string{"post"}), "Values is not pre10post, but " + foo_20.value());
+	GIN_EXPECT(foo_20.value() == (std::string{"pre"} + std::to_string(20) + std::string{"post"}), "Values is not pre20post, but " + foo_20.value());
 
 	ErrorOr<std::string> foo_30 = string_conveyor.take();
 
