@@ -40,7 +40,6 @@ protected:
 	Own<ConveyorNode> node;
 
 	ConveyorStorage *storage;
-
 public:
 	ConveyorBase(Own<ConveyorNode> &&node_p,
 				 ConveyorStorage *storage_p = nullptr);
@@ -93,6 +92,12 @@ public:
 	 * scheduler interruption point.
 	 */
 	Conveyor<T> buffer(size_t limit = std::numeric_limits<size_t>::max());
+
+	/*
+	* This method just takes ownership of any supplied types
+	*/
+	template<typename... Args>
+	Conveyor<T> attach(Args&&... args);
 
 	// Waiting and resolving
 	ErrorOr<T> take();
@@ -293,6 +298,26 @@ public:
 	}
 };
 
+class AttachConveyorNodeBase : public ConveyorNode {
+public:
+	AttachConveyorNodeBase(Own<ConveyorNode>&& dep):
+		ConveyorNode(std::move(dep))
+	{}
+
+	void getResult(ErrorOrValue& err_or_val) override;
+};
+
+template<typename... Args>
+class AttachConveyorNode : public AttachConveyorNodeBase {
+private:
+	std::tuple<Args...> attached_data;
+public:
+	AttachConveyorNode(Own<ConveyorNode>&& dep, Args&&... args):
+		AttachConveyorNodeBase(std::move(dep)),
+		attached_data{std::move(args...)}
+	{}
+};
+
 class ConvertConveyorNodeBase : public ConveyorNode {
 public:
 	ConvertConveyorNodeBase(Own<ConveyorNode> &&dep);
@@ -358,6 +383,13 @@ template <typename T> Conveyor<T> Conveyor<T>::buffer(size_t size) {
 		static_cast<ConveyorStorage *>(storage_node.get());
 	storage->setParent(storage_ptr);
 	return Conveyor<T>{std::move(storage_node), storage_ptr};
+}
+
+template<typename T>
+template<typename... Args>
+Conveyor<T> Conveyor<T>::attach(Args&&... args){
+	Own<AttachConveyorNode<Args...>> attach_node = heap<AttachConveyorNode<Args...>>(std::move(node), std::move(args...));
+	return Conveyor<T>{std::move(attach_node), storage};
 }
 
 template <typename T>
