@@ -40,6 +40,7 @@ protected:
 	Own<ConveyorNode> node;
 
 	ConveyorStorage *storage;
+
 public:
 	ConveyorBase(Own<ConveyorNode> &&node_p,
 				 ConveyorStorage *storage_p = nullptr);
@@ -94,10 +95,9 @@ public:
 	Conveyor<T> buffer(size_t limit = std::numeric_limits<size_t>::max());
 
 	/*
-	* This method just takes ownership of any supplied types
-	*/
-	template<typename... Args>
-	Conveyor<T> attach(Args&&... args);
+	 * This method just takes ownership of any supplied types
+	 */
+	template <typename... Args> Conveyor<T> attach(Args &&... args);
 
 	// Waiting and resolving
 	ErrorOr<T> take();
@@ -126,6 +126,8 @@ template <typename T> struct ConveyorAndFeeder {
 };
 
 template <typename T> ConveyorAndFeeder<T> newConveyorAndFeeder();
+
+template <typename T> ConveyorAndFeeder<T> oneTimeConveyorAndFeeder();
 
 class EventLoop;
 class Event {
@@ -247,6 +249,47 @@ public:
 	void fire() override;
 };
 
+template <typename T> class OneTimeConveyorNode;
+
+template <typename T> class OneTimeConveyorFeeder : public ConveyorFeeder<T> {
+private:
+	OneTimeConveyorNode<T> *feedee = nullptr;
+
+public:
+	~OneTimeConveyorFeeder();
+
+	void setFeedee(OneTimeConveyorNode<T> *feedee);
+
+	void feed(T &&value) override;
+	void fail(Error &&error) override;
+
+	size_t space() const override;
+};
+
+template <typename T>
+class OneTimeConveyorNode : public ConveyorNode,
+							public ConveyorStorage,
+							public Event {
+private:
+	OneTimeConveyorFeeder<T> *feeder = nullptr;
+
+	bool passed = false;
+	Maybe<ErrorOr<T>> storage = std::nullopt;
+public: ~OneTimeConveyorNode();
+
+	// ConveyorNode
+	void getResult(ErrorOrValue &err_or_val) override;
+
+	// ConveyorStorage
+	size_t space() const override;
+	size_t queued() const override;
+
+	void childFired() override {}
+
+	// Event
+	void fire() override;
+};
+
 class QueueBufferConveyorNodeBase : public ConveyorNode,
 									public ConveyorStorage {
 public:
@@ -300,22 +343,21 @@ public:
 
 class AttachConveyorNodeBase : public ConveyorNode {
 public:
-	AttachConveyorNodeBase(Own<ConveyorNode>&& dep):
-		ConveyorNode(std::move(dep))
-	{}
+	AttachConveyorNodeBase(Own<ConveyorNode> &&dep)
+		: ConveyorNode(std::move(dep)) {}
 
-	void getResult(ErrorOrValue& err_or_val) override;
+	void getResult(ErrorOrValue &err_or_val) override;
 };
 
-template<typename... Args>
+template <typename... Args>
 class AttachConveyorNode : public AttachConveyorNodeBase {
 private:
 	std::tuple<Args...> attached_data;
+
 public:
-	AttachConveyorNode(Own<ConveyorNode>&& dep, Args&&... args):
-		AttachConveyorNodeBase(std::move(dep)),
-		attached_data{std::move(args...)}
-	{}
+	AttachConveyorNode(Own<ConveyorNode> &&dep, Args &&... args)
+		: AttachConveyorNodeBase(std::move(dep)), attached_data{
+													  std::move(args...)} {}
 };
 
 class ConvertConveyorNodeBase : public ConveyorNode {
@@ -361,6 +403,15 @@ public:
 
 // Template inlining
 namespace gin {
+template<typename T>
+T reduceErrorOrType(T*);
+
+template<typename T>
+T reduceErrorOrType(ErrorOr<T>*);
+
+template<typename T>
+using ReduceErrorOr = decltype(reduceErrorOrType((T*)nullptr));
+
 template <typename T>
 Conveyor<T>::Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p)
 	: ConveyorBase(std::move(node_p), storage_p) {}
@@ -369,10 +420,10 @@ template <typename T>
 template <typename Func, typename ErrorFunc>
 ConveyorResult<Func, T> Conveyor<T>::then(Func &&func, ErrorFunc &&error_func) {
 	Own<ConveyorNode> conversion_node =
-		heap<ConvertConveyorNode<ReturnType<Func, T>, T, Func, ErrorFunc>>(
+		heap<ConvertConveyorNode<ReduceErrorOr<ReturnType<Func, T>>, T, Func, ErrorFunc>>(
 			std::move(node), std::move(func), std::move(error_func));
 
-	return Conveyor<ReturnType<Func, T>>::toConveyor(std::move(conversion_node),
+	return Conveyor<ReduceErrorOr<ReturnType<Func, T>>>::toConveyor(std::move(conversion_node),
 													 storage);
 }
 
@@ -385,10 +436,11 @@ template <typename T> Conveyor<T> Conveyor<T>::buffer(size_t size) {
 	return Conveyor<T>{std::move(storage_node), storage_ptr};
 }
 
-template<typename T>
-template<typename... Args>
-Conveyor<T> Conveyor<T>::attach(Args&&... args){
-	Own<AttachConveyorNode<Args...>> attach_node = heap<AttachConveyorNode<Args...>>(std::move(node), std::move(args...));
+template <typename T>
+template <typename... Args>
+Conveyor<T> Conveyor<T>::attach(Args &&... args) {
+	Own<AttachConveyorNode<Args...>> attach_node =
+		heap<AttachConveyorNode<Args...>>(std::move(node), std::move(args...));
 	return Conveyor<T>{std::move(attach_node), storage};
 }
 

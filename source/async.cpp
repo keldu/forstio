@@ -224,8 +224,8 @@ void ConvertConveyorNodeBase::getResult(ErrorOrValue &err_or_val) {
 	getImpl(err_or_val);
 }
 
-void AttachConveyorNodeBase::getResult(ErrorOrValue& err_or_val){
-	if(child){
+void AttachConveyorNodeBase::getResult(ErrorOrValue &err_or_val) {
+	if (child) {
 		child->getResult(err_or_val);
 	}
 }

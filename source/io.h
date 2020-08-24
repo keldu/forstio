@@ -1,7 +1,7 @@
 #pragma once
 
-#include "common.h"
 #include "async.h"
+#include "common.h"
 
 namespace gin {
 #ifdef GIN_UNIX
@@ -42,14 +42,14 @@ class AsyncIoProvider {
 public:
 	virtual ~AsyncIoProvider() = default;
 
-	virtual Own<NetworkAddress> parse(const std::string&) = 0;
+	virtual Own<NetworkAddress> parse(const std::string &) = 0;
 };
 
 struct AsyncIoContext {
 	Own<AsyncIoProvider> io;
-	EventLoop& loop;
-	WaitScope& wait_scope;
+	EventLoop &loop;
+	WaitScope &wait_scope;
 };
 
 AsyncIoContext setupAsyncIo();
-}
+} // namespace gin
