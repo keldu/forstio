@@ -136,11 +136,10 @@ public:
 		::close(signal_fd);
 	}
 
-	/*
+	
 	Conveyor<void> onSignal(Signal signal) override {
 		auto caf = newConveyorAndFeeder<void>();
 	}
-	*/
 
 	void subscribe(IFdOwner& owner, int fd, uint32_t event_mask){
 		if(epoll_fd < 0 || fd < 0){

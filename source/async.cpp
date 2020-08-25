@@ -23,17 +23,13 @@ ConveyorBase::ConveyorBase(Own<ConveyorNode> &&node_p,
 						   ConveyorStorage *storage_p)
 	: node{std::move(node_p)}, storage{storage_p} {}
 
-PropagateError::Helper::Helper(Error &&error) : error{std::move(error)} {}
-
-Error PropagateError::Helper::asError() { return std::move(error); }
-
-PropagateError::Helper PropagateError::operator()(const Error &error) const {
+Error PropagateError::operator()(const Error &error) const {
 	Error err{error};
-	return PropagateError::Helper{std::move(err)};
+	return err;
 }
 
-PropagateError::Helper PropagateError::operator()(Error &&error) {
-	return PropagateError::Helper{std::move(error)};
+Error PropagateError::operator()(Error &&error) {
+	return std::move(error);
 }
 
 Event::Event() : Event(currentEventLoop()) {}
