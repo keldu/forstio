@@ -140,6 +140,10 @@ void EventLoop::setRunnable(bool runnable) { is_runnable = runnable; }
 
 EventLoop::EventLoop() {}
 
+EventLoop::EventLoop(Own<EventPort>&& event_port):
+	event_port{std::move(event_port)}
+{}
+
 EventLoop::~EventLoop() { assert(local_loop != this); }
 
 void EventLoop::enterScope() {
@@ -175,9 +179,9 @@ bool EventLoop::turn() {
 	event->next = nullptr;
 	event->prev = nullptr;
 
-	event->fire();
-
 	next_insert_point = &head;
+
+	event->fire();
 
 	return true;
 }
@@ -199,6 +203,10 @@ bool EventLoop::poll() {
 		}
 	}
 	return true;
+}
+
+EventPort* EventLoop::eventPort(){
+	return event_port.get();
 }
 
 WaitScope::WaitScope(EventLoop &loop) : loop{loop} { loop.enterScope(); }

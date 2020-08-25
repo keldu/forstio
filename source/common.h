@@ -31,8 +31,6 @@ template <typename T, class... Args> Our<T> share(Args &&... args) {
 	return std::make_shared<T>(std::forward<Args>(args)...);
 }
 
-struct Void {};
-
 template <typename T> T instance() noexcept;
 
 template <typename Func, typename T> struct ReturnTypeHelper {
@@ -41,6 +39,18 @@ template <typename Func, typename T> struct ReturnTypeHelper {
 template <typename Func> struct ReturnTypeHelper<Func, void> {
 	typedef decltype(instance<Func>()()) Type;
 };
+
+struct Void {};
+
+template <typename T>
+struct VoidFix { typedef T Type;};
+template<> struct VoidFix<void> {typedef Void Type; };
+template<typename T> using FixVoid = typename VoidFix<T>::Type;
+
+template<typename T>
+struct VoidUnfix {typedef T Type;};
+template<> struct VoidUnfix<Void> {typedef void Type;};
+template<typename T> using UnfixVoid = typename VoidUnfix<T>::Type;
 
 template <typename Func, typename T>
 using ReturnType = typename ReturnTypeHelper<Func, T>::Type;

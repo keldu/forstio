@@ -3,6 +3,8 @@
 #include <string>
 #include <variant>
 
+#include "common.h"
+
 namespace gin {
 class Error {
 private:
@@ -48,7 +50,6 @@ public:
 template <typename T> class ErrorOr : public ErrorOrValue {
 private:
 	std::variant<T, Error> value_or_error;
-
 public:
 	ErrorOr() = default;
 	ErrorOr(const T &value) : value_or_error{value} {}
@@ -70,4 +71,6 @@ public:
 
 	const T &value() const { return std::get<T>(value_or_error); }
 };
+
+
 } // namespace gin

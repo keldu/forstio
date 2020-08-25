@@ -3,6 +3,8 @@
 #include "async.h"
 #include "common.h"
 
+#include <string>
+
 namespace gin {
 #ifdef GIN_UNIX
 #define Fd int;
@@ -36,18 +38,20 @@ public:
 
 	virtual Own<Server> listen() = 0;
 	virtual Own<IoStream> connect() = 0;
+
+	virtual std::string toString() = 0;
 };
 
 class AsyncIoProvider {
 public:
 	virtual ~AsyncIoProvider() = default;
 
-	virtual Own<NetworkAddress> parse(const std::string &) = 0;
+	virtual Own<NetworkAddress> parseAddress(const std::string &) = 0;
 };
 
 struct AsyncIoContext {
 	Own<AsyncIoProvider> io;
-	EventLoop &loop;
+	EventPort &event_port;
 	WaitScope &wait_scope;
 };
 

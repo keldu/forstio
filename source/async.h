@@ -153,6 +153,22 @@ public:
 	bool isArmed() const;
 };
 
+enum class Signal : uint8_t {
+	Terminate
+};
+
+class EventPort {
+public:
+	virtual ~EventPort() = default;
+
+	// virtual Conveyor<void> onSignal(Signal signal) = 0;
+};
+
+class ConveyorSink {
+private:
+public:
+};
+
 class EventLoop {
 private:
 	friend class Event;
@@ -162,6 +178,10 @@ private:
 	Event **later_insert_point = &head;
 
 	bool is_runnable = false;
+
+	Own<EventPort> event_port = nullptr;
+
+	//ConveyorSink daemons;
 
 	// functions
 	void setRunnable(bool runnable);
@@ -174,12 +194,15 @@ private:
 
 public:
 	EventLoop();
+	EventLoop(Own<EventPort>&& port);
 	~EventLoop();
 
 	bool wait();
 	bool wait(const std::chrono::steady_clock::duration &);
 	bool wait(const std::chrono::steady_clock::time_point &);
 	bool poll();
+
+	EventPort* eventPort();
 };
 
 class WaitScope {
@@ -200,6 +223,40 @@ public:
 // Secret stuff
 // Aka private semi hidden classes
 namespace gin {
+
+template<typename Out, typename In>
+struct FixVoidCaller {
+	template<typename Func>
+	static Out apply(Func& func, In&& in){
+		return func(std::move(in));
+	}
+};
+
+template<typename Out>
+struct FixVoidCaller<Out,Void> {
+	template<typename Func>
+	static Out apply(Func& func, Void&& in){
+		return func();
+	}
+};
+
+template<typename In>
+struct FixVoidCaller<Void,In> {
+	template<typename Func>
+	static Void apply(Func& func, In&& in){
+		func(std::move(in));
+		return Void{};
+	}
+};
+
+template<>
+struct FixVoidCaller<Void,Void> {
+	template<typename Func>
+	static Void apply(Func& func, Void&& in){
+		func();
+		return Void{};
+	}
+};
 
 template <typename T> class AdaptConveyorNode;
 
@@ -310,7 +367,6 @@ public:
 		: QueueBufferConveyorNodeBase(std::move(dep)), max_store{max_size} {}
 	// Event
 	void fire() override {
-		disarm();
 		if (parent) {
 			parent->childFired();
 			if (!storage.empty()) {
