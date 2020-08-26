@@ -171,9 +171,25 @@ public:
 	virtual Conveyor<void> onSignal(Signal signal) = 0;
 };
 
-class ConveyorSink {
+class SinkConveyorNodeBase;
+class ConveyorSink : public Event {
 private:
+	friend class SinkConveyorNodeBase;
+
+	void destroySinkConveyorNode(ConveyorNode& sink_node);
+
+	std::list<Own<ConveyorNode>> sink_nodes;
+
+	std::queue<ConveyorNode*> delete_nodes;
 public:
+	ConveyorSink() = default;
+	ConveyorSink(EventLoop& loop);
+
+	void add(Conveyor<void>&& node);
+
+	void fire() override {
+		/// @todo delete dangling nodes
+	}
 };
 
 class EventLoop {
@@ -376,6 +392,15 @@ public:
 		: QueueBufferConveyorNodeBase(std::move(dep)), max_store{max_size} {}
 	// Event
 	void fire() override {
+		if(child){
+			if(!storage.empty()){
+				if(storage.front().isError()){
+					if(storage.front().error().isCritical()){
+						child = nullptr;
+					}
+				}
+			}
+		}
 		if (parent) {
 			parent->childFired();
 			if (!storage.empty()) {
@@ -464,19 +489,25 @@ public:
 	}
 };
 
-template<typename ErrorFunc>
-class SinkConveyorNode : public ConveyorNode, public ConveyorStorage, public Event {
+class SinkConveyorNodeBase : public ConveyorNode, public ConveyorStorage, public Event {
 private:
-	ErrorFunc error_func;
+	ConveyorSink* conveyor_sink;
 public:
-	SinkConveyorNode(Own<ConveyorNode>&& node, ErrorFunc&& err_func):
+	SinkConveyorNodeBase(Own<ConveyorNode>&& node, ConveyorSink& conv_sink):
 		ConveyorNode(std::move(node)),
-		error_func{std::move(err_func)}
+		conveyor_sink{&conv_sink}
 	{}
 
 	// Event
 	void fire() override {
-		// Does nothing, because this acts as a sink
+		// Queued for destruction of children, because this acts as a sink and no other event should
+		// be here
+		child = nullptr;
+
+		if(conveyor_sink){
+			conveyor_sink->destroySinkConveyorNode(*this);
+			conveyor_sink = nullptr;
+		}
 	}
 
 	// ConveyorStorage
@@ -487,18 +518,41 @@ public:
 		return 0;
 	}
 
+	// ConveyorNode
+	void getResult(ErrorOrValue &err_or_val) override {
+		err_or_val.as<Void>() = criticalError("In a sink node no result can be returned");
+	}
+};
+
+template<typename ErrorFunc>
+class SinkConveyorNode : public SinkConveyorNodeBase {
+private:
+	ErrorFunc error_func;
+
+	friend class ConveyorSink;
+
+	ConveyorSink* conveyor_sink;
+public:
+	SinkConveyorNode(Own<ConveyorNode>&& node, ConveyorSink& conv_sink, ErrorFunc&& err_func):
+		SinkConveyorNodeBase(std::move(node), conv_sink),
+		error_func{std::move(err_func)}
+	{}
+
+	// ConveyorStorage
 	void childFired() override {
 		if(child){
 			ErrorOr<Void> dep_eov;
 			child->getResult(dep_eov);
 			if(dep_eov.isError()){
+				if(dep_eov.error().isCritical()){
+					if(!isArmed()){
+						armLast();
+					}
+				}
 				error_func(dep_eov.error());
 			}
 		}
 	}
-
-	// ConveyorNode
-	void getResult(ErrorOrValue &err_or_val) override;
 };
 
 } // namespace gin

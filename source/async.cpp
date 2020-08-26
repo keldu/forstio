@@ -1,6 +1,9 @@
 #include "async.h"
 
 #include <cassert>
+#include <algorithm>
+
+#include <iostream>
 
 namespace gin {
 namespace {
@@ -134,10 +137,10 @@ bool Event::isArmed() const { return prev != nullptr; }
 
 void EventLoop::setRunnable(bool runnable) { is_runnable = runnable; }
 
-EventLoop::EventLoop() {}
+EventLoop::EventLoop() : daemons{*this} {}
 
 EventLoop::EventLoop(Own<EventPort>&& event_port):
-	event_port{std::move(event_port)}
+	event_port{std::move(event_port)}, daemons{*this}
 {}
 
 EventLoop::~EventLoop() { assert(local_loop != this); }
@@ -220,6 +223,22 @@ void WaitScope::wait(const std::chrono::steady_clock::time_point &time_point) {
 }
 
 void WaitScope::poll() { loop.poll(); }
+
+ConveyorSink::ConveyorSink(EventLoop& loop):
+	Event(loop)
+{}
+
+void ConveyorSink::destroySinkConveyorNode(ConveyorNode& node){
+	if(!isArmed()){
+		armLast();
+	}
+
+	while(!delete_nodes.empty()){
+		auto result = std::find_if(sink_nodes.begin(), sink_nodes.end(), [&node](Own<ConveyorNode>& element){
+			return &node == element.get();
+		});
+	}
+}
 
 ConvertConveyorNodeBase::ConvertConveyorNodeBase(Own<ConveyorNode> &&dep)
 	: ConveyorNode{std::move(dep)} {}
