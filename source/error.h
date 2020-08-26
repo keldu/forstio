@@ -65,6 +65,8 @@ public:
 		return std::holds_alternative<Error>(value_or_error);
 	}
 
+	Error& error() {return std::get<Error>(value_or_error);}
+
 	const Error &error() const { return std::get<Error>(value_or_error); }
 
 	T &value() { return std::get<T>(value_or_error); }

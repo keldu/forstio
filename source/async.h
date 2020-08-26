@@ -3,6 +3,7 @@
 #include <limits>
 #include <list>
 #include <queue>
+#include <functional>
 
 #include "common.h"
 #include "error.h"
@@ -72,7 +73,7 @@ public:
 	Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p);
 
 	/*
-	 * This method converts passed values or errors from
+	 * This method converts passed values or errors from children
 	 */
 	template <typename Func, typename ErrorFunc = PropagateError>
 	ConveyorResult<Func, T> then(Func &&func,
@@ -100,9 +101,12 @@ public:
 
 	void poll();
 
-	//
+	// helper
 	static Conveyor<T> toConveyor(Own<ConveyorNode> &&node,
 								  ConveyorStorage *is_storage = nullptr);
+
+	// helper
+	static std::pair<Own<ConveyorNode>, ConveyorStorage*> fromConveyor(Conveyor<T>&& conveyor);
 };
 
 template <typename T> class ConveyorFeeder {
@@ -171,25 +175,26 @@ public:
 	virtual Conveyor<void> onSignal(Signal signal) = 0;
 };
 
-class SinkConveyorNodeBase;
+class SinkConveyorNode;
+
 class ConveyorSink : public Event {
 private:
-	friend class SinkConveyorNodeBase;
+	friend class SinkConveyorNode;
 
 	void destroySinkConveyorNode(ConveyorNode& sink_node);
+	void fail(Error&& error);
 
 	std::list<Own<ConveyorNode>> sink_nodes;
 
 	std::queue<ConveyorNode*> delete_nodes;
+
+	std::function<void(Error&& error)> error_handler;
 public:
 	ConveyorSink() = default;
-	ConveyorSink(EventLoop& loop);
 
 	void add(Conveyor<void>&& node);
 
-	void fire() override {
-		/// @todo delete dangling nodes
-	}
+	void fire() override;
 };
 
 class EventLoop {
@@ -204,7 +209,7 @@ private:
 
 	Own<EventPort> event_port = nullptr;
 
-	ConveyorSink daemons;
+	Own<ConveyorSink> daemon_sink = nullptr;
 
 	// functions
 	void setRunnable(bool runnable);
@@ -226,6 +231,8 @@ public:
 	bool poll();
 
 	EventPort* eventPort();
+
+	ConveyorSink& daemon();
 };
 
 class WaitScope {
@@ -489,11 +496,11 @@ public:
 	}
 };
 
-class SinkConveyorNodeBase : public ConveyorNode, public ConveyorStorage, public Event {
+class SinkConveyorNode : public ConveyorNode, public ConveyorStorage, public Event {
 private:
 	ConveyorSink* conveyor_sink;
 public:
-	SinkConveyorNodeBase(Own<ConveyorNode>&& node, ConveyorSink& conv_sink):
+	SinkConveyorNode(Own<ConveyorNode>&& node, ConveyorSink& conv_sink):
 		ConveyorNode(std::move(node)),
 		conveyor_sink{&conv_sink}
 	{}
@@ -522,21 +529,6 @@ public:
 	void getResult(ErrorOrValue &err_or_val) override {
 		err_or_val.as<Void>() = criticalError("In a sink node no result can be returned");
 	}
-};
-
-template<typename ErrorFunc>
-class SinkConveyorNode : public SinkConveyorNodeBase {
-private:
-	ErrorFunc error_func;
-
-	friend class ConveyorSink;
-
-	ConveyorSink* conveyor_sink;
-public:
-	SinkConveyorNode(Own<ConveyorNode>&& node, ConveyorSink& conv_sink, ErrorFunc&& err_func):
-		SinkConveyorNodeBase(std::move(node), conv_sink),
-		error_func{std::move(err_func)}
-	{}
 
 	// ConveyorStorage
 	void childFired() override {
@@ -549,7 +541,9 @@ public:
 						armLast();
 					}
 				}
-				error_func(dep_eov.error());
+				if(conveyor_sink){
+					conveyor_sink->fail(std::move(dep_eov.error()));
+				}
 			}
 		}
 	}
@@ -600,10 +594,29 @@ Conveyor<T> Conveyor<T>::attach(Args &&... args) {
 	return Conveyor<T>{std::move(attach_node), storage};
 }
 
+void detachConveyor(Conveyor<void>&& conveyor);
+
+template<typename T>
+template<typename ErrorFunc>
+void Conveyor<T>::detach(ErrorFunc&& func){
+	detachConveyor(then([](T&&){}, std::move(func)));
+}
+
+template<>
+template<typename ErrorFunc>
+void Conveyor<void>::detach(ErrorFunc&& func){
+	detachConveyor(then([](){}, std::move(func)));
+}
+
 template <typename T>
 Conveyor<T> Conveyor<T>::toConveyor(Own<ConveyorNode> &&node,
 									ConveyorStorage *storage) {
 	return Conveyor<T>{std::move(node), storage};
+}
+
+template<typename T>
+std::pair<Own<ConveyorNode>, ConveyorStorage*> Conveyor<T>::fromConveyor(Conveyor<T>&& conveyor){
+	return std::make_pair(std::move(conveyor.node), conveyor.storage);
 }
 
 template <typename T> ErrorOr<FixVoid<T>> Conveyor<T>::take() {

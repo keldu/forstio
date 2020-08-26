@@ -137,10 +137,10 @@ bool Event::isArmed() const { return prev != nullptr; }
 
 void EventLoop::setRunnable(bool runnable) { is_runnable = runnable; }
 
-EventLoop::EventLoop() : daemons{*this} {}
+EventLoop::EventLoop(){}
 
 EventLoop::EventLoop(Own<EventPort>&& event_port):
-	event_port{std::move(event_port)}, daemons{*this}
+	event_port{std::move(event_port)}
 {}
 
 EventLoop::~EventLoop() { assert(local_loop != this); }
@@ -208,6 +208,13 @@ EventPort* EventLoop::eventPort(){
 	return event_port.get();
 }
 
+ConveyorSink& EventLoop::daemon(){
+	if(!daemon_sink){
+		daemon_sink = heap<ConveyorSink>();
+	}
+	return *daemon_sink;
+}
+
 WaitScope::WaitScope(EventLoop &loop) : loop{loop} { loop.enterScope(); }
 
 WaitScope::~WaitScope() { loop.leaveScope(); }
@@ -224,19 +231,33 @@ void WaitScope::wait(const std::chrono::steady_clock::time_point &time_point) {
 
 void WaitScope::poll() { loop.poll(); }
 
-ConveyorSink::ConveyorSink(EventLoop& loop):
-	Event(loop)
-{}
-
 void ConveyorSink::destroySinkConveyorNode(ConveyorNode& node){
 	if(!isArmed()){
 		armLast();
 	}
 
+	delete_nodes.push(&node);
+}
+
+void ConveyorSink::fail(Error&& error){
+	/// @todo call error_handler
+}
+
+void ConveyorSink::add(Conveyor<void>&& sink){
+	auto nas = Conveyor<void>::fromConveyor(std::move(sink));
+	Own<SinkConveyorNode> sink_node = heap<SinkConveyorNode>(std::move(nas.first), *this);
+	if(nas.second){
+		nas.second->setParent(sink_node.get());
+	}
+}
+
+void ConveyorSink::fire(){
 	while(!delete_nodes.empty()){
-		auto result = std::find_if(sink_nodes.begin(), sink_nodes.end(), [&node](Own<ConveyorNode>& element){
-			return &node == element.get();
+		ConveyorNode* node = delete_nodes.front();
+		/*auto erased = */std::remove_if(sink_nodes.begin(), sink_nodes.end(), [node](Own<ConveyorNode>& element){
+			return node == element.get();
 		});
+		delete_nodes.pop();
 	}
 }
 
@@ -251,5 +272,11 @@ void AttachConveyorNodeBase::getResult(ErrorOrValue &err_or_val) {
 	if (child) {
 		child->getResult(err_or_val);
 	}
+}
+
+void detachConveyor(Conveyor<void>&& conveyor){
+	EventLoop& loop = currentEventLoop();
+	ConveyorSink& sink = loop.daemon();
+	sink.add(std::move(conveyor));
 }
 } // namespace gin
