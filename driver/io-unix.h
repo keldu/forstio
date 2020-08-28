@@ -21,6 +21,8 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include <unordered_map>
+
 #include "io.h"
 
 namespace gin {
@@ -59,6 +61,8 @@ private:
 	int signal_fd;
 
 	sigset_t signal_fd_set;
+
+	std::unordered_multimap<Signal, Own<ConveyorFeeder<void>>> signal_conveyors;
 
 	void notifySignalListener(int signal) {
 		/*
@@ -136,6 +140,13 @@ public:
 
 	Conveyor<void> onSignal(Signal signal) override {
 		auto caf = newConveyorAndFeeder<void>();
+
+		signal_conveyors.insert(std::make_pair(signal, std::move(caf.feeder)));
+
+		auto node_and_storage =
+			Conveyor<void>::fromConveyor(std::move(caf.conveyor));
+		return Conveyor<void>::toConveyor(std::move(node_and_storage.first),
+										  node_and_storage.second);
 	}
 
 	void subscribe(IFdOwner &owner, int fd, uint32_t event_mask) {
