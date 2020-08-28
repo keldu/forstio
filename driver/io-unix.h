@@ -64,13 +64,24 @@ private:
 
 	std::unordered_multimap<Signal, Own<ConveyorFeeder<void>>> signal_conveyors;
 
-	void notifySignalListener(int signal) {
-		/*
-		auto find = signal_listeners.find(signal);
-		if(find != signal_listeners.end()){
-			find->second(signal);
+	void notifySignalListener(int sig) {
+		Signal signal;
+		switch (sig) {
+		case SIGTERM:
+		default:
+			signal = Signal::Terminate;
+			break;
 		}
-		*/
+
+		auto equal_range = signal_conveyors.equal_range(signal);
+		for (auto iter = equal_range.first; iter != equal_range.second;
+			 ++iter) {
+			if (iter->second) {
+				if (iter->second->space() > 0) {
+					iter->second->feed();
+				}
+			}
+		}
 	}
 
 	bool poll(int time) {
