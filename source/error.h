@@ -50,6 +50,7 @@ public:
 template <typename T> class ErrorOr : public ErrorOrValue {
 private:
 	std::variant<T, Error> value_or_error;
+
 public:
 	ErrorOr() = default;
 	ErrorOr(const T &value) : value_or_error{value} {}
@@ -65,7 +66,7 @@ public:
 		return std::holds_alternative<Error>(value_or_error);
 	}
 
-	Error& error() {return std::get<Error>(value_or_error);}
+	Error &error() { return std::get<Error>(value_or_error); }
 
 	const Error &error() const { return std::get<Error>(value_or_error); }
 
@@ -73,6 +74,5 @@ public:
 
 	const T &value() const { return std::get<T>(value_or_error); }
 };
-
 
 } // namespace gin

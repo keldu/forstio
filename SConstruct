@@ -79,6 +79,8 @@ format_iter(env,env.sources + env.headers)
 
 env.Alias('format', env.format_actions)
 
+env.Alias('all', ['format', 'library', 'test'])
+
 env.Install('/usr/local/lib/', [env.library_shared, env.library_static])
 env.Install('/usr/local/include/kelgin/', [env.headers])
 env.Alias('install', '/usr/local/')

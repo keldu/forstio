@@ -42,15 +42,13 @@ template <typename Func> struct ReturnTypeHelper<Func, void> {
 
 struct Void {};
 
-template <typename T>
-struct VoidFix { typedef T Type;};
-template<> struct VoidFix<void> {typedef Void Type; };
-template<typename T> using FixVoid = typename VoidFix<T>::Type;
+template <typename T> struct VoidFix { typedef T Type; };
+template <> struct VoidFix<void> { typedef Void Type; };
+template <typename T> using FixVoid = typename VoidFix<T>::Type;
 
-template<typename T>
-struct VoidUnfix {typedef T Type;};
-template<> struct VoidUnfix<Void> {typedef void Type;};
-template<typename T> using UnfixVoid = typename VoidUnfix<T>::Type;
+template <typename T> struct VoidUnfix { typedef T Type; };
+template <> struct VoidUnfix<Void> { typedef void Type; };
+template <typename T> using UnfixVoid = typename VoidUnfix<T>::Type;
 
 template <typename Func, typename T>
 using ReturnType = typename ReturnTypeHelper<Func, T>::Type;

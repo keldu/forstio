@@ -1,9 +1,9 @@
 #pragma once
 
+#include <functional>
 #include <limits>
 #include <list>
 #include <queue>
-#include <functional>
 
 #include "common.h"
 #include "error.h"
@@ -91,10 +91,9 @@ public:
 	template <typename... Args> Conveyor<T> attach(Args &&... args);
 
 	/*
-	*
-	*/
-	template<typename ErrorFunc>
-	void detach(ErrorFunc&& err_func);
+	 *
+	 */
+	template <typename ErrorFunc> void detach(ErrorFunc &&err_func);
 
 	// Waiting and resolving
 	ErrorOr<FixVoid<T>> take();
@@ -106,7 +105,8 @@ public:
 								  ConveyorStorage *is_storage = nullptr);
 
 	// helper
-	static std::pair<Own<ConveyorNode>, ConveyorStorage*> fromConveyor(Conveyor<T>&& conveyor);
+	static std::pair<Own<ConveyorNode>, ConveyorStorage *>
+	fromConveyor(Conveyor<T> &&conveyor);
 };
 
 template <typename T> class ConveyorFeeder {
@@ -124,11 +124,11 @@ template <> class ConveyorFeeder<void> {
 public:
 	virtual ~ConveyorFeeder() = default;
 
-	virtual void feed(Void&& value = Void{}) = 0;
-	virtual void fail(Error&& error) = 0;
+	virtual void feed(Void &&value = Void{}) = 0;
+	virtual void fail(Error &&error) = 0;
 
 	virtual size_t space() const = 0;
-	virtual size_t queued() const = 0;	
+	virtual size_t queued() const = 0;
 };
 
 template <typename T> struct ConveyorAndFeeder {
@@ -164,9 +164,7 @@ public:
 	bool isArmed() const;
 };
 
-enum class Signal : uint8_t {
-	Terminate
-};
+enum class Signal : uint8_t { Terminate };
 
 class EventPort {
 public:
@@ -181,18 +179,19 @@ class ConveyorSink : public Event {
 private:
 	friend class SinkConveyorNode;
 
-	void destroySinkConveyorNode(ConveyorNode& sink_node);
-	void fail(Error&& error);
+	void destroySinkConveyorNode(ConveyorNode &sink_node);
+	void fail(Error &&error);
 
 	std::list<Own<ConveyorNode>> sink_nodes;
 
-	std::queue<ConveyorNode*> delete_nodes;
+	std::queue<ConveyorNode *> delete_nodes;
 
-	std::function<void(Error&& error)> error_handler;
+	std::function<void(Error &&error)> error_handler;
+
 public:
 	ConveyorSink() = default;
 
-	void add(Conveyor<void>&& node);
+	void add(Conveyor<void> &&node);
 
 	void fire() override;
 };
@@ -222,7 +221,7 @@ private:
 
 public:
 	EventLoop();
-	EventLoop(Own<EventPort>&& port);
+	EventLoop(Own<EventPort> &&port);
 	~EventLoop();
 
 	bool wait();
@@ -230,9 +229,9 @@ public:
 	bool wait(const std::chrono::steady_clock::time_point &);
 	bool poll();
 
-	EventPort* eventPort();
+	EventPort *eventPort();
 
-	ConveyorSink& daemon();
+	ConveyorSink &daemon();
 };
 
 class WaitScope {
@@ -254,36 +253,28 @@ public:
 // Aka private semi hidden classes
 namespace gin {
 
-template<typename Out, typename In>
-struct FixVoidCaller {
-	template<typename Func>
-	static Out apply(Func& func, In&& in){
+template <typename Out, typename In> struct FixVoidCaller {
+	template <typename Func> static Out apply(Func &func, In &&in) {
 		return func(std::move(in));
 	}
 };
 
-template<typename Out>
-struct FixVoidCaller<Out,Void> {
-	template<typename Func>
-	static Out apply(Func& func, Void&& in){
+template <typename Out> struct FixVoidCaller<Out, Void> {
+	template <typename Func> static Out apply(Func &func, Void &&in) {
 		(void)in;
 		return func();
 	}
 };
 
-template<typename In>
-struct FixVoidCaller<Void,In> {
-	template<typename Func>
-	static Void apply(Func& func, In&& in){
+template <typename In> struct FixVoidCaller<Void, In> {
+	template <typename Func> static Void apply(Func &func, In &&in) {
 		func(std::move(in));
 		return Void{};
 	}
 };
 
-template<>
-struct FixVoidCaller<Void,Void> {
-	template<typename Func>
-	static Void apply(Func& func, Void&& in){
+template <> struct FixVoidCaller<Void, Void> {
+	template <typename Func> static Void apply(Func &func, Void &&in) {
 		(void)in;
 		func();
 		return Void{};
@@ -292,7 +283,8 @@ struct FixVoidCaller<Void,Void> {
 
 template <typename T> class AdaptConveyorNode;
 
-template <typename T> class AdaptConveyorFeeder : public ConveyorFeeder<UnfixVoid<T>> {
+template <typename T>
+class AdaptConveyorFeeder : public ConveyorFeeder<UnfixVoid<T>> {
 private:
 	AdaptConveyorNode<T> *feedee = nullptr;
 
@@ -340,7 +332,8 @@ public:
 
 template <typename T> class OneTimeConveyorNode;
 
-template <typename T> class OneTimeConveyorFeeder : public ConveyorFeeder<UnfixVoid<T>> {
+template <typename T>
+class OneTimeConveyorFeeder : public ConveyorFeeder<UnfixVoid<T>> {
 private:
 	OneTimeConveyorNode<T> *feedee = nullptr;
 
@@ -364,7 +357,9 @@ private:
 
 	bool passed = false;
 	Maybe<ErrorOr<T>> storage = std::nullopt;
-public: ~OneTimeConveyorNode();
+
+public:
+	~OneTimeConveyorNode();
 
 	// ConveyorNode
 	void getResult(ErrorOrValue &err_or_val) override;
@@ -399,10 +394,10 @@ public:
 		: QueueBufferConveyorNodeBase(std::move(dep)), max_store{max_size} {}
 	// Event
 	void fire() override {
-		if(child){
-			if(!storage.empty()){
-				if(storage.front().isError()){
-					if(storage.front().error().isCritical()){
+		if (child) {
+			if (!storage.empty()) {
+				if (storage.front().isError()) {
+					if (storage.front().error().isCritical()) {
 						child = nullptr;
 					}
 				}
@@ -484,7 +479,8 @@ public:
 		if (child) {
 			child->getResult(dep_eov);
 			if (dep_eov.isValue()) {
-				eov = FixVoidCaller<T, DepT>::apply(func, std::move(dep_eov.value()));
+				eov = FixVoidCaller<T, DepT>::apply(func,
+													std::move(dep_eov.value()));
 			} else if (dep_eov.isError()) {
 				eov = error_func(dep_eov.error());
 			} else {
@@ -496,52 +492,50 @@ public:
 	}
 };
 
-class SinkConveyorNode : public ConveyorNode, public ConveyorStorage, public Event {
+class SinkConveyorNode : public ConveyorNode,
+						 public ConveyorStorage,
+						 public Event {
 private:
-	ConveyorSink* conveyor_sink;
+	ConveyorSink *conveyor_sink;
+
 public:
-	SinkConveyorNode(Own<ConveyorNode>&& node, ConveyorSink& conv_sink):
-		ConveyorNode(std::move(node)),
-		conveyor_sink{&conv_sink}
-	{}
+	SinkConveyorNode(Own<ConveyorNode> &&node, ConveyorSink &conv_sink)
+		: ConveyorNode(std::move(node)), conveyor_sink{&conv_sink} {}
 
 	// Event
 	void fire() override {
-		// Queued for destruction of children, because this acts as a sink and no other event should
-		// be here
+		// Queued for destruction of children, because this acts as a sink and
+		// no other event should be here
 		child = nullptr;
 
-		if(conveyor_sink){
+		if (conveyor_sink) {
 			conveyor_sink->destroySinkConveyorNode(*this);
 			conveyor_sink = nullptr;
 		}
 	}
 
 	// ConveyorStorage
-	size_t space() const override {
-		return 1;
-	}
-	size_t queued() const override {
-		return 0;
-	}
+	size_t space() const override { return 1; }
+	size_t queued() const override { return 0; }
 
 	// ConveyorNode
 	void getResult(ErrorOrValue &err_or_val) override {
-		err_or_val.as<Void>() = criticalError("In a sink node no result can be returned");
+		err_or_val.as<Void>() =
+			criticalError("In a sink node no result can be returned");
 	}
 
 	// ConveyorStorage
 	void childFired() override {
-		if(child){
+		if (child) {
 			ErrorOr<Void> dep_eov;
 			child->getResult(dep_eov);
-			if(dep_eov.isError()){
-				if(dep_eov.error().isCritical()){
-					if(!isArmed()){
+			if (dep_eov.isError()) {
+				if (dep_eov.error().isCritical()) {
+					if (!isArmed()) {
 						armLast();
 					}
 				}
-				if(conveyor_sink){
+				if (conveyor_sink) {
 					conveyor_sink->fail(std::move(dep_eov.error()));
 				}
 			}
@@ -553,14 +547,12 @@ public:
 
 // Template inlining
 namespace gin {
-template<typename T>
-T reduceErrorOrType(T*);
+template <typename T> T reduceErrorOrType(T *);
 
-template<typename T>
-T reduceErrorOrType(ErrorOr<T>*);
+template <typename T> T reduceErrorOrType(ErrorOr<T> *);
 
-template<typename T>
-using ReduceErrorOr = decltype(reduceErrorOrType((T*)nullptr));
+template <typename T>
+using ReduceErrorOr = decltype(reduceErrorOrType((T *)nullptr));
 
 template <typename T>
 Conveyor<T>::Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p)
@@ -570,11 +562,12 @@ template <typename T>
 template <typename Func, typename ErrorFunc>
 ConveyorResult<Func, T> Conveyor<T>::then(Func &&func, ErrorFunc &&error_func) {
 	Own<ConveyorNode> conversion_node =
-		heap<ConvertConveyorNode<FixVoid<ReduceErrorOr<ReturnType<Func, T>>>, FixVoid<T>, Func, ErrorFunc>>(
+		heap<ConvertConveyorNode<FixVoid<ReduceErrorOr<ReturnType<Func, T>>>,
+								 FixVoid<T>, Func, ErrorFunc>>(
 			std::move(node), std::move(func), std::move(error_func));
 
-	return Conveyor<ReduceErrorOr<ReturnType<Func, T>>>::toConveyor(std::move(conversion_node),
-													 storage);
+	return Conveyor<ReduceErrorOr<ReturnType<Func, T>>>::toConveyor(
+		std::move(conversion_node), storage);
 }
 
 template <typename T> Conveyor<T> Conveyor<T>::buffer(size_t size) {
@@ -594,18 +587,18 @@ Conveyor<T> Conveyor<T>::attach(Args &&... args) {
 	return Conveyor<T>{std::move(attach_node), storage};
 }
 
-void detachConveyor(Conveyor<void>&& conveyor);
+void detachConveyor(Conveyor<void> &&conveyor);
 
-template<typename T>
-template<typename ErrorFunc>
-void Conveyor<T>::detach(ErrorFunc&& func){
-	detachConveyor(then([](T&&){}, std::move(func)));
+template <typename T>
+template <typename ErrorFunc>
+void Conveyor<T>::detach(ErrorFunc &&func) {
+	detachConveyor(then([](T &&) {}, std::move(func)));
 }
 
-template<>
-template<typename ErrorFunc>
-void Conveyor<void>::detach(ErrorFunc&& func){
-	detachConveyor(then([](){}, std::move(func)));
+template <>
+template <typename ErrorFunc>
+void Conveyor<void>::detach(ErrorFunc &&func) {
+	detachConveyor(then([]() {}, std::move(func)));
 }
 
 template <typename T>
@@ -614,8 +607,9 @@ Conveyor<T> Conveyor<T>::toConveyor(Own<ConveyorNode> &&node,
 	return Conveyor<T>{std::move(node), storage};
 }
 
-template<typename T>
-std::pair<Own<ConveyorNode>, ConveyorStorage*> Conveyor<T>::fromConveyor(Conveyor<T>&& conveyor){
+template <typename T>
+std::pair<Own<ConveyorNode>, ConveyorStorage *>
+Conveyor<T>::fromConveyor(Conveyor<T> &&conveyor) {
 	return std::make_pair(std::move(conveyor.node), conveyor.storage);
 }
 
@@ -635,8 +629,10 @@ template <typename T> ErrorOr<FixVoid<T>> Conveyor<T>::take() {
 }
 
 template <typename T> ConveyorAndFeeder<T> newConveyorAndFeeder() {
-	Own<AdaptConveyorFeeder<FixVoid<T>>> feeder = heap<AdaptConveyorFeeder<FixVoid<T>>>();
-	Own<AdaptConveyorNode<FixVoid<T>>> node = heap<AdaptConveyorNode<FixVoid<T>>>();
+	Own<AdaptConveyorFeeder<FixVoid<T>>> feeder =
+		heap<AdaptConveyorFeeder<FixVoid<T>>>();
+	Own<AdaptConveyorNode<FixVoid<T>>> node =
+		heap<AdaptConveyorNode<FixVoid<T>>>();
 
 	feeder->setFeedee(node.get());
 	node->setFeeder(feeder.get());
