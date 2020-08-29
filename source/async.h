@@ -171,6 +171,8 @@ public:
 	virtual ~EventPort() = default;
 
 	virtual Conveyor<void> onSignal(Signal signal) = 0;
+
+	virtual void poll() = 0;
 };
 
 class SinkConveyorNode;
@@ -544,7 +546,7 @@ public:
 };
 
 } // namespace gin
-
+#include <cassert>
 // Template inlining
 namespace gin {
 template <typename T> T reduceErrorOrType(T *);
@@ -592,13 +594,13 @@ void detachConveyor(Conveyor<void> &&conveyor);
 template <typename T>
 template <typename ErrorFunc>
 void Conveyor<T>::detach(ErrorFunc &&func) {
-	detachConveyor(then([](T &&) {}, std::move(func)));
+	detachConveyor(std::move(then([](T &&) {}, std::move(func))));
 }
 
 template <>
 template <typename ErrorFunc>
 void Conveyor<void>::detach(ErrorFunc &&func) {
-	detachConveyor(then([]() {}, std::move(func)));
+	detachConveyor(std::move(then([]() {}, std::move(func))));
 }
 
 template <typename T>

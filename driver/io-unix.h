@@ -22,6 +22,7 @@
 #include <unistd.h>
 
 #include <unordered_map>
+#include <vector>
 
 #include "io.h"
 
@@ -64,14 +65,26 @@ private:
 
 	std::unordered_multimap<Signal, Own<ConveyorFeeder<void>>> signal_conveyors;
 
-	void notifySignalListener(int sig) {
-		Signal signal;
-		switch (sig) {
-		case SIGTERM:
+	std::vector<int> toUnixSignal(Signal signal) const {
+		switch (signal) {
+		case Signal::Terminate:
 		default:
-			signal = Signal::Terminate;
-			break;
+			return {SIGTERM, SIGQUIT, SIGINT};
 		}
+	}
+
+	Signal fromUnixSignal(int signal) const {
+		switch (signal) {
+		case SIGTERM:
+		case SIGINT:
+		case SIGQUIT:
+		default:
+			return Signal::Terminate;
+		}
+	}
+
+	void notifySignalListener(int sig) {
+		Signal signal = fromUnixSignal(sig);
 
 		auto equal_range = signal_conveyors.equal_range(signal);
 		for (auto iter = equal_range.first; iter != equal_range.second;
@@ -84,7 +97,7 @@ private:
 		}
 	}
 
-	bool poll(int time) {
+	bool pollImpl(int time) {
 		epoll_event events[MAX_EPOLL_EVENTS];
 		int nfds = 0;
 		do {
@@ -154,11 +167,21 @@ public:
 
 		signal_conveyors.insert(std::make_pair(signal, std::move(caf.feeder)));
 
+		std::vector<int> sig = toUnixSignal(signal);
+
+		for (auto iter = sig.begin(); iter != sig.end(); ++iter) {
+			::sigaddset(&signal_fd_set, *iter);
+		}
+		::sigprocmask(SIG_BLOCK, &signal_fd_set, nullptr);
+		::signalfd(signal_fd, &signal_fd_set, SFD_NONBLOCK | SFD_CLOEXEC);
+
 		auto node_and_storage =
 			Conveyor<void>::fromConveyor(std::move(caf.conveyor));
 		return Conveyor<void>::toConveyor(std::move(node_and_storage.first),
 										  node_and_storage.second);
 	}
+
+	void poll() override { pollImpl(0); }
 
 	void subscribe(IFdOwner &owner, int fd, uint32_t event_mask) {
 		if (epoll_fd < 0 || fd < 0) {

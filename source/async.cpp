@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <cassert>
 
-#include <iostream>
-
 namespace gin {
 namespace {
 thread_local EventLoop *local_loop = nullptr;
@@ -193,6 +191,9 @@ bool EventLoop::wait(const std::chrono::steady_clock::time_point &time_point) {
 bool EventLoop::wait() { return false; }
 
 bool EventLoop::poll() {
+	if (event_port) {
+		event_port->poll();
+	}
 	while (head) {
 		if (!turn()) {
 			return false;
@@ -245,6 +246,8 @@ void ConveyorSink::add(Conveyor<void> &&sink) {
 	if (nas.second) {
 		nas.second->setParent(sink_node.get());
 	}
+
+	sink_nodes.push_back(std::move(sink_node));
 }
 
 void ConveyorSink::fire() {
