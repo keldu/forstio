@@ -173,6 +173,7 @@ public:
 	virtual Conveyor<void> onSignal(Signal signal) = 0;
 
 	virtual void poll() = 0;
+	virtual void wait() = 0;
 };
 
 class SinkConveyorNode;

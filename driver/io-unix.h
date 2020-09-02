@@ -183,6 +183,8 @@ public:
 
 	void poll() override { pollImpl(0); }
 
+	void wait() override { pollImpl(-1); }
+
 	void subscribe(IFdOwner &owner, int fd, uint32_t event_mask) {
 		if (epoll_fd < 0 || fd < 0) {
 			return;

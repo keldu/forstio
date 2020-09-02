@@ -181,14 +181,43 @@ bool EventLoop::turn() {
 }
 
 bool EventLoop::wait(const std::chrono::steady_clock::duration &duration) {
-	return false;
+	if (event_port) {
+		event_port->wait();
+	}
+
+	while (head) {
+		if (!turn()) {
+			return false;
+		}
+	}
+	return true;
 }
 
 bool EventLoop::wait(const std::chrono::steady_clock::time_point &time_point) {
-	return false;
+	if (event_port) {
+		event_port->wait();
+	}
+
+	while (head) {
+		if (!turn()) {
+			return false;
+		}
+	}
+	return true;
 }
 
-bool EventLoop::wait() { return false; }
+bool EventLoop::wait() {
+	if (event_port) {
+		event_port->wait();
+	}
+
+	while (head) {
+		if (!turn()) {
+			return false;
+		}
+	}
+	return true;
+}
 
 bool EventLoop::poll() {
 	if (event_port) {
