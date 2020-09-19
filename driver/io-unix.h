@@ -211,6 +211,14 @@ public:
 	}
 };
 
+class UnixNetworkAddress : public NetworkAddress {
+private:
+	Own<Server> listen() override;
+	Own<IoStream> connect() override;
+
+	std::string toString() override;
+};
+
 class UnixAsyncIoProvider final : public AsyncIoProvider {
 private:
 	EventLoop event_loop;

@@ -7,13 +7,6 @@
 
 namespace gin {
 
-/// @todo change this. Not everyone uses my convention...
-/// My own platform description is only allowed in .cpp files meant for
-/// compiled binaries like .o, .a or .so
-#ifdef GIN_UNIX
-#define Fd int;
-#endif
-
 class InputStream {
 public:
 	virtual ~InputStream() = default;
