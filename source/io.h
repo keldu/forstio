@@ -6,6 +6,10 @@
 #include <string>
 
 namespace gin {
+
+/// @todo change this. Not everyone uses my convention...
+/// My own platform description is only allowed in .cpp files meant for
+/// compiled binaries like .o, .a or .so
 #ifdef GIN_UNIX
 #define Fd int;
 #endif
@@ -36,6 +40,9 @@ class NetworkAddress {
 public:
 	virtual ~NetworkAddress() = default;
 
+	/*
+	 * Listen on this address
+	 */
 	virtual Own<Server> listen() = 0;
 	virtual Own<IoStream> connect() = 0;
 

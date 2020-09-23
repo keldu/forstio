@@ -142,11 +142,11 @@ GIN_TEST("Async Scheduling"){
 
 	wait_scope.poll();
 
-	ErrorOr<std::string> foo = string_conveyor.take();
+	ErrorOr<std::string> foo_10 = string_conveyor.take();
 
-	GIN_EXPECT(!foo.isError(), "Return is an error: " + foo.error().message());
-	GIN_EXPECT(foo.isValue(), "Return is not a value");
-	GIN_EXPECT(foo.value() == (std::string{"pre"} + std::to_string(11) + std::string{"post"}), "Values is not pre11post, but " + foo.value());
+	GIN_EXPECT(!foo_10.isError(), "Return is an error: " + foo_10.error().message());
+	GIN_EXPECT(foo_10.isValue(), "Return is not a value");
+	GIN_EXPECT(foo_10.value() == (std::string{"pre"} + std::to_string(11) + std::string{"post"}), "Values is not pre11post, but " + foo_10.value());
 
 	ErrorOr<std::string> foo_20 = string_conveyor.take();
 
