@@ -1,10 +1,26 @@
 #include "driver/io-unix.h"
 
 namespace gin {
+Own<Server> UnixNetworkAddress::listen(){
+	return nullptr;
+}
+
+Own<IoStream> UnixNetworkAddress::connect(){
+	return nullptr;
+}
+
+std::string UnixNetworkAddress::toString() {
+	return "";
+}
+
 UnixAsyncIoProvider::UnixAsyncIoProvider()
 	: event_loop{heap<UnixEventPort>()}, wait_scope{event_loop} {}
 
 Own<NetworkAddress> UnixAsyncIoProvider::parseAddress(const std::string &path) {
+	return nullptr;
+}
+
+Own<InputStream> UnixAsyncIoProvider::wrapInputFd(int fd) {
 	return nullptr;
 }
 

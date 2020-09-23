@@ -7,13 +7,6 @@
 
 namespace gin {
 
-/// @todo change this. Not everyone uses my convention...
-/// My own platform description is only allowed in .cpp files meant for
-/// compiled binaries like .o, .a or .so
-#ifdef GIN_UNIX
-#define Fd int;
-#endif
-
 class InputStream {
 public:
 	virtual ~InputStream() = default;
@@ -54,6 +47,8 @@ public:
 	virtual ~AsyncIoProvider() = default;
 
 	virtual Own<NetworkAddress> parseAddress(const std::string &) = 0;
+
+	virtual Own<InputStream> wrapInputFd(int fd) = 0;
 };
 
 struct AsyncIoContext {

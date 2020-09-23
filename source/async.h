@@ -47,6 +47,9 @@ public:
 				 ConveyorStorage *storage_p = nullptr);
 	virtual ~ConveyorBase() = default;
 
+	ConveyorBase(ConveyorBase&&) = default;
+	ConveyorBase& operator=(ConveyorBase&&) = default;
+
 	void get(ErrorOrValue &err_or_val);
 };
 
@@ -71,6 +74,9 @@ public:
 template <typename T> class Conveyor : public ConveyorBase {
 public:
 	Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p);
+
+	Conveyor(Conveyor<T>&&) = default;
+	Conveyor<T>& operator=(Conveyor<T>&&) = default;
 
 	/*
 	 * This method converts passed values or errors from children
@@ -148,7 +154,6 @@ private:
 	Event *next = nullptr;
 
 	friend class EventLoop;
-
 public:
 	Event();
 	Event(EventLoop &loop);
@@ -164,7 +169,7 @@ public:
 	bool isArmed() const;
 };
 
-enum class Signal : uint8_t { Terminate };
+enum class Signal : uint8_t { Terminate, User1 };
 
 class EventPort {
 public:
