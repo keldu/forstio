@@ -359,7 +359,6 @@ private:
 
 	bool passed = false;
 	Maybe<ErrorOr<T>> storage = std::nullopt;
-
 public:
 	~OneTimeConveyorNode();
 
@@ -390,7 +389,6 @@ class QueueBufferConveyorNode : public QueueBufferConveyorNodeBase,
 private:
 	std::queue<ErrorOr<T>> storage;
 	size_t max_store;
-
 public:
 	QueueBufferConveyorNode(Own<ConveyorNode> &&dep, size_t max_size)
 		: QueueBufferConveyorNodeBase(std::move(dep)), max_store{max_size} {}
@@ -504,7 +502,7 @@ public:
 	SinkConveyorNode(Own<ConveyorNode> &&node, ConveyorSink &conv_sink)
 		: ConveyorNode(std::move(node)), conveyor_sink{&conv_sink} {}
 
-	// Event
+	// Event only queued if a critical error occured
 	void fire() override {
 		// Queued for destruction of children, because this acts as a sink and
 		// no other event should be here
