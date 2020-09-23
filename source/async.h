@@ -154,7 +154,6 @@ private:
 	Event *next = nullptr;
 
 	friend class EventLoop;
-
 public:
 	Event();
 	Event(EventLoop &loop);
@@ -170,7 +169,7 @@ public:
 	bool isArmed() const;
 };
 
-enum class Signal : uint8_t { Terminate };
+enum class Signal : uint8_t { Terminate, User1 };
 
 class EventPort {
 public:

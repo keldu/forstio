@@ -20,6 +20,10 @@ Own<NetworkAddress> UnixAsyncIoProvider::parseAddress(const std::string &path) {
 	return nullptr;
 }
 
+Own<InputStream> UnixAsyncIoProvider::wrapInputFd(int fd) {
+	return nullptr;
+}
+
 EventLoop &UnixAsyncIoProvider::eventLoop() { return event_loop; }
 
 WaitScope &UnixAsyncIoProvider::waitScope() { return wait_scope; }

@@ -47,6 +47,8 @@ public:
 	virtual ~AsyncIoProvider() = default;
 
 	virtual Own<NetworkAddress> parseAddress(const std::string &) = 0;
+
+	virtual Own<InputStream> wrapInputFd(int fd) = 0;
 };
 
 struct AsyncIoContext {

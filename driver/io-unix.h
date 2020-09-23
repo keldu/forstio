@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef GIN_UNIX
-#error "Don't include this directly"
+#error "Don't include this"
 #endif
 
 #include <csignal>
@@ -67,6 +67,8 @@ private:
 
 	std::vector<int> toUnixSignal(Signal signal) const {
 		switch (signal) {
+		case Signal::User1:
+			return {SIGUSR1};
 		case Signal::Terminate:
 		default:
 			return {SIGTERM, SIGQUIT, SIGINT};
@@ -75,6 +77,8 @@ private:
 
 	Signal fromUnixSignal(int signal) const {
 		switch (signal) {
+		case SIGUSR1:
+			return Signal::User1;
 		case SIGTERM:
 		case SIGINT:
 		case SIGQUIT:
@@ -211,8 +215,101 @@ public:
 	}
 };
 
+class SocketAddress {
+private:
+	union {
+		struct sockaddr generic;
+		struct sockaddr_un unix;
+		struct sockaddr_in inet;
+		struct sockaddr_in6 inet6;
+		struct sockaddr_storage storage;
+	} address;
+
+	socklen_t address_length;
+	bool wildcard;
+
+	SocketAddress():
+		wildcard{false}
+	{}
+public:
+	SocketAddress(const void* sockaddr, socklen_t len, bool wildcard):
+		address_length{len},
+		wildcard{wildcard}
+	{
+		assert(len <= sizeof(address));
+		memcpy(&address.generic, sockaddr, len);
+	}
+
+	int socket(int type) const {
+		bool is_stream = type & SOCK_STREAM;
+
+		type |= SOCK_NONBLOCK | SOCK_CLOEXEC;
+
+		int result = ::socket(address.generic.sa_family, type, 0);
+		return result;
+	}
+
+	void bind(int fd) const {
+		if(wildcard){
+			int value = 0;
+			::setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &value, sizeof(value));
+		}
+		::bind(fd, &address.generic, address_length);
+	}
+
+	const struct ::sockaddr* getRaw() const {
+		return &address.generic;
+	}
+
+	socklen_t getRawLength() const {
+		return address_length;
+	}
+
+	static std::list<SocketAddress> parse(std::string_view str, uint16_t port_hint){
+		std::list<SocketAddress> results;
+
+		struct ::addrinfo* head;
+		struct ::addrinfo hints;
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_UNSPEC;
+
+		std::string port_string = std::to_string(port_hint);
+		bool wildcard = str == "*" || str == "::";
+		std::string address_string{str};
+
+		int error = ::getaddrinfo(address_string.c_str(), port_string.c_str(), &hints, &head);
+		
+		if(error){
+			return {};
+		}
+
+		for(struct ::addrinfo* it = head; it != nullptr; it = it->ai_next){
+			if(it->ai_addrlen > sizeof(SocketAddress::address)){
+				continue;
+			}
+			results.push_back({it->ai_addr, it->ai_addrlen, wildcard});
+		}
+		::freeaddrinfo(head);
+		return results;
+	}
+};
+
 class UnixNetworkAddress : public NetworkAddress {
 private:
+	EventPort& event_port;
+	AsyncIoProvider& io_provider;
+	const std::string path;
+	uint16_t port_hint;
+	std::list<SocketAddress> addresses;
+public:
+	UnixNetworkAddress(EventPort& event_port, AsyncIoProvider& io_provider, const std::string& path, uint16_t port_hint, std::list<SocketAddress>&& addr):
+		event_port{event_port},
+		io_provider{io_provider},
+		path{path},
+		port_hint{port_hint},
+		addresses{std::move(addr)}
+	{}
+
 	Own<Server> listen() override;
 	Own<IoStream> connect() override;
 
@@ -228,6 +325,8 @@ public:
 	UnixAsyncIoProvider();
 
 	Own<NetworkAddress> parseAddress(const std::string &) override;
+
+	Own<InputStream> wrapInputFd(int fd) override;
 
 	EventLoop &eventLoop();
 	WaitScope &waitScope();
