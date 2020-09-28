@@ -41,8 +41,8 @@ protected:
 	Own<ConveyorNode> node;
 
 	ConveyorStorage *storage;
-
 public:
+	ConveyorBase(bool fulfilled);
 	ConveyorBase(Own<ConveyorNode> &&node_p,
 				 ConveyorStorage *storage_p = nullptr);
 	virtual ~ConveyorBase() = default;
@@ -73,6 +73,7 @@ public:
 
 template <typename T> class Conveyor : public ConveyorBase {
 public:
+	Conveyor(bool fulfilled);
 	Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p);
 
 	Conveyor(Conveyor<T>&&) = default;
@@ -255,6 +256,15 @@ public:
 	void wait(const std::chrono::steady_clock::time_point &);
 	void poll();
 };
+
+template<typename Func>
+ConveyorResult<Func, void> yieldNext(Func&& func);
+
+template<typename Func>
+ConveyorResult<Func, void> yieldLater(Func&& func);
+
+template<typename Func>
+ConveyorResult<Func, void> yieldLast(Func&& func);
 } // namespace gin
 
 // Secret stuff
@@ -561,6 +571,11 @@ template <typename T>
 using ReduceErrorOr = decltype(reduceErrorOrType((T *)nullptr));
 
 template <typename T>
+Conveyor<T>::Conveyor(bool fulfilled):
+	ConveyorBase(fulfilled)
+{}
+
+template <typename T>
 Conveyor<T>::Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p)
 	: ConveyorBase(std::move(node_p), storage_p) {}
 
@@ -736,6 +751,13 @@ template <typename T> void AdaptConveyorNode<T>::fire() {
 		if (storage.size() > 0) {
 			armLater();
 		}
+	}
+}
+
+template<typename T> OneTimeConveyorFeeder<T>::~OneTimeConveyorFeeder(){
+	if(feedee){
+		feedee->setFeeder(nullptr);
+		feedee = nullptr;
 	}
 }
 

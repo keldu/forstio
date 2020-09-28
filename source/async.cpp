@@ -20,6 +20,12 @@ ConveyorNode::ConveyorNode(Own<ConveyorNode> &&node) : child{std::move(node)} {}
 
 void ConveyorStorage::setParent(ConveyorStorage *p) { parent = p; }
 
+ConveyorBase::ConveyorBase(bool ful):
+	node{nullptr}, storage{nullptr}
+{
+	(void)ful;
+}
+
 ConveyorBase::ConveyorBase(Own<ConveyorNode> &&node_p,
 						   ConveyorStorage *storage_p)
 	: node{std::move(node_p)}, storage{storage_p} {}

@@ -21,42 +21,35 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include <queue>
 #include <unordered_map>
 #include <vector>
 
 #include "io.h"
 
 namespace gin {
-
 constexpr int MAX_EPOLL_EVENTS = 256;
 
-class UnixEventPort : public EventPort {
+class UnixEventPort;
+class IFdOwner {
+protected:
+	UnixEventPort &event_port;
+private:
+	int file_descriptor;
+	int fd_flags;
+	uint32_t event_mask;
 public:
-	class IFdOwner {
-	private:
-		UnixEventPort &event_port;
-		int file_descriptor;
-		int fd_flags;
-		uint32_t event_mask;
+	IFdOwner(UnixEventPort &event_port, int file_descriptor, int fd_flags,
+			 uint32_t event_mask);
 
-	public:
-		IFdOwner(UnixEventPort &event_port, int file_descriptor, int fd_flags,
-				 uint32_t event_mask)
-			: event_port{event_port}, file_descriptor{file_descriptor},
-			  fd_flags{fd_flags}, event_mask{event_mask} {
-			event_port.subscribe(*this, file_descriptor, event_mask);
-		}
+	virtual ~IFdOwner();
 
-		~IFdOwner() {
-			event_port.unsubscribe(file_descriptor);
-			::close(file_descriptor);
-		}
+	virtual void notify(uint32_t mask) = 0;
 
-		virtual void notify(uint32_t mask) = 0;
+	int fd() const { return file_descriptor; }
+};
 
-		int fd() const { return file_descriptor; }
-	};
-
+class UnixEventPort : public EventPort {
 private:
 	int epoll_fd;
 	int signal_fd;
@@ -215,6 +208,56 @@ public:
 	}
 };
 
+class UnixIoStream : public IoStream, public IFdOwner {
+private:
+	struct WriteIoTask {
+		const void* buffer;
+		size_t length;
+	};
+	std::queue<WriteIoTask> write_tasks;
+	Own<ConveyorFeeder<size_t>> write_done = nullptr;
+	Own<ConveyorFeeder<void>> write_ready = nullptr;
+
+	struct ReadIoTask {
+		void* buffer;
+		size_t min_length;
+		size_t max_length;
+	};
+	std::queue<ReadIoTask> read_tasks;
+	Own<ConveyorFeeder<size_t>> read_done = nullptr;
+	Own<ConveyorFeeder<void>> read_ready = nullptr;
+
+	Own<ConveyorFeeder<void>> on_read_disconnect = nullptr;
+private:
+	void readStep();
+	void writeStep();
+public:
+	UnixIoStream(UnixEventPort& event_port, int file_descriptor, int fd_flags, uint32_t event_mask);
+
+	void read(void* buffer, size_t min_length, size_t max_length) override;
+	Conveyor<size_t> readDone() override;
+	Conveyor<void> readReady() override;
+
+	Conveyor<void> onReadDisconnected() override;
+
+	void write(const void* buffer, size_t length) override;
+	Conveyor<size_t> writeDone() override;
+	Conveyor<void> writeReady() override;
+
+	void notify(uint32_t mask) override;
+};
+
+class UnixServer : public Server, public IFdOwner {
+private:
+	Own<ConveyorFeeder<Own<IoStream>>> accept_feeder = nullptr;
+public:
+	UnixServer(UnixEventPort &event_port, int file_descriptor, int fd_flags);
+
+	Conveyor<Own<IoStream>> accept() override;
+
+	void notify(uint32_t mask) override;
+};
+
 class SocketAddress {
 private:
 	union {
@@ -311,9 +354,9 @@ public:
 	{}
 
 	Own<Server> listen() override;
-	Own<IoStream> connect() override;
+	Conveyor<Own<IoStream>> connect() override;
 
-	std::string toString() override;
+	std::string toString() const override;
 };
 
 class UnixAsyncIoProvider final : public AsyncIoProvider {
@@ -324,7 +367,7 @@ private:
 public:
 	UnixAsyncIoProvider();
 
-	Own<NetworkAddress> parseAddress(const std::string &) override;
+	Own<NetworkAddress> parseAddress(const std::string &, uint16_t port_hint = 0) override;
 
 	Own<InputStream> wrapInputFd(int fd) override;
 
