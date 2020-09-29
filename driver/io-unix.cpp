@@ -206,12 +206,12 @@ Conveyor<Own<IoStream>> UnixNetworkAddress::connect(){
 }
 
 std::string UnixNetworkAddress::toString() const {
-	std::ostream iss;
-	iss<<"Address: "<<path;
+	std::ostringstream oss;
+	oss<<"Address: "<<path;
 	if(port_hint > 0){
-		iss<<"\nPort: "<<port_hint;
+		oss<<"\nPort: "<<port_hint;
 	}
-	return iss.str();
+	return oss.str();
 }
 
 UnixAsyncIoProvider::UnixAsyncIoProvider()

@@ -73,10 +73,18 @@ public:
 
 template <typename T> class Conveyor : public ConveyorBase {
 public:
+	/*
+	* Construct a immediately fulfilled node
+	*/
+	Conveyor(FixVoid<T> value);
+	/*
+	* empty promise
+	* @todo remove this
+	*/
 	Conveyor(bool fulfilled);
 	Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p);
 
-	Conveyor(Conveyor<T>&&) = default;
+	Conveyor(FixVoid<T>&&) = default;
 	Conveyor<T>& operator=(Conveyor<T>&&) = default;
 
 	/*
@@ -364,6 +372,7 @@ public:
 	void fail(Error &&error) override;
 
 	size_t space() const override;
+	size_t queued() const override;
 };
 
 template <typename T>
@@ -377,6 +386,11 @@ private:
 	Maybe<ErrorOr<T>> storage = std::nullopt;
 public:
 	~OneTimeConveyorNode();
+
+	void setFeeder(OneTimeConveyorFeeder<T>* feeder);
+
+	void feed(T &&value);
+	void fail(Error &&error);
 
 	// ConveyorNode
 	void getResult(ErrorOrValue &err_or_val) override;
@@ -559,6 +573,57 @@ public:
 	}
 };
 
+class ImmediateConveyorNodeBase : public ConveyorNode, public ConveyorStorage {
+private:
+public:
+};
+
+template<typename T>
+class ImmediateConveyorNode : public ImmediateConveyorNodeBase {
+private:
+	FixVoid<T> value;
+	bool retrieved;
+public:
+	ImmediateConveyorNode(FixVoid<T>&& val);
+
+	// ConveyorStorage
+	size_t space() const override;
+	size_t queued() const override;
+
+	void childFired() override;
+
+	// ConveyorNode
+	void getResult(ErrorOrValue& err_or_val) override {
+		if(retrieved){
+			err_or_val.as<FixVoid<T>>() = criticalError("Already taken value");
+		}else{
+			err_or_val.as<FixVoid<T>>() = std::move(value);
+			retrieved = true;
+		}
+	}
+};
+
+template<typename T>
+ImmediateConveyorNode<T>::ImmediateConveyorNode(FixVoid<T>&& val):
+	value{std::move(val)},
+	retrieved{false}
+{}
+
+template<typename T>
+size_t ImmediateConveyorNode<T>::space() const {
+	return 0;
+}
+
+template<typename T>
+size_t ImmediateConveyorNode<T>::queued() const {
+	return retrieved ? 0 : 1;
+}
+
+template<typename T>
+void ImmediateConveyorNode<T>::childFired() {
+	// Impossible
+}
+
 } // namespace gin
 #include <cassert>
 // Template inlining
@@ -569,6 +634,11 @@ template <typename T> T reduceErrorOrType(ErrorOr<T> *);
 
 template <typename T>
 using ReduceErrorOr = decltype(reduceErrorOrType((T *)nullptr));
+
+template<typename T>
+Conveyor<T>::Conveyor(FixVoid<T> value):
+	ConveyorBase(heap<ImmediateConveyorNode<FixVoid<T>>>(std::move(value)))
+{}
 
 template <typename T>
 Conveyor<T>::Conveyor(bool fulfilled):
@@ -722,6 +792,7 @@ template <typename T> void AdaptConveyorNode<T>::feed(T &&value) {
 
 template <typename T> void AdaptConveyorNode<T>::fail(Error &&error) {
 	storage.push(std::move(error));
+	armNext();
 }
 
 template <typename T> size_t AdaptConveyorNode<T>::queued() const {
@@ -758,6 +829,84 @@ template<typename T> OneTimeConveyorFeeder<T>::~OneTimeConveyorFeeder(){
 	if(feedee){
 		feedee->setFeeder(nullptr);
 		feedee = nullptr;
+	}
+}
+
+template<typename T> void OneTimeConveyorFeeder<T>::setFeedee(OneTimeConveyorNode<T>* feedee_p){
+	feedee = feedee_p;
+}
+
+template<typename T> void OneTimeConveyorFeeder<T>::feed(T&& value){
+	if(feedee){
+		feedee->feed(std::move(value));
+	}
+}
+
+template<typename T> void OneTimeConveyorFeeder<T>::fail(Error&& error){
+	if(feedee){
+		feedee->fail(std::move(error));
+	}
+}
+
+template<typename T> size_t OneTimeConveyorFeeder<T>::queued() const {
+	if(feedee){
+		return feedee->queued();
+	}
+	return 0;
+}
+
+template <typename T> size_t OneTimeConveyorFeeder<T>::space() const {
+	if (feedee) {
+		return feedee->space();
+	}
+	return 0;
+}
+
+template <typename T> OneTimeConveyorNode<T>::~OneTimeConveyorNode() {
+	if (feeder) {
+		feeder->setFeedee(nullptr);
+		feeder = nullptr;
+	}
+}
+
+template <typename T>
+void OneTimeConveyorNode<T>::setFeeder(OneTimeConveyorFeeder<T> *feeder_p) {
+	feeder = feeder_p;
+}
+
+template <typename T> void OneTimeConveyorNode<T>::feed(T &&value) {
+	storage = std::move(value);
+	armNext();
+}
+
+template <typename T> void OneTimeConveyorNode<T>::fail(Error &&error) {
+	storage = std::move(error);
+	armNext();
+}
+
+template <typename T> size_t OneTimeConveyorNode<T>::queued() const {
+	return storage.has_value() ? 1 : 0;
+}
+
+template <typename T> size_t OneTimeConveyorNode<T>::space() const {
+	return passed ? 0 : 1;
+}
+
+template <typename T>
+void OneTimeConveyorNode<T>::getResult(ErrorOrValue &err_or_val) {
+	if (storage.has_value()) {
+		err_or_val.as<T>() = std::move(storage.value());
+		storage = std::nullopt;
+	} else {
+		err_or_val.as<T>() =
+			criticalError("Signal for retrieval of storage sent even though no "
+						  "data is present");
+	}
+}
+
+template <typename T> void OneTimeConveyorNode<T>::fire() {
+	if (parent) {
+		parent->childFired();
 	}
 }
 
