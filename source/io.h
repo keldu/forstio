@@ -11,7 +11,7 @@ class InputStream {
 public:
 	virtual ~InputStream() = default;
 
-	virtual void read(void* buffer, size_t min_length, size_t max_length) = 0;
+	virtual void read(void *buffer, size_t min_length, size_t max_length) = 0;
 	virtual Conveyor<size_t> readDone() = 0;
 	virtual Conveyor<void> readReady() = 0;
 
@@ -22,7 +22,7 @@ class OutputStream {
 public:
 	virtual ~OutputStream() = default;
 
-	virtual void write(const void* buffer, size_t length) = 0;
+	virtual void write(const void *buffer, size_t length) = 0;
 	virtual Conveyor<size_t> writeDone() = 0;
 	virtual Conveyor<void> writeReady() = 0;
 };
@@ -56,7 +56,8 @@ class AsyncIoProvider {
 public:
 	virtual ~AsyncIoProvider() = default;
 
-	virtual Own<NetworkAddress> parseAddress(const std::string &, uint16_t port_hint = 0) = 0;
+	virtual Own<NetworkAddress> parseAddress(const std::string &,
+											 uint16_t port_hint = 0) = 0;
 
 	virtual Own<InputStream> wrapInputFd(int fd) = 0;
 };

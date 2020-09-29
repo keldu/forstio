@@ -34,10 +34,12 @@ class UnixEventPort;
 class IFdOwner {
 protected:
 	UnixEventPort &event_port;
+
 private:
 	int file_descriptor;
 	int fd_flags;
 	uint32_t event_mask;
+
 public:
 	IFdOwner(UnixEventPort &event_port, int file_descriptor, int fd_flags,
 			 uint32_t event_mask);
@@ -211,7 +213,7 @@ public:
 class UnixIoStream : public IoStream, public IFdOwner {
 private:
 	struct WriteIoTask {
-		const void* buffer;
+		const void *buffer;
 		size_t length;
 	};
 	std::queue<WriteIoTask> write_tasks;
@@ -219,7 +221,7 @@ private:
 	Own<ConveyorFeeder<void>> write_ready = nullptr;
 
 	struct ReadIoTask {
-		void* buffer;
+		void *buffer;
 		size_t min_length;
 		size_t max_length;
 	};
@@ -228,19 +230,22 @@ private:
 	Own<ConveyorFeeder<void>> read_ready = nullptr;
 
 	Own<ConveyorFeeder<void>> on_read_disconnect = nullptr;
+
 private:
 	void readStep();
 	void writeStep();
-public:
-	UnixIoStream(UnixEventPort& event_port, int file_descriptor, int fd_flags, uint32_t event_mask);
 
-	void read(void* buffer, size_t min_length, size_t max_length) override;
+public:
+	UnixIoStream(UnixEventPort &event_port, int file_descriptor, int fd_flags,
+				 uint32_t event_mask);
+
+	void read(void *buffer, size_t min_length, size_t max_length) override;
 	Conveyor<size_t> readDone() override;
 	Conveyor<void> readReady() override;
 
 	Conveyor<void> onReadDisconnected() override;
 
-	void write(const void* buffer, size_t length) override;
+	void write(const void *buffer, size_t length) override;
 	Conveyor<size_t> writeDone() override;
 	Conveyor<void> writeReady() override;
 
@@ -250,6 +255,7 @@ public:
 class UnixServer : public Server, public IFdOwner {
 private:
 	Own<ConveyorFeeder<Own<IoStream>>> accept_feeder = nullptr;
+
 public:
 	UnixServer(UnixEventPort &event_port, int file_descriptor, int fd_flags);
 
@@ -271,14 +277,11 @@ private:
 	socklen_t address_length;
 	bool wildcard;
 
-	SocketAddress():
-		wildcard{false}
-	{}
+	SocketAddress() : wildcard{false} {}
+
 public:
-	SocketAddress(const void* sockaddr, socklen_t len, bool wildcard):
-		address_length{len},
-		wildcard{wildcard}
-	{
+	SocketAddress(const void *sockaddr, socklen_t len, bool wildcard)
+		: address_length{len}, wildcard{wildcard} {
 		assert(len <= sizeof(address));
 		memcpy(&address.generic, sockaddr, len);
 	}
@@ -293,25 +296,22 @@ public:
 	}
 
 	void bind(int fd) const {
-		if(wildcard){
+		if (wildcard) {
 			int value = 0;
 			::setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &value, sizeof(value));
 		}
 		::bind(fd, &address.generic, address_length);
 	}
 
-	const struct ::sockaddr* getRaw() const {
-		return &address.generic;
-	}
+	const struct ::sockaddr *getRaw() const { return &address.generic; }
 
-	socklen_t getRawLength() const {
-		return address_length;
-	}
+	socklen_t getRawLength() const { return address_length; }
 
-	static std::list<SocketAddress> parse(std::string_view str, uint16_t port_hint){
+	static std::list<SocketAddress> parse(std::string_view str,
+										  uint16_t port_hint) {
 		std::list<SocketAddress> results;
 
-		struct ::addrinfo* head;
+		struct ::addrinfo *head;
 		struct ::addrinfo hints;
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = AF_UNSPEC;
@@ -320,14 +320,15 @@ public:
 		bool wildcard = str == "*" || str == "::";
 		std::string address_string{str};
 
-		int error = ::getaddrinfo(address_string.c_str(), port_string.c_str(), &hints, &head);
-		
-		if(error){
+		int error = ::getaddrinfo(address_string.c_str(), port_string.c_str(),
+								  &hints, &head);
+
+		if (error) {
 			return {};
 		}
 
-		for(struct ::addrinfo* it = head; it != nullptr; it = it->ai_next){
-			if(it->ai_addrlen > sizeof(SocketAddress::address)){
+		for (struct ::addrinfo *it = head; it != nullptr; it = it->ai_next) {
+			if (it->ai_addrlen > sizeof(SocketAddress::address)) {
 				continue;
 			}
 			results.push_back({it->ai_addr, it->ai_addrlen, wildcard});
@@ -339,19 +340,18 @@ public:
 
 class UnixNetworkAddress : public NetworkAddress {
 private:
-	EventPort& event_port;
-	AsyncIoProvider& io_provider;
+	UnixEventPort &event_port;
+	AsyncIoProvider &io_provider;
 	const std::string path;
 	uint16_t port_hint;
 	std::list<SocketAddress> addresses;
+
 public:
-	UnixNetworkAddress(EventPort& event_port, AsyncIoProvider& io_provider, const std::string& path, uint16_t port_hint, std::list<SocketAddress>&& addr):
-		event_port{event_port},
-		io_provider{io_provider},
-		path{path},
-		port_hint{port_hint},
-		addresses{std::move(addr)}
-	{}
+	UnixNetworkAddress(UnixEventPort &event_port, AsyncIoProvider &io_provider,
+					   const std::string &path, uint16_t port_hint,
+					   std::list<SocketAddress> &&addr)
+		: event_port{event_port}, io_provider{io_provider}, path{path},
+		  port_hint{port_hint}, addresses{std::move(addr)} {}
 
 	Own<Server> listen() override;
 	Conveyor<Own<IoStream>> connect() override;
@@ -367,7 +367,8 @@ private:
 public:
 	UnixAsyncIoProvider();
 
-	Own<NetworkAddress> parseAddress(const std::string &, uint16_t port_hint = 0) override;
+	Own<NetworkAddress> parseAddress(const std::string &,
+									 uint16_t port_hint = 0) override;
 
 	Own<InputStream> wrapInputFd(int fd) override;
 

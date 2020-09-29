@@ -18,11 +18,20 @@ ConveyorNode::ConveyorNode() : child{nullptr} {}
 
 ConveyorNode::ConveyorNode(Own<ConveyorNode> &&node) : child{std::move(node)} {}
 
-void ConveyorStorage::setParent(ConveyorStorage *p) { parent = p; }
+void ConveyorStorage::setParent(ConveyorStorage *p) {
+	/*
+	 * Really weird edge case.
+	 * p and parent check isn't needed, but are used
+	 * for the assert
+	 */
+	if (/*p && !parent && */ !isArmed() && queued() > 0) {
+		assert(p && !parent);
+		armNext();
+	}
+	parent = p;
+}
 
-ConveyorBase::ConveyorBase(bool ful):
-	node{nullptr}, storage{nullptr}
-{
+ConveyorBase::ConveyorBase(bool ful) : node{nullptr}, storage{nullptr} {
 	(void)ful;
 }
 

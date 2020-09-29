@@ -22,7 +22,31 @@ public:
 	virtual void getResult(ErrorOrValue &err_or_val) = 0;
 };
 
-class ConveyorStorage {
+class EventLoop;
+class Event {
+private:
+	EventLoop &loop;
+	Event **prev = nullptr;
+	Event *next = nullptr;
+
+	friend class EventLoop;
+
+public:
+	Event();
+	Event(EventLoop &loop);
+	virtual ~Event();
+
+	virtual void fire() = 0;
+
+	void armNext();
+	void armLater();
+	void armLast();
+	void disarm();
+
+	bool isArmed() const;
+};
+
+class ConveyorStorage : public Event {
 protected:
 	ConveyorStorage *parent = nullptr;
 
@@ -41,14 +65,15 @@ protected:
 	Own<ConveyorNode> node;
 
 	ConveyorStorage *storage;
+
 public:
 	ConveyorBase(bool fulfilled);
 	ConveyorBase(Own<ConveyorNode> &&node_p,
 				 ConveyorStorage *storage_p = nullptr);
 	virtual ~ConveyorBase() = default;
 
-	ConveyorBase(ConveyorBase&&) = default;
-	ConveyorBase& operator=(ConveyorBase&&) = default;
+	ConveyorBase(ConveyorBase &&) = default;
+	ConveyorBase &operator=(ConveyorBase &&) = default;
 
 	void get(ErrorOrValue &err_or_val);
 };
@@ -74,18 +99,18 @@ public:
 template <typename T> class Conveyor : public ConveyorBase {
 public:
 	/*
-	* Construct a immediately fulfilled node
-	*/
+	 * Construct a immediately fulfilled node
+	 */
 	Conveyor(FixVoid<T> value);
 	/*
-	* empty promise
-	* @todo remove this
-	*/
+	 * empty promise
+	 * @todo remove this
+	 */
 	Conveyor(bool fulfilled);
 	Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p);
 
-	Conveyor(FixVoid<T>&&) = default;
-	Conveyor<T>& operator=(Conveyor<T>&&) = default;
+	Conveyor(Conveyor<T> &&) = default;
+	Conveyor<T> &operator=(Conveyor<T> &&) = default;
 
 	/*
 	 * This method converts passed values or errors from children
@@ -154,29 +179,6 @@ template <typename T> struct ConveyorAndFeeder {
 template <typename T> ConveyorAndFeeder<T> newConveyorAndFeeder();
 
 template <typename T> ConveyorAndFeeder<T> oneTimeConveyorAndFeeder();
-
-class EventLoop;
-class Event {
-private:
-	EventLoop &loop;
-	Event **prev = nullptr;
-	Event *next = nullptr;
-
-	friend class EventLoop;
-public:
-	Event();
-	Event(EventLoop &loop);
-	virtual ~Event();
-
-	virtual void fire() = 0;
-
-	void armNext();
-	void armLater();
-	void armLast();
-	void disarm();
-
-	bool isArmed() const;
-};
 
 enum class Signal : uint8_t { Terminate, User1 };
 
@@ -265,14 +267,11 @@ public:
 	void poll();
 };
 
-template<typename Func>
-ConveyorResult<Func, void> yieldNext(Func&& func);
+template <typename Func> ConveyorResult<Func, void> yieldNext(Func &&func);
 
-template<typename Func>
-ConveyorResult<Func, void> yieldLater(Func&& func);
+template <typename Func> ConveyorResult<Func, void> yieldLater(Func &&func);
 
-template<typename Func>
-ConveyorResult<Func, void> yieldLast(Func&& func);
+template <typename Func> ConveyorResult<Func, void> yieldLast(Func &&func);
 } // namespace gin
 
 // Secret stuff
@@ -327,9 +326,7 @@ public:
 };
 
 template <typename T>
-class AdaptConveyorNode : public ConveyorNode,
-						  public ConveyorStorage,
-						  public Event {
+class AdaptConveyorNode : public ConveyorNode, public ConveyorStorage {
 private:
 	AdaptConveyorFeeder<T> *feeder = nullptr;
 
@@ -376,18 +373,17 @@ public:
 };
 
 template <typename T>
-class OneTimeConveyorNode : public ConveyorNode,
-							public ConveyorStorage,
-							public Event {
+class OneTimeConveyorNode : public ConveyorNode, public ConveyorStorage {
 private:
 	OneTimeConveyorFeeder<T> *feeder = nullptr;
 
 	bool passed = false;
 	Maybe<ErrorOr<T>> storage = std::nullopt;
+
 public:
 	~OneTimeConveyorNode();
 
-	void setFeeder(OneTimeConveyorFeeder<T>* feeder);
+	void setFeeder(OneTimeConveyorFeeder<T> *feeder);
 
 	void feed(T &&value);
 	void fail(Error &&error);
@@ -414,11 +410,11 @@ public:
 };
 
 template <typename T>
-class QueueBufferConveyorNode : public QueueBufferConveyorNodeBase,
-								public Event {
+class QueueBufferConveyorNode : public QueueBufferConveyorNodeBase {
 private:
 	std::queue<ErrorOr<T>> storage;
 	size_t max_store;
+
 public:
 	QueueBufferConveyorNode(Own<ConveyorNode> &&dep, size_t max_size)
 		: QueueBufferConveyorNodeBase(std::move(dep)), max_store{max_size} {}
@@ -522,9 +518,7 @@ public:
 	}
 };
 
-class SinkConveyorNode : public ConveyorNode,
-						 public ConveyorStorage,
-						 public Event {
+class SinkConveyorNode : public ConveyorNode, public ConveyorStorage {
 private:
 	ConveyorSink *conveyor_sink;
 
@@ -578,13 +572,14 @@ private:
 public:
 };
 
-template<typename T>
+template <typename T>
 class ImmediateConveyorNode : public ImmediateConveyorNodeBase {
 private:
 	FixVoid<T> value;
 	bool retrieved;
+
 public:
-	ImmediateConveyorNode(FixVoid<T>&& val);
+	ImmediateConveyorNode(FixVoid<T> &&val);
 
 	// ConveyorStorage
 	size_t space() const override;
@@ -593,35 +588,39 @@ public:
 	void childFired() override;
 
 	// ConveyorNode
-	void getResult(ErrorOrValue& err_or_val) override {
-		if(retrieved){
+	void getResult(ErrorOrValue &err_or_val) override {
+		if (retrieved) {
 			err_or_val.as<FixVoid<T>>() = criticalError("Already taken value");
-		}else{
+		} else {
 			err_or_val.as<FixVoid<T>>() = std::move(value);
 			retrieved = true;
 		}
 	}
+
+	// Event
+	void fire() override;
 };
 
-template<typename T>
-ImmediateConveyorNode<T>::ImmediateConveyorNode(FixVoid<T>&& val):
-	value{std::move(val)},
-	retrieved{false}
-{}
+template <typename T>
+ImmediateConveyorNode<T>::ImmediateConveyorNode(FixVoid<T> &&val)
+	: value{std::move(val)}, retrieved{false} {}
 
-template<typename T>
-size_t ImmediateConveyorNode<T>::space() const {
+template <typename T> size_t ImmediateConveyorNode<T>::space() const {
 	return 0;
 }
 
-template<typename T>
-size_t ImmediateConveyorNode<T>::queued() const {
+template <typename T> size_t ImmediateConveyorNode<T>::queued() const {
 	return retrieved ? 0 : 1;
 }
 
-template<typename T>
-void ImmediateConveyorNode<T>::childFired() {
+template <typename T> void ImmediateConveyorNode<T>::childFired() {
 	// Impossible
+}
+
+template <typename T> void ImmediateConveyorNode<T>::fire() {
+	if (parent) {
+		parent->childFired();
+	}
 }
 
 } // namespace gin
@@ -635,15 +634,12 @@ template <typename T> T reduceErrorOrType(ErrorOr<T> *);
 template <typename T>
 using ReduceErrorOr = decltype(reduceErrorOrType((T *)nullptr));
 
-template<typename T>
-Conveyor<T>::Conveyor(FixVoid<T> value):
-	ConveyorBase(heap<ImmediateConveyorNode<FixVoid<T>>>(std::move(value)))
-{}
+template <typename T>
+Conveyor<T>::Conveyor(FixVoid<T> value)
+	: ConveyorBase(heap<ImmediateConveyorNode<FixVoid<T>>>(std::move(value))) {}
 
 template <typename T>
-Conveyor<T>::Conveyor(bool fulfilled):
-	ConveyorBase(fulfilled)
-{}
+Conveyor<T>::Conveyor(bool fulfilled) : ConveyorBase(fulfilled) {}
 
 template <typename T>
 Conveyor<T>::Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p)
@@ -825,31 +821,32 @@ template <typename T> void AdaptConveyorNode<T>::fire() {
 	}
 }
 
-template<typename T> OneTimeConveyorFeeder<T>::~OneTimeConveyorFeeder(){
-	if(feedee){
+template <typename T> OneTimeConveyorFeeder<T>::~OneTimeConveyorFeeder() {
+	if (feedee) {
 		feedee->setFeeder(nullptr);
 		feedee = nullptr;
 	}
 }
 
-template<typename T> void OneTimeConveyorFeeder<T>::setFeedee(OneTimeConveyorNode<T>* feedee_p){
+template <typename T>
+void OneTimeConveyorFeeder<T>::setFeedee(OneTimeConveyorNode<T> *feedee_p) {
 	feedee = feedee_p;
 }
 
-template<typename T> void OneTimeConveyorFeeder<T>::feed(T&& value){
-	if(feedee){
+template <typename T> void OneTimeConveyorFeeder<T>::feed(T &&value) {
+	if (feedee) {
 		feedee->feed(std::move(value));
 	}
 }
 
-template<typename T> void OneTimeConveyorFeeder<T>::fail(Error&& error){
-	if(feedee){
+template <typename T> void OneTimeConveyorFeeder<T>::fail(Error &&error) {
+	if (feedee) {
 		feedee->fail(std::move(error));
 	}
 }
 
-template<typename T> size_t OneTimeConveyorFeeder<T>::queued() const {
-	if(feedee){
+template <typename T> size_t OneTimeConveyorFeeder<T>::queued() const {
+	if (feedee) {
 		return feedee->queued();
 	}
 	return 0;
