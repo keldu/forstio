@@ -633,14 +633,13 @@ template <typename T>
 using ReduceErrorOr = decltype(reduceErrorOrType((T *)nullptr));
 
 template <typename T>
-Conveyor<T>::Conveyor(FixVoid<T> value)
-	: ConveyorBase(nullptr, nullptr) {
-		// Is there any way to do  this?
-		// @todo new ConveyorBase constructor for Immediate values
-		auto immediate = heap<ImmediateConveyorNode<FixVoid<T>>>(std::move(value));
-		storage = reinterpret_cast<ConveyorStorage*>(immediate.get());
-		node = std::move(immediate);
-	}
+Conveyor<T>::Conveyor(FixVoid<T> value) : ConveyorBase(nullptr, nullptr) {
+	// Is there any way to do  this?
+	// @todo new ConveyorBase constructor for Immediate values
+	auto immediate = heap<ImmediateConveyorNode<FixVoid<T>>>(std::move(value));
+	storage = reinterpret_cast<ConveyorStorage *>(immediate.get());
+	node = std::move(immediate);
+}
 
 template <typename T>
 Conveyor<T>::Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p)
