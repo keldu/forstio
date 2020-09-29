@@ -2,6 +2,26 @@
 
 #include "async.h"
 
+GIN_TEST("Async Immediate"){
+	using namespace gin;
+
+	EventLoop event_loop;
+	WaitScope wait_scope{event_loop};
+
+	Conveyor<size_t> number{5};
+
+	Conveyor<bool> is_number = number.then([](size_t val){
+		return val == 5;
+	});
+
+	wait_scope.poll();
+
+	ErrorOr<bool> error_or_number = is_number.take();
+
+	GIN_EXPECT(!error_or_number.isError(), "Return is an error: " + error_or_number.error().message());
+	GIN_EXPECT(error_or_number.isValue(), "Return is not a value");
+	GIN_EXPECT(error_or_number.value(), "Value is not 5");
+}
 
 GIN_TEST("Async Adapt"){
 	using namespace gin;

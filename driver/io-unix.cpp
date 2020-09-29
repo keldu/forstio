@@ -180,12 +180,12 @@ Own<Server> UnixNetworkAddress::listen() { return nullptr; }
 Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 	assert(addresses.size() > 0);
 	if (addresses.size() == 0) {
-		return Conveyor<Own<IoStream>>{false};
+		return Conveyor<Own<IoStream>>{nullptr, nullptr};
 	}
 
 	int fd = addresses.front().socket(SOCK_STREAM);
 	if (fd < 0) {
-		return Conveyor<Own<IoStream>>{false};
+		return Conveyor<Own<IoStream>>{nullptr, nullptr};
 	}
 
 	for (auto iter = addresses.begin(); iter != addresses.end(); ++iter) {
@@ -200,7 +200,7 @@ Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 			if (error == EINPROGRESS) {
 				break;
 			} else if (error != EINTR) {
-				return Conveyor<Own<IoStream>>{false};
+				return Conveyor<Own<IoStream>>{nullptr, nullptr};
 			}
 		} else {
 			break;

@@ -67,7 +67,6 @@ protected:
 	ConveyorStorage *storage;
 
 public:
-	ConveyorBase(bool fulfilled);
 	ConveyorBase(Own<ConveyorNode> &&node_p,
 				 ConveyorStorage *storage_p = nullptr);
 	virtual ~ConveyorBase() = default;
@@ -106,7 +105,6 @@ public:
 	 * empty promise
 	 * @todo remove this
 	 */
-	Conveyor(bool fulfilled);
 	Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p);
 
 	Conveyor(Conveyor<T> &&) = default;
@@ -636,10 +634,13 @@ using ReduceErrorOr = decltype(reduceErrorOrType((T *)nullptr));
 
 template <typename T>
 Conveyor<T>::Conveyor(FixVoid<T> value)
-	: ConveyorBase(heap<ImmediateConveyorNode<FixVoid<T>>>(std::move(value))) {}
-
-template <typename T>
-Conveyor<T>::Conveyor(bool fulfilled) : ConveyorBase(fulfilled) {}
+	: ConveyorBase(nullptr, nullptr) {
+		// Is there any way to do  this?
+		// @todo new ConveyorBase constructor for Immediate values
+		auto immediate = heap<ImmediateConveyorNode<FixVoid<T>>>(std::move(value));
+		storage = reinterpret_cast<ConveyorStorage*>(immediate.get());
+		node = std::move(immediate);
+	}
 
 template <typename T>
 Conveyor<T>::Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p)
