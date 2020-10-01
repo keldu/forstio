@@ -354,7 +354,7 @@ public:
 		  port_hint{port_hint}, addresses{std::move(addr)} {}
 
 	Own<Server> listen() override;
-	Conveyor<Own<IoStream>> connect() override;
+	Own<IoStream> connect() override;
 
 	std::string toString() const override;
 };

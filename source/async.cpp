@@ -20,12 +20,13 @@ ConveyorNode::ConveyorNode(Own<ConveyorNode> &&node) : child{std::move(node)} {}
 
 void ConveyorStorage::setParent(ConveyorStorage *p) {
 	/*
-	 * Really weird edge case.
-	 * p and parent check isn't needed, but are used
-	 * for the assert
+	 * parent check isn't needed, but is used
+	 * for the assert, because the storage should
+	 * be armed if there was an element present
+	 * and a valid parent
 	 */
-	if (/*p && !parent && */ !isArmed() && queued() > 0) {
-		assert(p && !parent);
+	if (/*!parent && */ p && !isArmed() && queued() > 0) {
+		assert(!parent);
 		armNext();
 	}
 	parent = p;

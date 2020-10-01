@@ -177,16 +177,19 @@ bool beginsWith(const std::string_view &viewed,
 
 Own<Server> UnixNetworkAddress::listen() { return nullptr; }
 
-Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
+Own<IoStream> UnixNetworkAddress::connect() {
 	assert(addresses.size() > 0);
 	if (addresses.size() == 0) {
-		return Conveyor<Own<IoStream>>{nullptr, nullptr};
+		return nullptr;
 	}
 
 	int fd = addresses.front().socket(SOCK_STREAM);
 	if (fd < 0) {
-		return Conveyor<Own<IoStream>>{nullptr, nullptr};
+		return nullptr;
 	}
+
+	Own<UnixIoStream> io_stream =
+		heap<UnixIoStream>(event_port, fd, 0, EPOLLIN | EPOLLOUT);
 
 	for (auto iter = addresses.begin(); iter != addresses.end(); ++iter) {
 		int status = ::connect(fd, iter->getRaw(), iter->getRawLength());
@@ -198,17 +201,27 @@ Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 			 * be ready when the signal is triggered
 			 */
 			if (error == EINPROGRESS) {
+				Conveyor<void> write_ready = io_stream->writeReady();
 				break;
+				/*
+				* Future function return
+				return write_ready.then(
+					[io_stream{std::move(io_stream)}]() mutable {
+						io_stream->write_ready = nullptr;
+						return std::move(io_stream);
+					});
+				*/
 			} else if (error != EINTR) {
-				return Conveyor<Own<IoStream>>{nullptr, nullptr};
+				return nullptr;
 			}
 		} else {
 			break;
 		}
 	}
 
-	return Conveyor<Own<IoStream>>{
-		heap<UnixIoStream>(event_port, fd, 0, EPOLLIN | EPOLLOUT)};
+	return io_stream;
+	// @todo change function into a safe return type.
+	// return Conveyor<Own<IoStream>>{std::move(io_stream)};
 }
 
 std::string UnixNetworkAddress::toString() const {

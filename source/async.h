@@ -131,6 +131,11 @@ public:
 	/*
 	 *
 	 */
+	Conveyor<T> limit(size_t val = std::numeric_limits<size_t>::max());
+
+	/*
+	 *
+	 */
 	template <typename ErrorFunc> void detach(ErrorFunc &&err_func);
 
 	// Waiting and resolving
@@ -506,7 +511,7 @@ public:
 				eov = FixVoidCaller<T, DepT>::apply(func,
 													std::move(dep_eov.value()));
 			} else if (dep_eov.isError()) {
-				eov = error_func(dep_eov.error());
+				eov = error_func(std::move(dep_eov.error()));
 			} else {
 				eov = criticalError("No value set in dependency");
 			}

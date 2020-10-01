@@ -7,6 +7,9 @@
 
 namespace gin {
 
+/*
+ * Input stream
+ */
 class InputStream {
 public:
 	virtual ~InputStream() = default;
@@ -18,6 +21,9 @@ public:
 	virtual Conveyor<void> onReadDisconnected() = 0;
 };
 
+/*
+ * Output stream
+ */
 class OutputStream {
 public:
 	virtual ~OutputStream() = default;
@@ -27,6 +33,9 @@ public:
 	virtual Conveyor<void> writeReady() = 0;
 };
 
+/*
+ * Io stream
+ */
 class IoStream : public InputStream, public OutputStream {
 public:
 	virtual ~IoStream() = default;
@@ -47,7 +56,7 @@ public:
 	 * Listen on this address
 	 */
 	virtual Own<Server> listen() = 0;
-	virtual Conveyor<Own<IoStream>> connect() = 0;
+	virtual Own<IoStream> connect() = 0;
 
 	virtual std::string toString() const = 0;
 };
