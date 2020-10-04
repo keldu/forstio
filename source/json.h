@@ -21,7 +21,9 @@ template <typename T> struct JsonEncodeImpl<MessagePrimitive<T>> {
 	static Error encode(typename MessagePrimitive<T>::Reader data,
 						Buffer &buffer) {
 		std::string stringified = std::to_string(data.get());
-		Error error = buffer.push(*reinterpret_cast<const uint8_t*>(stringified.data()), stringified.size());
+		Error error =
+			buffer.push(*reinterpret_cast<const uint8_t *>(stringified.data()),
+						stringified.size());
 		if (error.failed()) {
 			return error;
 		}
@@ -32,8 +34,10 @@ template <typename T> struct JsonEncodeImpl<MessagePrimitive<T>> {
 template <> struct JsonEncodeImpl<MessagePrimitive<std::string>> {
 	static Error encode(typename MessagePrimitive<std::string>::Reader data,
 						Buffer &buffer) {
-		std::string str = std::string{"\""}+std::string{data.get()}+std::string{"\""};
-		Error error = buffer.push(*reinterpret_cast<const uint8_t*>(str.data()), str.size());
+		std::string str =
+			std::string{"\""} + std::string{data.get()} + std::string{"\""};
+		Error error = buffer.push(
+			*reinterpret_cast<const uint8_t *>(str.data()), str.size());
 		if (error.failed()) {
 			return error;
 		}
@@ -116,7 +120,8 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 				return error;
 			}
 			std::string_view view = ParameterPackType<i, K...>::type::view();
-			error = buffer.push(*reinterpret_cast<const uint8_t*>(view.data(), view.size()));
+			error = buffer.push(
+				*reinterpret_cast<const uint8_t *>(view.data(), view.size()));
 			if (error.failed()) {
 				return error;
 			}

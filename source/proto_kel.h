@@ -1,8 +1,8 @@
 #pragma once
 
-#include "stream_endian.h"
 #include "buffer.h"
 #include "message.h"
+#include "stream_endian.h"
 
 namespace gin {
 template <typename T> struct ProtoKelEncodeImpl;
