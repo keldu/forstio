@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-#include "message.h"
+#include "source/message.h"
 using gin::MessageList;
 using gin::MessageStruct;
 using gin::MessageStructMember;

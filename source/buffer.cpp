@@ -1,108 +1,175 @@
 #include "buffer.h"
 
 #include <cassert>
-
+#include <algorithm>
 #include <sstream>
+#include <cstring>
 
 namespace gin {
-Error Buffer::add(std::string_view rhs) {
-	for (size_t i = 0; i < rhs.size(); ++i) {
-		if (!push((static_cast<uint8_t>(rhs[i])))) {
-			return recoverableError("Couldn't push to buffer");
+	RingBuffer::RingBuffer():
+		read_position{0},
+		write_position{0}
+	{
+		buffer.resize(RING_BUFFER_MAX_SIZE);
+	}
+
+	RingBuffer::RingBuffer(size_t size):
+		read_position{0},
+		write_position{0}
+	{
+		buffer.resize(size);
+	}
+
+	size_t RingBuffer::readPosition() const {
+		return read_position;
+	}
+
+	/*
+	 * If write is ahead of read it is a simple distance, but if read ist ahead of write then there are two segments 
+	 *
+	 */
+	size_t RingBuffer::readCompositeLength() const {
+		return writePosition() < readPosition() ? buffer.size()-(readPosition()-writePosition()) : ( write_reached_read ? buffer.size() : writePosition() - readPosition() );
+	}
+
+	/*
+	 * If write is ahead then it's the simple distance again. If read is ahead it's until the end of the buffer/segment
+	 */
+	size_t RingBuffer::readSegmentLength() const {
+		return writePosition() < readPosition() ? (buffer.size() - readPosition()) : (write_reached_read? ( buffer.size() - readPosition()) : writePosition() - readPosition());//(writePosition() - readPosition()) : (write_reached_read ? () : 0 );
+	}
+
+	void RingBuffer::readAdvance(size_t bytes){
+		assert(bytes <= readCompositeLength());
+		size_t advanced = read_position + bytes;
+		read_position = advanced >= buffer.size() ? advanced - buffer.size() : advanced;
+		write_reached_read = bytes > 0 ? false : write_reached_read;
+	}
+
+	uint8_t& RingBuffer::read(size_t i){
+		assert(i < readCompositeLength());
+		size_t pos = read_position + i;
+		pos = pos >= buffer.size() ? pos - buffer.size() : pos;
+		return buffer[pos];
+	}
+
+	const uint8_t& RingBuffer::read(size_t i) const {
+		assert(i < readCompositeLength());
+		size_t pos = read_position + i;
+		pos = pos >= buffer.size() ? pos - buffer.size() : pos;
+		return buffer[pos];
+	}
+
+	size_t RingBuffer::writePosition() const {
+		return write_position;
+	}
+
+	size_t RingBuffer::writeCompositeLength() const {
+		return readPosition() > writePosition() ? (readPosition() - writePosition()) : (write_reached_read ? 0 : buffer.size() - (writePosition() - readPosition()));
+	}
+
+	size_t RingBuffer::writeSegmentLength() const {
+		return readPosition() > writePosition() ? (readPosition() - writePosition()) : (write_reached_read ? 0 : (buffer.size() - writePosition()));
+	}
+
+	void RingBuffer::writeAdvance(size_t bytes){
+		assert(bytes <= writeCompositeLength());
+		size_t advanced = write_position + bytes;
+		write_position = advanced >= buffer.size() ? advanced - buffer.size() : advanced;
+		write_reached_read = (write_position == read_position && bytes > 0 ? true : false);
+	}
+
+	uint8_t& RingBuffer::write(size_t i){
+		assert(i < writeCompositeLength());
+		size_t pos = write_position + i;
+		pos = pos >= buffer.size() ? pos - buffer.size() : pos;
+		return buffer[pos];
+	}
+
+	const uint8_t& RingBuffer::write(size_t i) const {
+		assert(i < writeCompositeLength());
+		size_t pos = write_position + i;
+		pos = pos >= buffer.size() ? pos - buffer.size() : pos;
+		return buffer[pos];
+	}
+/*
+	Error RingBuffer::increaseSize(size_t size){
+		size_t old_size = buffer.size();
+		size_t new_size = old_size + size;
+		buffer.resize(new_size);
+		if(readPosition() > writePosition() || (readPosition() == writePosition() && write_reached_read)){
+			size_t remaining = old_size - writePosition();
+			size_t real_remaining = 0;
+			while(remaining > 0){
+				size_t segment = std::min(remaining, size);
+				memcpy(&buffer[new_size-segment], &buffer[old_size-segment], segment);
+				remaining -= segment;
+				size -= segment;
+				old_size -= segment;
+				new_size -= segment;
+			}
 		}
+
+		return noError();
 	}
-	return noError();
-}
-
-std::string Buffer::toString() const {
-	std::stringstream iss;
-	for (size_t i = 0; i < size(); ++i) {
-		iss << (*this)[i];
-	}
-	return iss.str();
-}
-
-ArrayBuffer::ArrayBuffer() {}
-
-ArrayBuffer::ArrayBuffer(size_t size) { buffer_data.reserve(size); }
-
-size_t ArrayBuffer::readPosition() const { return read_index; }
-
-size_t ArrayBuffer::readCompositeLength() const {
-	return write_index - read_index;
-}
-
-size_t ArrayBuffer::readSegmentLength() const {
-	return write_index - read_index;
-}
-
-void ArrayBuffer::readAdvance(size_t bytes) {
-	assert(bytes <= readCompositeLength());
-	read_index += bytes;
-}
-
-uint8_t &ArrayBuffer::read(size_t i) { return buffer_data.at(read_index + i); }
-
-const uint8_t &ArrayBuffer::read(size_t i) const {
-	return buffer_data.at(read_index + i);
-}
-
-size_t ArrayBuffer::writePosition() const { return write_index; }
-
-size_t ArrayBuffer::writeCompositeLength() const {
-	return buffer_data.size() - write_index;
-}
-
-size_t ArrayBuffer::writeSegmentLength() const {
-	return buffer_data.size() - write_index;
-}
-
-void ArrayBuffer::writeAdvance(size_t bytes) {
-	assert(bytes <= writeCompositeLength());
-	write_index += bytes;
-}
-
-uint8_t &ArrayBuffer::write(size_t i) {
-	return buffer_data.at(write_index + i);
-}
-
-const uint8_t &ArrayBuffer::write(size_t i) const {
-	return buffer_data.at(write_index + i);
-}
-
-void ArrayBuffer::pop() { readAdvance(readCompositeLength() > 0 ? 1 : 0); }
-
-bool ArrayBuffer::push(uint8_t data) {
-	if (writeCompositeLength() > 0) {
-		write() = data;
-		writeAdvance(1);
-	} else {
-		buffer_data.push_back(data);
-		writeAdvance(1);
+*/
+	Error RingBuffer::push(const uint8_t& value) {
+		if(writeCompositeLength() > 0){
+			write() = value;
+			writeAdvance(1);
+		}else{
+			return recoverableError("Buffer too small");
+		}
+		return noError();
 	}
 
-	return true;
-}
-
-size_t ArrayBuffer::push(uint8_t *buffer, size_t size) {
-	size_t remaining = size;
-	if (writeCompositeLength() < size) {
-		buffer_data.resize(buffer_data.size() + size);
+	Error RingBuffer::push(const uint8_t& buffer, size_t size) {
+		if(writeCompositeLength() >= size){
+			const uint8_t* buffer_ptr = &buffer;
+			while(size > 0){
+				size_t segment = std::min(writeSegmentLength(), size);
+				memcpy(&write(), buffer_ptr, segment);
+				writeAdvance(segment);
+				size -= segment;
+				buffer_ptr += segment;
+			}
+		}else{
+			return recoverableError("Buffer too small");
+		}
+		return noError();
 	}
 
-	for (size_t i = 0; i < size; ++i) {
-		write(i) = buffer[i];
+	Error RingBuffer::pop(uint8_t& value) {
+		if(readCompositeLength() > 0){
+			value = read();
+			readAdvance(1);
+		}else{
+			return recoverableError("Buffer too small");
+		}
+		return noError();
 	}
-	writeAdvance(size);
 
-	return size;
+	Error RingBuffer::pop(uint8_t& buffer, size_t size) {
+		if(readCompositeLength() >= size){
+			uint8_t* buffer_ptr = &buffer;
+			while(size > 0){
+				size_t segment = std::min(readSegmentLength(), size);
+				memcpy(buffer_ptr, &read(), segment);
+				readAdvance(segment);
+				size -= segment;
+				buffer_ptr += segment;
+			}
+		}else{
+			return recoverableError("Buffer too small");
+		}
+		return noError();
+	}
+
+	std::string RingBuffer::toString() const {
+		std::ostringstream oss;
+		for(size_t i = 0; i < size(); ++i){
+			oss<<(*this)[i];
+		}
+		return oss.str();
+	}
 }
-
-uint8_t &ArrayBuffer::operator[](size_t i) { return buffer_data[i]; }
-
-const uint8_t &ArrayBuffer::operator[](size_t i) const {
-	return buffer_data[i];
-}
-
-size_t ArrayBuffer::size() const { return buffer_data.size(); }
-} // namespace gin

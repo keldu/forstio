@@ -21,7 +21,7 @@ template <typename T> struct JsonEncodeImpl<MessagePrimitive<T>> {
 	static Error encode(typename MessagePrimitive<T>::Reader data,
 						Buffer &buffer) {
 		std::string stringified = std::to_string(data.get());
-		Error error = buffer.add(stringified);
+		Error error = buffer.push(*reinterpret_cast<const uint8_t*>(stringified.data()), stringified.size());
 		if (error.failed()) {
 			return error;
 		}
@@ -32,8 +32,8 @@ template <typename T> struct JsonEncodeImpl<MessagePrimitive<T>> {
 template <> struct JsonEncodeImpl<MessagePrimitive<std::string>> {
 	static Error encode(typename MessagePrimitive<std::string>::Reader data,
 						Buffer &buffer) {
-		Error error = buffer.add(std::string{"\""} + std::string{data.get()} +
-								 std::string{"\""});
+		std::string str = std::string{"\""}+std::string{data.get()}+std::string{"\""};
+		Error error = buffer.push(*reinterpret_cast<const uint8_t*>(str.data()), str.size());
 		if (error.failed()) {
 			return error;
 		}
@@ -62,7 +62,7 @@ template <typename... T> struct JsonEncodeImpl<MessageList<T...>> {
 			}
 		}
 		if constexpr ((i + 1u) < sizeof...(T)) {
-			if (!buffer.push(',')) {
+			if (buffer.push(',').failed()) {
 				return recoverableError("Failed buffer push");
 			}
 		}
@@ -79,7 +79,7 @@ template <typename... T> struct JsonEncodeImpl<MessageList<T...>> {
 
 	static Error encode(typename MessageList<T...>::Reader data,
 						Buffer &buffer) {
-		if (!buffer.push('[')) {
+		if (buffer.push('[').failed()) {
 			return recoverableError("Failed buffer push");
 		}
 		Error error =
@@ -87,7 +87,7 @@ template <typename... T> struct JsonEncodeImpl<MessageList<T...>> {
 		if (error.failed()) {
 			return error;
 		}
-		if (!buffer.push(']')) {
+		if (buffer.push(']').failed()) {
 			return recoverableError("Failed buffer push");
 		}
 		return noError();
@@ -111,15 +111,20 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 			typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
 			Buffer &buffer) {
 		{
-			Error error = buffer.add("\"");
+			Error error = buffer.push('\"');
 			if (error.failed()) {
 				return error;
 			}
-			error = buffer.add(ParameterPackType<i, K...>::type::view());
+			std::string_view view = ParameterPackType<i, K...>::type::view();
+			error = buffer.push(*reinterpret_cast<const uint8_t*>(view.data(), view.size()));
 			if (error.failed()) {
 				return error;
 			}
-			error = buffer.add("\":");
+			error = buffer.push('\"');
+			if (error.failed()) {
+				return error;
+			}
+			error = buffer.push(':');
 			if (error.failed()) {
 				return error;
 			}
@@ -133,7 +138,7 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 			}
 		}
 		if constexpr ((i + 1u) < sizeof...(V)) {
-			if (!buffer.push(',')) {
+			if (buffer.push(',').failed()) {
 				return recoverableError("Failed buffer push");
 			}
 		}
@@ -151,7 +156,7 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 	static Error
 	encode(typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
 		   Buffer &buffer) {
-		if (!buffer.push('{')) {
+		if (buffer.push('{').failed()) {
 			return recoverableError("Failed buffer push");
 		}
 		Error error =
@@ -160,7 +165,7 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 		if (error.failed()) {
 			return error;
 		}
-		if (!buffer.push('}')) {
+		if (buffer.push('}').failed()) {
 			return recoverableError("Failed buffer push");
 		}
 		return noError();
@@ -337,7 +342,7 @@ private:
 	void skipWhitespace(Buffer &buffer) {
 		while (buffer.readCompositeLength() > 0 &&
 			   isWhitespace(buffer.read())) {
-			buffer.pop();
+			buffer.readAdvance(1);
 		}
 	}
 
@@ -568,7 +573,7 @@ private:
 
 	Error decodeRawString(std::string &raw, Buffer &buffer) {
 		assert(buffer.read() == '"');
-		buffer.pop();
+		buffer.readAdvance(1);
 		std::stringstream iss;
 		bool string_done = false;
 		while (!string_done) {
@@ -577,7 +582,7 @@ private:
 			}
 			switch (buffer.read()) {
 			case '\\':
-				buffer.pop();
+				buffer.readAdvance(1);
 				if (buffer.readCompositeLength() == 0) {
 					return recoverableError("Buffer too short");
 				}
@@ -603,7 +608,7 @@ private:
 					iss << '\t';
 					break;
 				case 'u': {
-					buffer.pop();
+					buffer.readAdvance(1);
 					if (buffer.readCompositeLength() < 4) {
 						return recoverableError(
 							"Broken unicode or short buffer");
@@ -626,7 +631,7 @@ private:
 				iss << buffer.read();
 				break;
 			}
-			buffer.pop();
+			buffer.readAdvance(1);
 		}
 		raw = iss.str();
 		return noError();
@@ -634,7 +639,7 @@ private:
 
 	Error decodeList(DynamicMessageList::Builder builder, Buffer &buffer) {
 		assert(buffer.read() == '[');
-		buffer.pop();
+		buffer.readAdvance(1);
 		skipWhitespace(buffer);
 		if (buffer.readCompositeLength() == 0) {
 			return recoverableError("Buffer too short");
@@ -654,13 +659,13 @@ private:
 
 	Error decodeStruct(DynamicMessageStruct::Builder message, Buffer &buffer) {
 		assert(buffer.read() == '{');
-		buffer.pop();
+		buffer.readAdvance(1);
 		skipWhitespace(buffer);
 		if (buffer.readCompositeLength() == 0) {
 			return recoverableError("Buffer too short");
 		}
 		if (buffer.read() == '}') {
-			buffer.pop();
+			buffer.readAdvance(1);
 			return noError();
 		}
 
@@ -680,7 +685,7 @@ private:
 				if (buffer.read() != ':') {
 					return criticalError("Expecting a ':' token");
 				}
-				buffer.pop();
+				buffer.readAdvance(1);
 				Own<DynamicMessage> msg = nullptr;
 				{
 					Error error = decodeValue(msg, buffer);
@@ -705,7 +710,7 @@ private:
 				case '}':
 					break;
 				case ',':
-					buffer.pop();
+					buffer.readAdvance(1);
 					skipWhitespace(buffer);
 					if (buffer.readCompositeLength() == 0) {
 						return recoverableError("Buffer too short");
@@ -718,7 +723,7 @@ private:
 				return criticalError("Not a JSON Object");
 			}
 		}
-		buffer.pop();
+		buffer.readAdvance(1);
 		return noError();
 	}
 

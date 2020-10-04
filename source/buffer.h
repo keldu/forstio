@@ -1,99 +1,163 @@
 #pragma once
 
-#include <cstdint>
-
-#include <array>
-#include <string>
-#include <string_view>
-#include <vector>
-
 #include "error.h"
 
-using std::size_t;
+#include <vector>
+#include <list>
+#include <array>
+#include <deque>
+#include <string>
+#include <cstdint>
 
 namespace gin {
-/*
- * How do I store my data?
- * A list of std::arrays?
- */
-class Buffer {
-public:
-	virtual ~Buffer() = default;
-
-	virtual size_t readPosition() const = 0;
-	virtual size_t readCompositeLength() const = 0;
-	virtual size_t readSegmentLength() const = 0;
-	virtual void readAdvance(size_t bytes) = 0;
-
-	virtual uint8_t &read(size_t i = 0) = 0;
-	virtual const uint8_t &read(size_t i = 0) const = 0;
-
-	virtual size_t writePosition() const = 0;
-	virtual size_t writeCompositeLength() const = 0;
-	virtual size_t writeSegmentLength() const = 0;
-	virtual void writeAdvance(size_t bytes) = 0;
-
-	virtual uint8_t &write(size_t i = 0) = 0;
-	virtual const uint8_t &write(size_t i = 0) const = 0;
-
-	virtual void pop() = 0;
-	virtual bool push(uint8_t data) = 0;
-	virtual size_t push(uint8_t *buffer, size_t size) = 0;
-
-	virtual uint8_t &operator[](size_t i) = 0;
-	virtual const uint8_t &operator[](size_t i) const = 0;
-
-	virtual size_t size() const = 0;
-
-	Error add(std::string_view rhs);
-
-	std::string toString() const;
-};
-
-template <size_t S> class StaticArrayBuffer : public Buffer {
-private:
-	std::array<uint8_t, S> buffer_data;
-};
-
-class ArrayBuffer final : public Buffer {
-private:
-	std::vector<uint8_t> buffer_data;
+	constexpr size_t RING_BUFFER_MAX_SIZE = 4096;
 	/*
-	 * The index which describes the currently writable byte
+	 * Access class to reduce templated BufferSegments bloat
 	 */
-	size_t write_index = 0;
+	class Buffer {
+	private:
+		friend class RingBuffer;
+		~Buffer() = default;
+	public:
+		virtual size_t readPosition() const = 0;
+		virtual size_t readCompositeLength() const = 0;
+		virtual size_t readSegmentLength() const = 0;
+		virtual void readAdvance(size_t bytes) = 0;
+
+		virtual uint8_t& read(size_t i = 0) = 0;
+		virtual const uint8_t& read(size_t i = 0) const = 0;
+		
+		virtual size_t writePosition() const = 0;
+		virtual size_t writeCompositeLength() const = 0;
+		virtual size_t writeSegmentLength() const = 0;
+		virtual void writeAdvance(size_t bytes) = 0;
+
+		virtual uint8_t& write(size_t i = 0) = 0;
+		virtual const uint8_t& write(size_t i = 0) const = 0;
+
+		virtual Error push(const uint8_t& value) = 0;
+		virtual Error push(const uint8_t& buffer, size_t size) = 0;
+		virtual Error pop(uint8_t& value) = 0;
+		virtual Error pop(uint8_t& buffer, size_t size) = 0;
+
+		virtual std::string toString() const = 0;
+	};
 	/*
-	 * The index which describes the currently readable byte
+	* Since we are only handing around data, a buffer pool would be quite nice
+	*/
+	/*
+	 * Buffers currently do not act as a ringbuffer even though that would be possible since
+	 * writing could be done up to the reading position and reading can be done up to the current writing position
+	 * Checks are in place to stop that
 	 */
-	size_t read_index = 0;
+	class RingBuffer final : public Buffer {
+	private:
+		std::vector<uint8_t> buffer;
+		size_t read_position;
+		size_t write_position;
+		bool write_reached_read = false;
+		
+	public:
+		RingBuffer();
+		RingBuffer(size_t size);
 
-public:
-	ArrayBuffer();
-	ArrayBuffer(size_t initial);
+		inline size_t size() const { return buffer.size(); }
 
-	size_t readPosition() const override;
-	size_t readCompositeLength() const override;
-	size_t readSegmentLength() const override;
-	void readAdvance(size_t bytes) override;
+		/*
+		 * Shouldn't be used. Kinda unsafe if I shrink the buffer and don't adjust other values
+		 */
+		// inline void resize(size_t size) { buffer.resize(size); }
 
-	uint8_t &read(size_t i = 0) override;
-	const uint8_t &read(size_t i = 0) const override;
+		inline uint8_t& operator[](size_t i){ return buffer[i]; }
+		inline const uint8_t& operator[](size_t i) const { return buffer[i]; }
 
-	size_t writePosition() const override;
-	size_t writeCompositeLength() const override;
-	size_t writeSegmentLength() const override;
-	void writeAdvance(size_t bytes) override;
+		size_t readPosition() const override;
+		size_t readCompositeLength() const override;
+		size_t readSegmentLength() const override;
+		void readAdvance(size_t bytes) override;
+		
+		uint8_t& read(size_t i = 0) override;
+		const uint8_t& read(size_t i = 0) const override;
 
-	uint8_t &write(size_t i = 0) override;
-	const uint8_t &write(size_t i = 0) const override;
+		size_t writePosition() const override;
+		size_t writeCompositeLength() const override;
+		size_t writeSegmentLength() const override;
+		void writeAdvance(size_t bytes) override;
 
-	void pop() override;
-	bool push(uint8_t data) override;
-	size_t push(uint8_t *buffer, size_t size) override;
+		uint8_t& write(size_t i = 0) override;
+		const uint8_t& write(size_t i = 0) const override;
 
-	uint8_t &operator[](size_t i) override;
-	const uint8_t &operator[](size_t i) const override;
+		Error push(const uint8_t& value) override;
+		Error push(const uint8_t& buffer, size_t size) override;
+		Error pop(uint8_t& value) override;
+		Error pop(uint8_t& buffer, size_t size) override;
 
-	size_t size() const override;
-};
-} // namespace gin
+		std::string toString() const override;
+	};
+
+	/*
+	* One time buffer
+	* Resettable by responsible instances
+	*/
+	class ArrayBuffer : public Buffer {
+	private:
+		std::vector<uint8_t> buffer;
+
+		size_t read_position;
+		size_t write_position;
+	public:
+		ArrayBuffer(size_t size);
+
+		size_t readPosition() const override;
+		size_t readCompositeLength() const override;
+		size_t readSegmentLength() const override;
+		void readAdvance(size_t bytes) override;
+
+		uint8_t& read(size_t i = 0) override;
+		const uint8_t& read(size_t i = 0) const override;
+		
+		size_t writePosition() const override;
+		size_t writeCompositeLength() const override;
+		size_t writeSegmentLength() const override;
+		void writeAdvance(size_t bytes) override;
+
+		uint8_t& write(size_t i = 0) override;
+		const uint8_t& write(size_t i = 0) const override;
+
+		Error push(const uint8_t& value) override;
+		Error push(const uint8_t& buffer, size_t size) override;
+		Error pop(uint8_t& value) override;
+		Error pop(uint8_t& buffer, size_t size) override;
+	};
+
+	class ChainArrayBuffer : public Buffer {
+	private:
+		std::deque<ArrayBuffer> buffer;
+
+		size_t read_position;
+		size_t write_position;
+	public:
+		ChainArrayBuffer();
+
+		size_t readPosition() const override;
+		size_t readCompositeLength() const override;
+		size_t readSegmentLength() const override;
+		void readAdvance(size_t bytes) override;
+
+		uint8_t& read(size_t i = 0) override;
+		const uint8_t& read(size_t i = 0) const override;
+		
+		size_t writePosition() const override;
+		size_t writeCompositeLength() const override;
+		size_t writeSegmentLength() const override;
+		void writeAdvance(size_t bytes) override;
+
+		uint8_t& write(size_t i = 0) override;
+		const uint8_t& write(size_t i = 0) const override;
+
+		Error push(const uint8_t& value) override;
+		Error push(const uint8_t& buffer, size_t size) override;
+		Error pop(uint8_t& value) override;
+		Error pop(uint8_t& buffer, size_t size) override;
+	};
+}

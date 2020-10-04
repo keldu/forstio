@@ -1,6 +1,8 @@
 #pragma once
 
 #include "stream_endian.h"
+#include "buffer.h"
+#include "message.h"
 
 namespace gin {
 template <typename T> struct ProtoKelEncodeImpl;
@@ -8,7 +10,6 @@ template <typename T> struct ProtoKelEncodeImpl;
 template <typename T> struct ProtoKelEncodeImpl<MessagePrimitive<T>> {
 	static Error encode(typename MessagePrimitive<T>::Reader data,
 						Buffer &buffer) {
-
 		Error error = StreamValue<T>::encode(data.get(), buffer);
 		return error;
 	}
@@ -90,7 +91,7 @@ template <> struct ProtoKelDecodeImpl<MessagePrimitive<std::string>> {
 		for (size_t i = 0; i < value.size(); ++i) {
 			value[i] = buffer.read(i);
 		}
-		buffer.readAdvance(view.size());
+		buffer.readAdvance(value.size());
 		return noError();
 	}
 };

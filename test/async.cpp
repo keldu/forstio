@@ -2,6 +2,7 @@
 
 #include "async.h"
 
+namespace {
 GIN_TEST("Async Immediate"){
 	using namespace gin;
 
@@ -179,4 +180,5 @@ GIN_TEST("Async Scheduling"){
 	GIN_EXPECT(!foo_30.isError(), "Return is an error: " + foo_30.error().message());
 	GIN_EXPECT(foo_30.isValue(), "Return is not a value");
 	GIN_EXPECT(foo_30.value() == (std::string{"pre"} + std::to_string(33) + std::string{"post"}), "Values is not pre33post, but " + foo_30.value());
+}
 }

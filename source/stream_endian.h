@@ -1,9 +1,10 @@
 #pragma once
 
-#include <kelgin/buffer.h>
-#include <kelgin/error.h>
+#include "buffer.h"
+#include "error.h"
 
 #include <cstdint>
+#include <cstring>
 
 namespace gin {
 template <typename T, size_t size = sizeof(T)> class ShiftStreamValue;
@@ -21,7 +22,7 @@ public:
 		return noError();
 	}
 
-	inline static Error encode(T &val, Buffer &buffer) {
+	inline static Error encode(const T &val, Buffer &buffer) {
 		if (buffer.writeCompositeLength() < sizeof(T)) {
 			return recoverableError("Buffer too small");
 		}
@@ -54,7 +55,7 @@ public:
 		return noError();
 	}
 
-	inline static Error encode(T &val, Buffer &buffer) {
+	inline static Error encode(const T &val, Buffer &buffer) {
 		if (buffer.writeCompositeLength() < sizeof(T)) {
 			return recoverableError("Buffer too small");
 		}
@@ -88,7 +89,7 @@ public:
 		return noError();
 	}
 
-	inline static Error encode(T &val, Buffer &buffer) {
+	inline static Error encode(const T &val, Buffer &buffer) {
 		if (buffer.writeCompositeLength() < sizeof(T)) {
 			return recoverableError("Buffer too small");
 		}
@@ -122,7 +123,7 @@ public:
 		return noError();
 	}
 
-	inline static Error encode(T &val, Buffer &buffer) {
+	inline static Error encode(const T &val, Buffer &buffer) {
 		if (buffer.writeCompositeLength() < sizeof(T)) {
 			return recoverableError("Buffer too small");
 		}

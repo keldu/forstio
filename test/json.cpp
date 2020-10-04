@@ -4,8 +4,8 @@
 #include <string>
 
 #include "buffer.h"
-#include "message.h"
-#include "json.h"
+#include "source/message.h"
+#include "source/json.h"
 
 using gin::MessageList;
 using gin::MessageStruct;
@@ -16,7 +16,7 @@ using gin::heapMessageBuilder;
 using gin::JsonCodec;
 using gin::Error;
 
-using gin::ArrayBuffer;
+using gin::RingBuffer;
 
 namespace {
 typedef MessageList<MessagePrimitive<uint32_t>, MessagePrimitive<std::string> > TestList;
@@ -29,7 +29,7 @@ GIN_TEST("JSON List Encoding"){
 	auto string = root.init<1>();
 	string.set("free");
 
-	ArrayBuffer temp_buffer;
+	RingBuffer temp_buffer;
 	JsonCodec codec;
 	codec.encode<TestList>(root.asReader(), temp_buffer);
 
@@ -54,7 +54,7 @@ GIN_TEST("JSON Struct Encoding"){
 	auto string_name = root.init<decltype("test_name"_t)>();
 	string_name.set("test_name"_t.view());
 
-	ArrayBuffer temp_buffer;
+	RingBuffer temp_buffer;
 	JsonCodec codec;
 	codec.encode<TestStruct>(root.asReader(), temp_buffer);
 
@@ -76,8 +76,8 @@ GIN_TEST("JSON Struct Decoding"){
 	TestStruct::Builder root = builder.initRoot<TestStruct>();
 
 	JsonCodec codec;
-	ArrayBuffer temp_buffer;
-	temp_buffer.add(json_string);
+	RingBuffer temp_buffer;
+	temp_buffer.push(*reinterpret_cast<const uint8_t*>(json_string.data()), json_string.size());
 	Error error = codec.decode<TestStruct>(root, temp_buffer);
 	GIN_EXPECT( !error.failed(), error.message() );
 
@@ -109,8 +109,8 @@ GIN_TEST("JSON Struct Decoding Two layer"){
 	TestStructDepth::Builder root = builder.initRoot<TestStructDepth>();
 
 	JsonCodec codec;
-	ArrayBuffer temp_buffer;
-	temp_buffer.add(json_string);
+	RingBuffer temp_buffer;
+	temp_buffer.push(*reinterpret_cast<const uint8_t*>(json_string.data()), json_string.size());
 	Error error = codec.decode<TestStructDepth>(root, temp_buffer);
 	GIN_EXPECT( !error.failed(), error.message() );
 
