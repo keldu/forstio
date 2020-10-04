@@ -167,6 +167,41 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 	}
 };
 
+template <typename... V, typename... K>
+struct JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
+	template <size_t i = 0>
+	static typename std::enable_if<i == sizeof...(V), Error>::type encodeMember(
+		typename MessageUnion<MessageUnionMember<V, K>...>::Reader data,
+		Buffer &buffer) {
+		(void)data;
+		(void)buffer;
+		return noError();
+	}
+	template <size_t i = 0>
+		static typename std::enable_if <
+		i<sizeof...(V), Error>::type encodeMember(
+			typename MessageUnion<MessageUnionMember<V, K>...>::Reader data,
+			Buffer &buffer) {
+		/// @todo only encode if alternative is set, skip in other cases
+		/// use holds_alternative
+
+		Error error =
+			JsonEncodeImpl<typename ParameterPackType<i, V...>::type>::encode(
+				data.template get<i>(), buffer);
+		if (error.failed()) {
+			return error;
+		}
+
+		error = JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>>::
+			encodeMember<i + 1>(data, buffer);
+		if (error.failed()) {
+			return error;
+		}
+
+		return noError();
+	}
+};
+
 /*
  * For JSON decoding we need a dynamic where we can query information from
  */

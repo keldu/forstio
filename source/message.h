@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <tuple>
+#include <variant>
 
 #include "common.h"
 
@@ -59,7 +60,7 @@ public:
 	public:
 		Reader(MessagePrimitive<T> &message) : message{message} {}
 
-		constexpr const T &get() { return message.value; }
+		const T &get() const { return message.value; }
 
 		bool isSetExplicitly() const { return message.set_explicitly; }
 
@@ -84,10 +85,16 @@ public:
 	public:
 		Builder(MessagePrimitive<std::string> &message) : message{message} {}
 
-		constexpr void set(std::string_view value) {
-			message.value = value;
+		void set(std::string_view value) {
+			message.value = std::string{value};
 			message.set_explicitly = true;
 		}
+		/*
+		void set(std::string &&value) {
+			message.value = std::move(value);
+			message.set_explicitly = true;
+		}
+		*/
 
 		Reader asReader() { return Reader{message}; }
 	};
@@ -99,7 +106,7 @@ public:
 	public:
 		Reader(MessagePrimitive<std::string> &message) : message{message} {}
 
-		constexpr std::string_view get() { return message.value; }
+		std::string_view get() const { return std::string_view{message.value}; }
 
 		bool isSetExplicitly() const { return message.set_explicitly; }
 
@@ -271,6 +278,94 @@ public:
 		}
 
 		constexpr size_t size() { return std::tuple_size<value_type>::value; }
+
+		Builder asBuilder() { return Builder{message}; }
+	};
+};
+
+template <typename T, typename K> struct MessageUnionMember;
+
+template <typename T, typename C, C... Chars>
+struct MessageUnionMember<T, StringLiteral<C, Chars...>> {
+	T value;
+};
+
+template <typename... T> class MessageUnion;
+
+/// @todo copied from MessageStruct, but the acces is different, since
+///	 only one value can be set at the same time.
+template <typename... V, typename... K>
+class MessageUnion<MessageStructMember<V, K>...> : public Message {
+private:
+	using value_type = std::variant<V...>;
+	value_type values;
+	friend class Builder;
+	friend class Reader;
+
+public:
+	class Reader;
+	class Builder {
+	private:
+		MessageStruct<MessageUnionMember<V, K>...> &message;
+
+	public:
+		Builder(MessageUnion<MessageUnionMember<V, K>...> &message)
+			: message{message} {
+			message.set_explicitly = true;
+		}
+
+		template <size_t i>
+		constexpr typename std::tuple_element_t<i, value_type>::Builder init() {
+			std::variant_alternative_t<i, value_type> &msg_ref =
+				std::get<i>(message.values);
+			return typename std::variant_alternative_t<i, value_type>::Builder{
+				msg_ref};
+		}
+
+		template <typename T>
+		constexpr typename std::variant_alternative_t<
+			ParameterPackIndex<T, K...>::value, value_type>::Builder
+		init() {
+			std::variant_alternative_t<ParameterPackIndex<T, K...>::value,
+									   value_type> &msg_ref =
+				std::get<ParameterPackIndex<T, K...>::value>(message.values);
+			return typename std::variant_alternative_t<
+				ParameterPackIndex<T, K...>::value, value_type>::Builder{
+				msg_ref};
+		}
+
+		Reader asReader() { return Reader{message}; }
+	};
+	class Reader {
+	private:
+		MessageStruct<MessageUnionMember<V, K>...> &message;
+
+	public:
+		Reader(MessageUnion<MessageUnionMember<V, K>...> &message)
+			: message{message} {}
+
+		template <size_t i>
+		constexpr typename std::variant_alternative_t<i, value_type>::Reader
+		get() {
+			std::variant_alternative_t<i, value_type> &msg_ref =
+				std::get<i>(message.values);
+			return typename std::variant_alternative_t<i, value_type>::Reader{
+				msg_ref};
+		}
+
+		template <typename T>
+		constexpr typename std::variant_alternative_t<
+			ParameterPackIndex<T, K...>::value, value_type>::Reader
+		get() {
+			std::variant_alternative_t<ParameterPackIndex<T, K...>::value,
+									   value_type> &msg_ref =
+				std::get<ParameterPackIndex<T, K...>::value>(message.values);
+			return typename std::variant_alternative_t<
+				ParameterPackIndex<T, K...>::value, value_type>::Reader{
+				msg_ref};
+		}
+
+		constexpr size_t size() { return std::variant_size<value_type>::value; }
 
 		Builder asBuilder() { return Builder{message}; }
 	};
