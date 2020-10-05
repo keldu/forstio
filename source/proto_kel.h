@@ -4,6 +4,8 @@
 #include "message.h"
 #include "stream_endian.h"
 
+#include <iostream>
+
 namespace gin {
 template <typename T> struct ProtoKelEncodeImpl;
 
@@ -136,6 +138,58 @@ struct ProtoKelEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 
 	static size_t
 	size(typename MessageStruct<MessageStructMember<V, K>...>::Reader reader) {
+		return sizeMembers<0>(reader);
+	}
+};
+
+template <typename... V, typename... K>
+struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
+	template <size_t i = 0>
+	static typename std::enable_if<i == sizeof...(V), Error>::type
+	encodeMembers(typename MessageUnion<MessageUnionMember<V, K>...>::Reader,
+				  Buffer &) {
+		return noError();
+	}
+
+	template <size_t i = 0>
+		static typename std::enable_if <
+		i<sizeof...(V), Error>::type encodeMembers(
+			typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader,
+			Buffer &buffer) {
+		if (reader.template holdsAlternative<
+				typename ParameterPackType<i, V...>::type>()) {
+			return ProtoKelEncodeImpl<typename ParameterPackType<
+				i, V...>::type>::encode(reader.template get<i>(), buffer);
+		}
+		return encodeMembers<i + 1>(reader, buffer);
+	}
+
+	static Error
+	encode(typename MessageUnion<MessageUnionMember<V, K>...>::Reader data,
+		   Buffer &buffer) {
+		return encodeMembers<0>(data, buffer);
+	}
+
+	template <size_t i = 0>
+	static typename std::enable_if<i == sizeof...(V), size_t>::type
+	sizeMembers(typename MessageUnion<MessageUnionMember<V, K>...>::Reader) {
+		return 0;
+	}
+
+	template <size_t i = 0>
+		static typename std::enable_if <
+		i<sizeof...(V), size_t>::type sizeMembers(
+			typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader) {
+		if (reader.template holdsAlternative<
+				typename ParameterPackType<i, V...>::type>()) {
+			return ProtoKelEncodeImpl<typename ParameterPackType<
+				i, V...>::type>::size(reader.template get<i>());
+		}
+		return sizeMembers<i + 1>(reader);
+	}
+
+	static size_t
+	size(typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader) {
 		return sizeMembers<0>(reader);
 	}
 };

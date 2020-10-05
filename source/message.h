@@ -295,9 +295,9 @@ template <typename... T> class MessageUnion;
 /// @todo copied from MessageStruct, but the acces is different, since
 ///	 only one value can be set at the same time.
 template <typename... V, typename... K>
-class MessageUnion<MessageStructMember<V, K>...> : public Message {
+class MessageUnion<MessageUnionMember<V, K>...> : public Message {
 private:
-	using value_type = std::variant<V...>;
+	using value_type = std::variant<MessageUnionMember<V,K>...>;
 	value_type values;
 	friend class Builder;
 	friend class Reader;
@@ -306,7 +306,7 @@ public:
 	class Reader;
 	class Builder {
 	private:
-		MessageStruct<MessageUnionMember<V, K>...> &message;
+		MessageUnion<MessageUnionMember<V, K>...> &message;
 
 	public:
 		Builder(MessageUnion<MessageUnionMember<V, K>...> &message)
@@ -315,7 +315,8 @@ public:
 		}
 
 		template <size_t i>
-		constexpr typename std::tuple_element_t<i, value_type>::Builder init() {
+		constexpr typename std::variant_alternative_t<i, value_type>::Builder
+		init() {
 			std::variant_alternative_t<i, value_type> &msg_ref =
 				std::get<i>(message.values);
 			return typename std::variant_alternative_t<i, value_type>::Builder{
@@ -338,14 +339,14 @@ public:
 	};
 	class Reader {
 	private:
-		MessageStruct<MessageUnionMember<V, K>...> &message;
+		MessageUnion<MessageUnionMember<V, K>...> &message;
 
 	public:
 		Reader(MessageUnion<MessageUnionMember<V, K>...> &message)
 			: message{message} {}
 
 		template <size_t i>
-		constexpr typename std::variant_alternative_t<i, value_type>::Reader
+		constexpr typename ParameterPackType<i, V...>::Reader
 		get() {
 			std::variant_alternative_t<i, value_type> &msg_ref =
 				std::get<i>(message.values);
@@ -354,8 +355,8 @@ public:
 		}
 
 		template <typename T>
-		constexpr typename std::variant_alternative_t<
-			ParameterPackIndex<T, K...>::value, value_type>::Reader
+		constexpr typename ParameterPackType<<
+			ParameterPackIndex<T, K...>::value, V...>::Reader
 		get() {
 			std::variant_alternative_t<ParameterPackIndex<T, K...>::value,
 									   value_type> &msg_ref =
@@ -364,6 +365,12 @@ public:
 				ParameterPackIndex<T, K...>::value, value_type>::Reader{
 				msg_ref};
 		}
+
+		template <typename T> constexpr bool holdsAlternative() {
+			return std::holds_alternative<std::variant_alternative_t<ParameterPackIndex<T,K...>, value_type>>(message.values);
+		}
+
+		size_t alternativeIndex() const { return }
 
 		constexpr size_t size() { return std::variant_size<value_type>::value; }
 

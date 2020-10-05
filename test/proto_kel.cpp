@@ -15,6 +15,11 @@ typedef gin::MessageStruct<
 	gin::MessageStructMember<gin::MessagePrimitive<std::string>, decltype("test_name"_t)>
 > TestStruct;
 
+typedef gin::MessageUnion<
+	gin::MessageUnionMember<gin::MessagePrimitive<uint32_t>, decltype("test_uint"_t)>,
+	gin::MessageUnionMember<gin::MessagePrimitive<std::string>, decltype("test_string"_t)>
+> TestUnion;
+
 GIN_TEST("Primitive Encoding"){
 	using namespace gin;
 	uint32_t value = 5;
@@ -79,5 +84,42 @@ GIN_TEST("Struct Encoding"){
 	GIN_EXPECT(buffer.readCompositeLength() == 40, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
 	GIN_EXPECT("20 00 00 00\n00 00 00 00\n17 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f 09\n00 00 00 00\n00 00 00 74\n65 73 74 5f\n6e 61 6d 65"
 		== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
+}
+GIN_TEST("Union Encoding"){
+	using namespace gin;
+	{
+		auto builder = heapMessageBuilder();
+		auto root = builder.initRoot<TestUnion>();
+
+		auto test_uint = root.init<decltype("test_uint"_t)>();
+		test_uint.set(23);
+
+		RingBuffer buffer;
+		ProtoKelCodec codec;
+
+		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
+
+		GIN_EXPECT(!error.failed(), "Error: " + error.message());
+		GIN_EXPECT(buffer.readCompositeLength() == 12, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
+		GIN_EXPECT("04 00 00 00\n00 00 00 00\n17 00 00 00"
+			== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
+	}
+	{
+		auto builder = heapMessageBuilder();
+		auto root = builder.initRoot<TestUnion>();
+
+		auto test_string = root.init<decltype("test_string"_t)>();
+		test_string.set("foo");
+
+		RingBuffer buffer;
+		ProtoKelCodec codec;
+
+		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
+
+		GIN_EXPECT(!error.failed(), "Error: " + error.message());
+		GIN_EXPECT(buffer.readCompositeLength() == 19, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
+		GIN_EXPECT("0B 00 00 00\n00 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f"
+			== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
+	}
 }
 }
