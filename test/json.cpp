@@ -44,13 +44,16 @@ typedef MessageStruct<
 > TestStruct;
 
 GIN_TEST("JSON Struct Encoding"){
-	std::string test_string = "foo";
 	auto builder = heapMessageBuilder();
 	auto root = builder.initRoot<TestStruct>();
+	
 	auto uint = root.init<decltype("test_uint"_t)>();
 	uint.set(23);
+
+	std::string test_string = "foo";
 	auto string = root.init<decltype("test_string"_t)>();
 	string.set(test_string);
+	
 	auto string_name = root.init<decltype("test_name"_t)>();
 	string_name.set("test_name"_t.view());
 

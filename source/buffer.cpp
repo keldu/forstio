@@ -189,6 +189,9 @@ std::string RingBuffer::toHex() const {
 	oss << std::hex << std::setfill('0');
 	for (size_t i = 0; i < readCompositeLength(); ++i) {
 		oss << std::setw(2) << (uint16_t)read(i);
+		if ((i + 1) < readCompositeLength()) {
+			oss << ((i % 4 == 3) ? '\n' : ' ');
+		}
 	}
 	return oss.str();
 }

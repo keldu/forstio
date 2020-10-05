@@ -101,7 +101,16 @@ struct ProtoKelEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 		static typename std::enable_if <
 		i<sizeof...(V), Error>::type encodeMembers(
 			typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
-			Buffer &buffer) {}
+			Buffer &buffer) {
+
+		Error error =
+			ProtoKelEncodeImpl<typename ParameterPackType<i, V...>::type>::
+				encode(data.template get<i>(), buffer);
+		if (error.failed()) {
+			return error;
+		}
+		return encodeMembers<i + 1>(data, buffer);
+	}
 
 	static Error
 	encode(typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
