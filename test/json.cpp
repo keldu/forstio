@@ -54,8 +54,8 @@ GIN_TEST("JSON Struct Encoding"){
 	auto string_name = root.init<decltype("test_name"_t)>();
 	string_name.set("test_name"_t.view());
 
-	RingBuffer temp_buffer;
 	JsonCodec codec;
+	RingBuffer temp_buffer;
 	codec.encode<TestStruct>(root.asReader(), temp_buffer);
 
 	std::string expected_result{"{\"test_uint\":23,\"test_string\":\"foo\",\"test_name\":\"test_name\"}"};

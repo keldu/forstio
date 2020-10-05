@@ -39,7 +39,7 @@ size_t RingBuffer::readSegmentLength() const {
 					  ? (buffer.size() - readPosition())
 					  : writePosition() -
 							readPosition()); //(writePosition() -
-											 //readPosition()) :
+											 // readPosition()) :
 											 //(write_reached_read ? () : 0 );
 }
 
@@ -86,6 +86,7 @@ void RingBuffer::writeAdvance(size_t bytes) {
 	size_t advanced = write_position + bytes;
 	write_position = advanced >= buffer.size() ? advanced - buffer.size()
 											   : advanced;
+
 	write_reached_read =
 		(write_position == read_position && bytes > 0 ? true : false);
 }
@@ -122,7 +123,8 @@ const uint8_t &RingBuffer::write(size_t i) const {
 	}
 */
 Error RingBuffer::push(const uint8_t &value) {
-	if (writeCompositeLength() > 0) {
+	size_t write_remain = writeCompositeLength();
+	if (write_remain > 0) {
 		write() = value;
 		writeAdvance(1);
 	} else {

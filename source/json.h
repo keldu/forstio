@@ -120,8 +120,8 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 				return error;
 			}
 			std::string_view view = ParameterPackType<i, K...>::type::view();
-			error = buffer.push(
-				*reinterpret_cast<const uint8_t *>(view.data(), view.size()));
+			error = buffer.push(*reinterpret_cast<const uint8_t *>(view.data()),
+								view.size());
 			if (error.failed()) {
 				return error;
 			}
