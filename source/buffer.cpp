@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <iomanip>
 #include <sstream>
 
 namespace gin {
@@ -179,6 +180,15 @@ std::string RingBuffer::toString() const {
 	std::ostringstream oss;
 	for (size_t i = 0; i < readCompositeLength(); ++i) {
 		oss << read(i);
+	}
+	return oss.str();
+}
+
+std::string RingBuffer::toHex() const {
+	std::ostringstream oss;
+	oss << std::hex << std::setfill('0');
+	for (size_t i = 0; i < readCompositeLength(); ++i) {
+		oss << std::setw(2) << (uint16_t)read(i);
 	}
 	return oss.str();
 }

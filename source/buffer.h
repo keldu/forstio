@@ -42,6 +42,7 @@ public:
 	virtual Error pop(uint8_t &buffer, size_t size) = 0;
 
 	virtual std::string toString() const = 0;
+	virtual std::string toHex() const = 0;
 };
 /*
  * Since we are only handing around data, a buffer pool would be quite nice
@@ -96,6 +97,7 @@ public:
 	Error pop(uint8_t &buffer, size_t size) override;
 
 	std::string toString() const override;
+	std::string toHex() const override;
 };
 
 /*

@@ -35,6 +35,8 @@ public:
 
 		return noError();
 	}
+
+	inline static size_t size() { return sizeof(T); }
 };
 
 template <typename T> class ShiftStreamValue<T, 2> {
@@ -69,6 +71,8 @@ public:
 		buffer.writeAdvance(sizeof(T));
 		return noError();
 	}
+
+	inline static size_t size() { return sizeof(T); }
 };
 
 template <typename T> class ShiftStreamValue<T, 4> {
@@ -103,6 +107,8 @@ public:
 		buffer.writeAdvance(sizeof(T));
 		return noError();
 	}
+
+	inline static size_t size() { return sizeof(T); }
 };
 
 template <typename T> class ShiftStreamValue<T, 8> {
@@ -137,6 +143,8 @@ public:
 		buffer.writeAdvance(sizeof(T));
 		return noError();
 	}
+
+	inline static size_t size() { return sizeof(T); }
 };
 
 template <typename T> using StreamValue = ShiftStreamValue<T>;
