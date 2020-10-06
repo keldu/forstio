@@ -157,7 +157,7 @@ struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 			typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader,
 			Buffer &buffer) {
 		if (reader.template holdsAlternative<
-				typename ParameterPackType<i, V...>::type>()) {
+				typename ParameterPackType<i, K...>::type>()) {
 			return ProtoKelEncodeImpl<typename ParameterPackType<
 				i, V...>::type>::encode(reader.template get<i>(), buffer);
 		}
@@ -181,7 +181,7 @@ struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 		i<sizeof...(V), size_t>::type sizeMembers(
 			typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader) {
 		if (reader.template holdsAlternative<
-				typename ParameterPackType<i, V...>::type>()) {
+				typename ParameterPackType<i, K...>::type>()) {
 			return ProtoKelEncodeImpl<typename ParameterPackType<
 				i, V...>::type>::size(reader.template get<i>());
 		}

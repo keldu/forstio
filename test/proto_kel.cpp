@@ -85,6 +85,7 @@ GIN_TEST("Struct Encoding"){
 	GIN_EXPECT("20 00 00 00\n00 00 00 00\n17 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f 09\n00 00 00 00\n00 00 00 74\n65 73 74 5f\n6e 61 6d 65"
 		== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
 }
+
 GIN_TEST("Union Encoding"){
 	using namespace gin;
 	{
@@ -118,7 +119,7 @@ GIN_TEST("Union Encoding"){
 
 		GIN_EXPECT(!error.failed(), "Error: " + error.message());
 		GIN_EXPECT(buffer.readCompositeLength() == 19, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
-		GIN_EXPECT("0B 00 00 00\n00 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f"
+		GIN_EXPECT("0b 00 00 00\n00 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f"
 			== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
 	}
 }
