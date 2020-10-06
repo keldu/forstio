@@ -297,7 +297,7 @@ template <typename... T> class MessageUnion;
 template <typename... V, typename... K>
 class MessageUnion<MessageUnionMember<V, K>...> : public Message {
 private:
-	using value_type = std::variant<MessageUnionMember<V,K>...>;
+	using value_type = std::variant<MessageUnionMember<V, K>...>;
 	value_type values;
 	friend class Builder;
 	friend class Reader;
@@ -315,23 +315,27 @@ public:
 		}
 
 		template <size_t i>
-		constexpr typename ParameterPackType<i, V...>::type::Builder
-		init() {
-			message.values = typename std::variant_alternative_t<i, value_type>{};
+		constexpr typename ParameterPackType<i, V...>::type::Builder init() {
+			message.values =
+				typename std::variant_alternative_t<i, value_type>{};
 			typename ParameterPackType<i, V...>::type &msg_ref =
 				std::get<i>(message.values).value;
-			return typename ParameterPackType<i, V...>::type::Builder{
-				msg_ref};
+			return typename ParameterPackType<i, V...>::type::Builder{msg_ref};
 		}
 
 		template <typename T>
-		constexpr typename ParameterPackType<ParameterPackIndex<T, K...>::value, V...>::type::Builder
+		constexpr typename ParameterPackType<ParameterPackIndex<T, K...>::value,
+											 V...>::type::Builder
 		init() {
-			message.values = typename std::variant_alternative_t<ParameterPackIndex<T,K...>::value, value_type>{};
-			typename ParameterPackType<ParameterPackIndex<T, K...>::value, V...>::type &msg_ref =
-				std::get<ParameterPackIndex<T, K...>::value>(message.values).value;
-			return typename ParameterPackType<ParameterPackIndex<T, K...>::value, V...>::type::Builder{
-				msg_ref};
+			message.values = typename std::variant_alternative_t<
+				ParameterPackIndex<T, K...>::value, value_type>{};
+			typename ParameterPackType<ParameterPackIndex<T, K...>::value,
+									   V...>::type &msg_ref =
+				std::get<ParameterPackIndex<T, K...>::value>(message.values)
+					.value;
+			return
+				typename ParameterPackType<ParameterPackIndex<T, K...>::value,
+										   V...>::type::Builder{msg_ref};
 		}
 
 		Reader asReader() { return Reader{message}; }
@@ -345,27 +349,29 @@ public:
 			: message{message} {}
 
 		template <size_t i>
-		constexpr typename ParameterPackType<i, V...>::type::Reader
-		get() {
+		constexpr typename ParameterPackType<i, V...>::type::Reader get() {
 			typename ParameterPackType<i, V...>::type &msg_ref =
 				std::get<i>(message.values).value;
-			return typename ParameterPackType<i, V...>::type::Reader{
-				msg_ref};
+			return typename ParameterPackType<i, V...>::type::Reader{msg_ref};
 		}
 
 		template <typename T>
-		constexpr typename ParameterPackType<
-			ParameterPackIndex<T, K...>::value, V...>::type::Reader
+		constexpr typename ParameterPackType<ParameterPackIndex<T, K...>::value,
+											 V...>::type::Reader
 		get() {
-			typename ParameterPackType<ParameterPackIndex<T, K...>::value, V...>::type &msg_ref =
-				std::get<ParameterPackIndex<T, K...>::value>(message.values).value;
-			return typename ParameterPackType<
-			ParameterPackIndex<T, K...>::value, V...>::type::Reader{
-				msg_ref};
+			typename ParameterPackType<ParameterPackIndex<T, K...>::value,
+									   V...>::type &msg_ref =
+				std::get<ParameterPackIndex<T, K...>::value>(message.values)
+					.value;
+			return
+				typename ParameterPackType<ParameterPackIndex<T, K...>::value,
+										   V...>::type::Reader{msg_ref};
 		}
 
 		template <typename T> constexpr bool holdsAlternative() {
-			return std::holds_alternative<std::variant_alternative_t<ParameterPackIndex<T,K...>::value, value_type>>(message.values);
+			return std::holds_alternative<std::variant_alternative_t<
+				ParameterPackIndex<T, K...>::value, value_type>>(
+				message.values);
 		}
 
 		constexpr size_t size() { return std::variant_size<value_type>::value; }
