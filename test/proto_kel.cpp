@@ -166,6 +166,6 @@ GIN_TEST("Struct Decoding"){
 	auto test_name = reader.get<decltype("test_name"_t)>();
 
 	GIN_EXPECT(!error.failed(), std::string{"Error: "} + error.message());
-	GIN_EXPECT(foo_string.get() == "foo" && test_uint.get() == 23 && test_name.get() == "test_name","Values not correctly decoded");
+	GIN_EXPECT(foo_string.get() == "foo" && test_uint.get() == 23 && test_name.get() == "test_name", "Values not correctly decoded");
 }
 }
