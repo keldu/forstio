@@ -129,7 +129,7 @@ GIN_TEST("List Decoding"){
 	const uint8_t buffer_raw[] = {0x06, 0, 0, 0, 0, 0, 0, 0, 0xbf, 0x94, 0x20, 0x00, 0x5f, 0xab};
 
 	RingBuffer buffer;
-	buffer.push(*buffer_raw, 14);
+	buffer.push(*buffer_raw, sizeof(buffer_raw));
 
 	ProtoKelCodec codec;
 
@@ -144,5 +144,28 @@ GIN_TEST("List Decoding"){
 
 	GIN_EXPECT(!error.failed(), std::string{"Error: "} + error.message());
 	GIN_EXPECT(first.get() == 2135231 && second.get() == 43871, "Values not correctly decoded");
+}
+
+GIN_TEST("Struct Decoding"){
+	using namespace gin;
+	const uint8_t buffer_raw[] = {0x20,0,0,0,0,0,0,0,0x17,0,0,0,0x03,0,0,0,0,0,0,0,0x66,0x6f,0x6f,0x09,0,0,0,0,0,0,0,0x74,0x65,0x73,0x74,0x5f,0x6e,0x61,0x6d,0x65};
+
+	RingBuffer buffer;
+	buffer.push(*buffer_raw, sizeof(buffer_raw));
+
+	ProtoKelCodec codec;
+
+	auto builder = heapMessageBuilder();
+	auto root = builder.initRoot<TestStruct>();
+
+	Error error = codec.decode<TestStruct>(root, buffer);
+	auto reader = root.asReader();
+
+	auto foo_string = reader.get<decltype("test_string"_t)>();
+	auto test_uint = reader.get<decltype("test_uint"_t)>();
+	auto test_name = reader.get<decltype("test_name"_t)>();
+
+	GIN_EXPECT(!error.failed(), std::string{"Error: "} + error.message());
+	GIN_EXPECT(foo_string.get() == "foo" && test_uint.get() == 23 && test_name.get() == "test_name","Values not correctly decoded");
 }
 }
