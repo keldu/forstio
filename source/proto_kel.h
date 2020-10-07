@@ -7,6 +7,10 @@
 #include <iostream>
 
 namespace gin {
+/// @todo replace types with these
+using msg_union_id_t = uint32_t;
+using msg_packet_length_t = uint64_t;
+
 template <typename T> struct ProtoKelEncodeImpl;
 
 template <typename T> struct ProtoKelEncodeImpl<MessagePrimitive<T>> {
@@ -158,6 +162,10 @@ struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 			Buffer &buffer) {
 		if (reader.template holdsAlternative<
 				typename ParameterPackType<i, K...>::type>()) {
+			Error error = StreamValue<uint32_t>::encode(i, buffer);
+			if (error.failed()) {
+				return error;
+			}
 			return ProtoKelEncodeImpl<typename ParameterPackType<
 				i, V...>::type>::encode(reader.template get<i>(), buffer);
 		}
@@ -188,25 +196,29 @@ struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 		return sizeMembers<i + 1>(reader);
 	}
 
+	/*
+	 * Size of union id + member size
+	 */
 	static size_t
 	size(typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader) {
-		return sizeMembers<0>(reader);
+		return sizeof(uint32_t) + sizeMembers<0>(reader);
 	}
 };
 
 template <typename T> struct ProtoKelDecodeImpl;
 
 template <typename T> struct ProtoKelDecodeImpl<MessagePrimitive<T>> {
-	static Error encode(typename MessagePrimitive<T>::Builder data,
+	static Error decode(typename MessagePrimitive<T>::Builder data,
 						Buffer &buffer) {
-
-		Error error = StreamValue<T>::decode(data.get(), buffer);
+		T val = 0;
+		Error error = StreamValue<T>::decode(val, buffer);
+		data.set(val);
 		return error;
 	}
 };
 
 template <> struct ProtoKelDecodeImpl<MessagePrimitive<std::string>> {
-	static Error encode(typename MessagePrimitive<std::string>::Builder data,
+	static Error decode(typename MessagePrimitive<std::string>::Builder data,
 						Buffer &buffer) {
 		size_t size = 0;
 		if (sizeof(size) > buffer.readCompositeLength()) {
@@ -232,24 +244,131 @@ template <> struct ProtoKelDecodeImpl<MessagePrimitive<std::string>> {
 			value[i] = buffer.read(i);
 		}
 		buffer.readAdvance(value.size());
+		data.set(std::move(value));
 		return noError();
+	}
+};
+
+template <typename... T> struct ProtoKelDecodeImpl<MessageList<T...>> {
+	template <size_t i = 0>
+	static typename std::enable_if<i == sizeof...(T), Error>::type
+	decodeMembers(typename MessageList<T...>::Builder, Buffer &) {
+		return noError();
+	}
+
+	template <size_t i = 0>
+		static typename std::enable_if <
+		i<sizeof...(T), Error>::type
+		decodeMembers(typename MessageList<T...>::Builder builder,
+					  Buffer &buffer) {
+
+		Error error =
+			ProtoKelDecodeImpl<typename ParameterPackType<i, T...>::type>::
+				decode(builder.template init<i>(), buffer);
+		if (error.failed()) {
+			return error;
+		}
+		return decodeMembers<i + 1>(builder, buffer);
+	}
+
+	static Error decode(typename MessageList<T...>::Builder builder,
+						Buffer &buffer) {
+		return decodeMembers<0>(builder, buffer);
+	}
+};
+
+template <typename... V, typename... K>
+struct ProtoKelDecodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
+	template <size_t i = 0>
+	static typename std::enable_if<i == sizeof...(V), Error>::type
+	decodeMembers(typename MessageStruct<MessageStructMember<V, K>...>::Builder,
+				  Buffer &) {
+		return noError();
+	}
+
+	template <size_t i = 0>
+		static typename std::enable_if <
+		i<sizeof...(V), Error>::type decodeMembers(
+			typename MessageStruct<MessageStructMember<V, K>...>::Builder
+				builder,
+			Buffer &buffer) {
+
+		Error error =
+			ProtoKelDecodeImpl<typename ParameterPackType<i, V...>::type>::
+				decode(builder.template init<i>(), buffer);
+		if (error.failed()) {
+			return error;
+		}
+		return decodeMembers<i + 1>(builder, buffer);
+	}
+
+	static Error decode(
+		typename MessageStruct<MessageStructMember<V, K>...>::Builder builder,
+		Buffer &buffer) {
+		return decodeMembers<0>(builder, buffer);
+	}
+};
+
+template <typename... V, typename... K>
+struct ProtoKelDecodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
+	template <size_t i = 0>
+	static typename std::enable_if<i == sizeof...(V), Error>::type
+	decodeMembers(typename MessageUnion<MessageUnionMember<V, K>...>::Builder,
+				  Buffer &) {
+		return noError();
+	}
+
+	template <size_t i = 0>
+		static typename std::enable_if <
+		i<sizeof...(V), Error>::type decodeMembers(
+			typename MessageUnion<MessageUnionMember<V, K>...>::Builder builder,
+			Buffer &buffer) {
+
+		Error error =
+			ProtoKelDecodeImpl<typename ParameterPackType<i, V...>::type>::
+				decode(builder.template init<i>(), buffer);
+		if (error.failed()) {
+			return error;
+		}
+		return decodeMembers<i + 1>(builder, buffer);
+	}
+
+	static Error
+	decode(typename MessageUnion<MessageUnionMember<V, K>...>::Builder builder,
+		   Buffer &buffer) {
+		msg_union_id_t id = 0;
+		Error error = StreamValue<msg_union_id_t>::decode(id, buffer);
+		if (error.failed()) {
+			return error;
+		}
+
+		return decodeMembers<0>(builder, buffer);
 	}
 };
 
 class ProtoKelCodec {
 public:
+	struct Version {
+		size_t major;
+		size_t minor;
+		size_t security;
+	};
+
+	const Version version() const { return Version{0, 0, 0}; }
+
 	template <typename T>
 	Error encode(typename T::Reader reader, Buffer &buffer) {
-		uint64_t packet_length = ProtoKelEncodeImpl<T>::size(reader);
+		msg_packet_length_t packet_length = ProtoKelEncodeImpl<T>::size(reader);
 		// Check the size of the packet for the first
 		// message length description
 
 		if (buffer.writeCompositeLength() <
-			(packet_length + sizeof(uint64_t))) {
+			(packet_length + sizeof(msg_packet_length_t))) {
 			return recoverableError("Buffer too small");
 		}
 		{
-			Error error = StreamValue<uint64_t>::encode(packet_length, buffer);
+			Error error =
+				StreamValue<msg_packet_length_t>::encode(packet_length, buffer);
 			if (error.failed()) {
 				return error;
 			}
@@ -266,6 +385,26 @@ public:
 
 	template <typename T>
 	Error decode(typename T::Builder builder, Buffer &buffer) {
+		msg_packet_length_t packet_length = 0;
+		{
+			Error error =
+				StreamValue<msg_packet_length_t>::decode(packet_length, buffer);
+			if (error.failed()) {
+				return error;
+			}
+		}
+		{
+			Error error = ProtoKelDecodeImpl<T>::decode(builder, buffer);
+			if (error.failed()) {
+				return error;
+			}
+		}
+		{
+			if (ProtoKelEncodeImpl<T>::size(builder.asReader()) !=
+				packet_length) {
+				return criticalError("Bad packet format");
+			}
+		}
 		return noError();
 	}
 };

@@ -101,8 +101,8 @@ GIN_TEST("Union Encoding"){
 		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
 
 		GIN_EXPECT(!error.failed(), "Error: " + error.message());
-		GIN_EXPECT(buffer.readCompositeLength() == 12, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
-		GIN_EXPECT("04 00 00 00\n00 00 00 00\n17 00 00 00"
+		GIN_EXPECT(buffer.readCompositeLength() == 16, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
+		GIN_EXPECT("08 00 00 00\n00 00 00 00\n00 00 00 00\n17 00 00 00"
 			== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
 	}
 	{
@@ -118,9 +118,31 @@ GIN_TEST("Union Encoding"){
 		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
 
 		GIN_EXPECT(!error.failed(), "Error: " + error.message());
-		GIN_EXPECT(buffer.readCompositeLength() == 19, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
-		GIN_EXPECT("0b 00 00 00\n00 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f"
+		GIN_EXPECT(buffer.readCompositeLength() == 23, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
+		GIN_EXPECT("0f 00 00 00\n00 00 00 00\n01 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f"
 			== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
 	}
+}
+
+GIN_TEST("List Decoding"){
+	using namespace gin;
+	const uint8_t buffer_raw[] = {0x06, 0, 0, 0, 0, 0, 0, 0, 0xbf, 0x94, 0x20, 0x00, 0x5f, 0xab};
+
+	RingBuffer buffer;
+	buffer.push(*buffer_raw, 14);
+
+	ProtoKelCodec codec;
+
+	auto builder = heapMessageBuilder();
+	auto root = builder.initRoot<TestList>();
+
+	Error error = codec.decode<TestList>(root, buffer);
+	auto reader = root.asReader();
+
+	auto first = reader.get<0>();
+	auto second = reader.get<1>();
+
+	GIN_EXPECT(!error.failed(), std::string{"Error: "} + error.message());
+	GIN_EXPECT(first.get() == 2135231 && second.get() == 43871, "Values not correctly decoded");
 }
 }
