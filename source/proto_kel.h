@@ -162,7 +162,7 @@ struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 			Buffer &buffer) {
 		if (reader.template holdsAlternative<
 				typename ParameterPackType<i, K...>::type>()) {
-			Error error = StreamValue<uint32_t>::encode(i, buffer);
+			Error error = StreamValue<msg_union_id_t>::encode(i, buffer);
 			if (error.failed()) {
 				return error;
 			}
@@ -204,7 +204,9 @@ struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 		return sizeof(uint32_t) + sizeMembers<0>(reader);
 	}
 };
-
+/*
+ * Decode Implementations
+ */
 template <typename T> struct ProtoKelDecodeImpl;
 
 template <typename T> struct ProtoKelDecodeImpl<MessagePrimitive<T>> {
@@ -314,7 +316,7 @@ struct ProtoKelDecodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), Error>::type
 	decodeMembers(typename MessageUnion<MessageUnionMember<V, K>...>::Builder,
-				  Buffer &) {
+				  Buffer &, msg_union_id_t) {
 		return noError();
 	}
 
@@ -322,15 +324,17 @@ struct ProtoKelDecodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 		static typename std::enable_if <
 		i<sizeof...(V), Error>::type decodeMembers(
 			typename MessageUnion<MessageUnionMember<V, K>...>::Builder builder,
-			Buffer &buffer) {
+			Buffer &buffer, msg_union_id_t id) {
 
-		Error error =
-			ProtoKelDecodeImpl<typename ParameterPackType<i, V...>::type>::
-				decode(builder.template init<i>(), buffer);
-		if (error.failed()) {
-			return error;
+		if (id == i) {
+			Error error =
+				ProtoKelDecodeImpl<typename ParameterPackType<i, V...>::type>::
+					decode(builder.template init<i>(), buffer);
+			if (error.failed()) {
+				return error;
+			}
 		}
-		return decodeMembers<i + 1>(builder, buffer);
+		return decodeMembers<i + 1>(builder, buffer, id);
 	}
 
 	static Error
@@ -341,8 +345,11 @@ struct ProtoKelDecodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 		if (error.failed()) {
 			return error;
 		}
+		if (id >= sizeof...(V)) {
+			return criticalError("Union doesn't have this many id's");
+		}
 
-		return decodeMembers<0>(builder, buffer);
+		return decodeMembers<0>(builder, buffer, id);
 	}
 };
 

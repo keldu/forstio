@@ -168,4 +168,25 @@ GIN_TEST("Struct Decoding"){
 	GIN_EXPECT(!error.failed(), std::string{"Error: "} + error.message());
 	GIN_EXPECT(foo_string.get() == "foo" && test_uint.get() == 23 && test_name.get() == "test_name", "Values not correctly decoded");
 }
+
+GIN_TEST("Union Decoding"){
+	using namespace gin;
+	const uint8_t buffer_raw[] = {0x0f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x66,0x6f,0x6f};
+
+	RingBuffer buffer;
+	buffer.push(*buffer_raw, sizeof(buffer_raw));
+
+	ProtoKelCodec codec;
+
+	auto builder = heapMessageBuilder();
+	auto root = builder.initRoot<TestUnion>();
+	auto reader = root.asReader();
+
+	Error error = codec.decode<TestUnion>(root, buffer);
+
+	GIN_EXPECT(!error.failed(), "Error: " + error.message());
+	GIN_EXPECT(reader.holdsAlternative<decltype("test_string"_t)>(), "Wrong union value");
+	auto str_rd = reader.get<decltype("test_string"_t)>();
+	GIN_EXPECT(str_rd.get() == "foo", "Wrong value: " + std::string{str_rd.get()});
+}
 }
