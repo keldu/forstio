@@ -23,10 +23,13 @@ void UnixIoStream::readStep() {
 
 		if (n <= 0) {
 			if( n == 0 ){
+				if(on_read_disconnect){
+					on_read_disconnect->feed();
+				}
 				break;
 			}
 			int error = errno;
-			if (error == EAGAIN) {
+			if (error == EAGAIN || error == EWOULDBLOCK) {
 				break;
 			} else {
 				if (read_done) {
@@ -57,7 +60,7 @@ void UnixIoStream::writeStep() {
 
 		if (n < 0) {
 			int error = errno;
-			if (error == EAGAIN) {
+			if (error == EAGAIN || error == EWOULDBLOCK) {
 				break;
 			} else {
 				if (write_done) {
