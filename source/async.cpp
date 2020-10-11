@@ -194,7 +194,7 @@ bool EventLoop::turn() {
 
 bool EventLoop::wait(const std::chrono::steady_clock::duration &duration) {
 	if (event_port) {
-		event_port->wait();
+		event_port->wait(duration);
 	}
 
 	while (head) {
@@ -207,7 +207,7 @@ bool EventLoop::wait(const std::chrono::steady_clock::duration &duration) {
 
 bool EventLoop::wait(const std::chrono::steady_clock::time_point &time_point) {
 	if (event_port) {
-		event_port->wait();
+		event_port->wait(time_point);
 	}
 
 	while (head) {

@@ -193,6 +193,8 @@ public:
 
 	virtual void poll() = 0;
 	virtual void wait() = 0;
+	virtual void wait(const std::chrono::steady_clock::duration &) = 0;
+	virtual void wait(const std::chrono::steady_clock::time_point &) = 0;
 };
 
 class SinkConveyorNode;

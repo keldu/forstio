@@ -88,6 +88,7 @@ private:
 		auto equal_range = signal_conveyors.equal_range(signal);
 		for (auto iter = equal_range.first; iter != equal_range.second;
 			 ++iter) {
+
 			if (iter->second) {
 				if (iter->second->space() > 0) {
 					iter->second->feed();
@@ -183,6 +184,18 @@ public:
 	void poll() override { pollImpl(0); }
 
 	void wait() override { pollImpl(-1); }
+
+	void wait(const std::chrono::steady_clock::duration &duration) override {
+		pollImpl(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count());
+	}
+	void wait(const std::chrono::steady_clock::time_point &time_point) override{
+		auto now = std::chrono::steady_clock::now();
+		if(time_point <= now){
+			poll();
+		}else{
+			pollImpl(std::chrono::duration_cast<std::chrono::milliseconds>(time_point-now).count());
+		}
+	}
 
 	void subscribe(IFdOwner &owner, int fd, uint32_t event_mask) {
 		if (epoll_fd < 0 || fd < 0) {
