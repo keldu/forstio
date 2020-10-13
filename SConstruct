@@ -83,4 +83,5 @@ env.Alias('all', ['format', 'library_shared', 'library_static', 'test'])
 
 env.Install('/usr/local/lib/', [env.library_shared, env.library_static])
 env.Install('/usr/local/include/kelgin/', [env.headers])
+env.Install('/usr/local/include/kelgin/test/', [env.test_headers])
 env.Alias('install', '/usr/local/')

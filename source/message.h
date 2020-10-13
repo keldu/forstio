@@ -374,6 +374,10 @@ public:
 				message.values);
 		}
 
+		size_t index() const {
+			return message.values.index();
+		}
+
 		constexpr size_t size() { return std::variant_size<value_type>::value; }
 
 		Builder asBuilder() { return Builder{message}; }

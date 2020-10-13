@@ -41,6 +41,16 @@ public:
 	virtual ~IoStream() = default;
 };
 
+class DatagramSender {
+public:
+	virtual ~DatagramSender() = default;
+};
+
+class DatagramReceiver {
+public:
+	virtual ~DatagramReceiver() = default;
+};
+
 class Server {
 public:
 	virtual ~Server() = default;
