@@ -21,26 +21,34 @@ void UnixIoStream::readStep() {
 
 		ssize_t n = ::read(fd(), task.buffer, task.max_length);
 
-		if (n < 0) {
+		if (n <= 0) {
+			if( n == 0 ){
+				if(on_read_disconnect){
+					on_read_disconnect->feed();
+				}
+				break;
+			}
 			int error = errno;
-			if (error == EAGAIN) {
+			if (error == EAGAIN || error == EWOULDBLOCK) {
 				break;
 			} else {
 				if (read_done) {
 					read_done->fail(criticalError("Read failed"));
 				}
+				read_tasks.pop();
 			}
 		} else if (static_cast<size_t>(n) >= task.min_length &&
 				   static_cast<size_t>(n) <= task.max_length) {
 			if (read_done) {
 				read_done->feed(static_cast<size_t>(n));
 			}
+			size_t max_len = task.max_length;
+			read_tasks.pop();
 		} else {
 			task.buffer = reinterpret_cast<uint8_t *>(task.buffer) + n;
 			task.min_length -= static_cast<size_t>(n);
 			task.max_length -= static_cast<size_t>(n);
 		}
-		read_tasks.pop();
 	}
 }
 
@@ -52,23 +60,24 @@ void UnixIoStream::writeStep() {
 
 		if (n < 0) {
 			int error = errno;
-			if (error == EAGAIN) {
+			if (error == EAGAIN || error == EWOULDBLOCK) {
 				break;
 			} else {
 				if (write_done) {
 					write_done->fail(criticalError("Write failed"));
 				}
+				write_tasks.pop();
 			}
 		} else if (static_cast<size_t>(n) == task.length) {
 			if (write_done) {
 				write_done->feed(static_cast<size_t>(task.length));
 			}
+			write_tasks.pop();
 		} else {
 			task.buffer = reinterpret_cast<const uint8_t *>(task.buffer) +
 						  static_cast<size_t>(n);
 			task.length -= static_cast<size_t>(n);
 		}
-		write_tasks.pop();
 	}
 }
 
@@ -131,6 +140,7 @@ void UnixIoStream::notify(uint32_t mask) {
 	if (mask & EPOLLIN) {
 		readStep();
 	}
+
 	if (mask & EPOLLRDHUP) {
 		if (on_read_disconnect) {
 			on_read_disconnect->feed();
@@ -175,7 +185,26 @@ bool beginsWith(const std::string_view &viewed,
 }
 } // namespace
 
-Own<Server> UnixNetworkAddress::listen() { return nullptr; }
+Own<Server> UnixNetworkAddress::listen() {
+	assert(addresses.size() > 0);
+	if (addresses.size() == 0) {
+		return nullptr;
+	}
+
+	int fd = addresses.front().socket(SOCK_STREAM);
+	if (fd < 0) {
+		return nullptr;
+	}
+
+	int val = 1;
+
+	::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+
+	addresses.front().bind(fd);
+	::listen(fd, SOMAXCONN);
+
+	return heap<UnixServer>(event_port, fd, 0);
+}
 
 Own<IoStream> UnixNetworkAddress::connect() {
 	assert(addresses.size() > 0);
