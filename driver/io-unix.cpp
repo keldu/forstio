@@ -16,6 +16,9 @@ IFdOwner::~IFdOwner() {
 }
 
 void UnixIoStream::readStep() {
+	if(read_ready){
+		read_ready->feed();
+	}
 	while (!read_tasks.empty()) {
 		ReadIoTask &task = read_tasks.front();
 
@@ -53,6 +56,9 @@ void UnixIoStream::readStep() {
 }
 
 void UnixIoStream::writeStep() {
+	if(write_ready){
+		write_ready->feed();
+	}
 	while (!write_tasks.empty()) {
 		WriteIoTask &task = write_tasks.front();
 
