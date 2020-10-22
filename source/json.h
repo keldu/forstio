@@ -190,20 +190,48 @@ struct JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 	template <size_t i = 0>
 		static typename std::enable_if <
 		i<sizeof...(V), Error>::type encodeMember(
-			typename MessageUnion<MessageUnionMember<V, K>...>::Reader data,
+			typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader,
 			Buffer &buffer) {
 		/// @todo only encode if alternative is set, skip in other cases
 		/// use holds_alternative
 
-		Error error =
-			JsonEncodeImpl<typename ParameterPackType<i, V...>::type>::encode(
-				data.template get<i>(), buffer);
-		if (error.failed()) {
-			return error;
+		if (reader.template holdsAlternative<
+				typename ParameterPackType<i, K...>>::type()) {
+			{
+				Error error = buffer.push('\"');
+				if (error.failed()) {
+					return error;
+				}
+				std::string_view view =
+					ParameterPackType<i, K...>::type::view();
+				error =
+					buffer.push(*reinterpret_cast<const uint8_t *>(view.data()),
+								view.size());
+				if (error.failed()) {
+					return error;
+				}
+				error = buffer.push('\"');
+				if (error.failed()) {
+					return error;
+				}
+				error = buffer.push(':');
+				if (error.failed()) {
+					return error;
+				}
+			}
+
+			Error error =
+				JsonEncodeImpl<typename ParameterPackType<i, V...>::type>::
+					encode(data.template get<i>(), buffer);
+			if (error.failed()) {
+				return error;
+			}
+			return noError();
 		}
 
-		error = JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>>::
-			encodeMember<i + 1>(data, buffer);
+		Error error =
+			JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>>::
+				encodeMember<i + 1>(data, buffer);
 		if (error.failed()) {
 			return error;
 		}

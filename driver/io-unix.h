@@ -186,14 +186,18 @@ public:
 	void wait() override { pollImpl(-1); }
 
 	void wait(const std::chrono::steady_clock::duration &duration) override {
-		pollImpl(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count());
+		pollImpl(std::chrono::duration_cast<std::chrono::milliseconds>(duration)
+					 .count());
 	}
-	void wait(const std::chrono::steady_clock::time_point &time_point) override{
+	void
+	wait(const std::chrono::steady_clock::time_point &time_point) override {
 		auto now = std::chrono::steady_clock::now();
-		if(time_point <= now){
+		if (time_point <= now) {
 			poll();
-		}else{
-			pollImpl(std::chrono::duration_cast<std::chrono::milliseconds>(time_point-now).count());
+		} else {
+			pollImpl(std::chrono::duration_cast<std::chrono::milliseconds>(
+						 time_point - now)
+						 .count());
 		}
 	}
 

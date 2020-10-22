@@ -16,7 +16,7 @@ IFdOwner::~IFdOwner() {
 }
 
 void UnixIoStream::readStep() {
-	if(read_ready){
+	if (read_ready) {
 		read_ready->feed();
 	}
 	while (!read_tasks.empty()) {
@@ -25,8 +25,8 @@ void UnixIoStream::readStep() {
 		ssize_t n = ::read(fd(), task.buffer, task.max_length);
 
 		if (n <= 0) {
-			if( n == 0 ){
-				if(on_read_disconnect){
+			if (n == 0) {
+				if (on_read_disconnect) {
 					on_read_disconnect->feed();
 				}
 				break;
@@ -56,7 +56,7 @@ void UnixIoStream::readStep() {
 }
 
 void UnixIoStream::writeStep() {
-	if(write_ready){
+	if (write_ready) {
 		write_ready->feed();
 	}
 	while (!write_tasks.empty()) {
