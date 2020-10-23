@@ -67,6 +67,53 @@ GIN_TEST("JSON Struct Encoding"){
 	GIN_EXPECT(tmp_string == expected_result, std::string{"Bad encoding:\n"} + tmp_string);
 }
 
+typedef gin::MessageUnion<
+	gin::MessageUnionMember<gin::MessagePrimitive<uint32_t>, decltype("test_uint"_t)>,
+	gin::MessageUnionMember<gin::MessagePrimitive<std::string>, decltype("test_string"_t)>
+> TestUnion;
+
+GIN_TEST("JSON Union Encoding"){
+	using namespace gin;
+	{
+		auto builder = heapMessageBuilder();
+		auto root = builder.initRoot<TestUnion>();
+
+		auto test_uint = root.init<decltype("test_uint"_t)>();
+		test_uint.set(23);
+
+		RingBuffer buffer;
+		JsonCodec codec;
+
+		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
+
+		GIN_EXPECT(!error.failed(), "Error: " + error.message());
+		
+		std::string expected_result{"{\"test_uint\":23}"};
+			
+		std::string tmp_string = buffer.toString();
+		GIN_EXPECT(tmp_string == expected_result, std::string{"Bad encoding:\n"} + tmp_string);
+	}
+	{
+		auto builder = heapMessageBuilder();
+		auto root = builder.initRoot<TestUnion>();
+
+		auto test_string = root.init<decltype("test_string"_t)>();
+		test_string.set("foo");
+
+		RingBuffer buffer;
+		JsonCodec codec;
+
+		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
+
+		GIN_EXPECT(!error.failed(), "Error: " + error.message());
+
+		std::string expected_result{"{\"test_string\":\"foo\"}"};
+			
+		std::string tmp_string = buffer.toString();
+		GIN_EXPECT(tmp_string == expected_result, std::string{"Bad encoding:\n"} + tmp_string);
+	}
+}
+
 GIN_TEST("JSON Struct Decoding"){
 	std::string json_string = R"(
 	{

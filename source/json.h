@@ -196,7 +196,13 @@ struct JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 		/// use holds_alternative
 
 		if (reader.template holdsAlternative<
-				typename ParameterPackType<i, K...>>::type()) {
+				typename ParameterPackType<i, K...>::type>()) {
+			{
+				Error error = buffer.push('{');
+				if (error.failed()) {
+					return error;
+				}
+			}
 			{
 				Error error = buffer.push('\"');
 				if (error.failed()) {
@@ -222,21 +228,33 @@ struct JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 
 			Error error =
 				JsonEncodeImpl<typename ParameterPackType<i, V...>::type>::
-					encode(data.template get<i>(), buffer);
+					encode(reader.template get<i>(), buffer);
 			if (error.failed()) {
 				return error;
+			}
+			{
+				Error error = buffer.push('}');
+				if (error.failed()) {
+					return error;
+				}
 			}
 			return noError();
 		}
 
 		Error error =
 			JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>>::
-				encodeMember<i + 1>(data, buffer);
+				encodeMember<i + 1>(reader, buffer);
 		if (error.failed()) {
 			return error;
 		}
 
 		return noError();
+	}
+
+	static Error
+	encode(typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader,
+		   Buffer &buffer) {
+		return encodeMember<0>(reader, buffer);
 	}
 };
 

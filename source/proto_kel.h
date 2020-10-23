@@ -173,9 +173,9 @@ struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 	}
 
 	static Error
-	encode(typename MessageUnion<MessageUnionMember<V, K>...>::Reader data,
+	encode(typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader,
 		   Buffer &buffer) {
-		return encodeMembers<0>(data, buffer);
+		return encodeMembers<0>(reader, buffer);
 	}
 
 	template <size_t i = 0>
