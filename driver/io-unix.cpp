@@ -268,8 +268,10 @@ std::string UnixNetworkAddress::toString() const {
 	return oss.str();
 }
 
-UnixAsyncIoProvider::UnixAsyncIoProvider()
-	: event_loop{heap<UnixEventPort>()}, wait_scope{event_loop} {}
+UnixAsyncIoProvider::UnixAsyncIoProvider(UnixEventPort &port_ref,
+										 Own<EventPort> &&port)
+	: event_port{port_ref}, event_loop{std::move(port)}, wait_scope{
+															 event_loop} {}
 
 Own<NetworkAddress> UnixAsyncIoProvider::parseAddress(const std::string &path,
 													  uint16_t port_hint) {
@@ -294,18 +296,22 @@ Own<NetworkAddress> UnixAsyncIoProvider::parseAddress(const std::string &path,
 									std::move(addresses));
 }
 
-Own<InputStream> UnixAsyncIoProvider::wrapInputFd(int fd) { return nullptr; }
+Own<InputStream> UnixAsyncIoProvider::wrapInputFd(int fd) {
+	return heap<UnixIoStream>(event_port, fd, 0, EPOLLIN);
+}
 
 EventLoop &UnixAsyncIoProvider::eventLoop() { return event_loop; }
 
 WaitScope &UnixAsyncIoProvider::waitScope() { return wait_scope; }
 
 AsyncIoContext setupAsyncIo() {
-	Own<UnixAsyncIoProvider> io_provider = heap<UnixAsyncIoProvider>();
+	Own<UnixEventPort> prt = heap<UnixEventPort>();
+	UnixEventPort &prt_ref = *prt;
+	Own<UnixAsyncIoProvider> io_provider =
+		heap<UnixAsyncIoProvider>(prt_ref, std::move(prt));
 
 	EventLoop &event_loop = io_provider->eventLoop();
-	EventPort *event_port = event_loop.eventPort();
 	WaitScope &wait_scope = io_provider->waitScope();
-	return {std::move(io_provider), *event_port, wait_scope};
+	return {std::move(io_provider), prt_ref, wait_scope};
 }
 } // namespace gin

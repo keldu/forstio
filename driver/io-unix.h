@@ -378,11 +378,12 @@ public:
 
 class UnixAsyncIoProvider final : public AsyncIoProvider {
 private:
+	UnixEventPort &event_port;
 	EventLoop event_loop;
 	WaitScope wait_scope;
 
 public:
-	UnixAsyncIoProvider();
+	UnixAsyncIoProvider(UnixEventPort &port_ref, Own<EventPort> &&port);
 
 	Own<NetworkAddress> parseAddress(const std::string &,
 									 uint16_t port_hint = 0) override;
