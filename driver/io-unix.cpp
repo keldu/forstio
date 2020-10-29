@@ -17,9 +17,18 @@ IFdOwner::~IFdOwner() {
 	}
 }
 IFdOwner::IFdOwner(IFdOwner &&fd)
-	: file_descriptor{fd.file_descriptor}, fd_flags{fd.fd_flags},
-	  event_mask{fd.event_mask} {
+	: event_port{fd.event_port}, file_descriptor{fd.file_descriptor},
+	  fd_flags{fd.fd_flags}, event_mask{fd.event_mask} {
 	fd.file_descriptor = -1;
+}
+
+IFdOwner &IFdOwner::operator=(IFdOwner &&fd) {
+	event_port = fd.event_port;
+	file_descriptor = fd.file_descriptor;
+	fd_flags = fd.fd_flags;
+	event_mask = fd.event_mask;
+	fd.file_descriptor = -1;
+	return *this;
 }
 
 void UnixIoStream::readStep() {

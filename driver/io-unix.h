@@ -45,7 +45,9 @@ public:
 			 uint32_t event_mask);
 
 	virtual ~IFdOwner();
-	IFdOwner(IFdOwner &&fd);
+	IFdOwner(IFdOwner &&);
+
+	IFdOwner &operator=(IFdOwner &&);
 
 	virtual void notify(uint32_t mask) = 0;
 
