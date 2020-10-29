@@ -143,6 +143,10 @@ void Event::disarm() {
 
 bool Event::isArmed() const { return prev != nullptr; }
 
+SinkConveyor::SinkConveyor(Own<ConveyorNode>&& node_p):
+	node{std::move(node_p)}
+{}
+
 void EventLoop::setRunnable(bool runnable) { is_runnable = runnable; }
 
 EventLoop::EventLoop() {}
@@ -245,9 +249,9 @@ bool EventLoop::poll() {
 
 EventPort *EventLoop::eventPort() { return event_port.get(); }
 
-ConveyorSink &EventLoop::daemon() {
+ConveyorSinks &EventLoop::daemon() {
 	if (!daemon_sink) {
-		daemon_sink = heap<ConveyorSink>();
+		daemon_sink = heap<ConveyorSinks>();
 	}
 	return *daemon_sink;
 }
@@ -268,7 +272,7 @@ void WaitScope::wait(const std::chrono::steady_clock::time_point &time_point) {
 
 void WaitScope::poll() { loop.poll(); }
 
-void ConveyorSink::destroySinkConveyorNode(ConveyorNode &node) {
+void ConveyorSinks::destroySinkConveyorNode(ConveyorNode &node) {
 	if (!isArmed()) {
 		armLast();
 	}
@@ -276,11 +280,11 @@ void ConveyorSink::destroySinkConveyorNode(ConveyorNode &node) {
 	delete_nodes.push(&node);
 }
 
-void ConveyorSink::fail(Error &&error) {
+void ConveyorSinks::fail(Error &&error) {
 	/// @todo call error_handler
 }
 
-void ConveyorSink::add(Conveyor<void> &&sink) {
+void ConveyorSinks::add(Conveyor<void> &&sink) {
 	auto nas = Conveyor<void>::fromConveyor(std::move(sink));
 	Own<SinkConveyorNode> sink_node =
 		heap<SinkConveyorNode>(std::move(nas.first), *this);
@@ -291,7 +295,7 @@ void ConveyorSink::add(Conveyor<void> &&sink) {
 	sink_nodes.push_back(std::move(sink_node));
 }
 
-void ConveyorSink::fire() {
+void ConveyorSinks::fire() {
 	while (!delete_nodes.empty()) {
 		ConveyorNode *node = delete_nodes.front();
 		/*auto erased = */ std::remove_if(sink_nodes.begin(), sink_nodes.end(),
@@ -317,7 +321,7 @@ void AttachConveyorNodeBase::getResult(ErrorOrValue &err_or_val) {
 
 void detachConveyor(Conveyor<void> &&conveyor) {
 	EventLoop &loop = currentEventLoop();
-	ConveyorSink &sink = loop.daemon();
+	ConveyorSinks &sink = loop.daemon();
 	sink.add(std::move(conveyor));
 }
 } // namespace gin

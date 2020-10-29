@@ -1,13 +1,14 @@
 #pragma once
 
-#include <functional>
-#include <limits>
-#include <list>
-#include <queue>
-
 #include "common.h"
 #include "error.h"
 #include "timer.h"
+
+#include <functional>
+#include <limits>
+#include <list>
+#include <type_traits>
+#include <queue>
 
 namespace gin {
 class ConveyorNode {
@@ -95,6 +96,16 @@ public:
 	Error operator()(Error &&error);
 };
 
+class SinkConveyor {
+private:
+	Own<ConveyorNode> node;
+public:
+	SinkConveyor(Own<ConveyorNode>&& node);
+
+	SinkConveyor(SinkConveyor&&) = default;
+	SinkConveyor& operator=(SinkConveyor&&) = default;
+};
+
 template <typename T> class Conveyor : public ConveyorBase {
 public:
 	/*
@@ -137,6 +148,11 @@ public:
 	 *
 	 */
 	template <typename ErrorFunc> void detach(ErrorFunc &&err_func);
+
+	/*
+	*
+	*/
+	template <typename ErrorFunc> SinkConveyor sink(ErrorFunc&& error_func);
 
 	// Waiting and resolving
 	ErrorOr<FixVoid<T>> take();
@@ -199,7 +215,7 @@ public:
 
 class SinkConveyorNode;
 
-class ConveyorSink : public Event {
+class ConveyorSinks : public Event {
 private:
 	friend class SinkConveyorNode;
 
@@ -213,7 +229,7 @@ private:
 	std::function<void(Error &&error)> error_handler;
 
 public:
-	ConveyorSink() = default;
+	ConveyorSinks() = default;
 
 	void add(Conveyor<void> &&node);
 
@@ -232,7 +248,7 @@ private:
 
 	Own<EventPort> event_port = nullptr;
 
-	Own<ConveyorSink> daemon_sink = nullptr;
+	Own<ConveyorSinks> daemon_sink = nullptr;
 
 	// functions
 	void setRunnable(bool runnable);
@@ -255,7 +271,7 @@ public:
 
 	EventPort *eventPort();
 
-	ConveyorSink &daemon();
+	ConveyorSinks &daemon();
 };
 
 class WaitScope {
@@ -525,11 +541,14 @@ public:
 
 class SinkConveyorNode : public ConveyorNode, public ConveyorStorage {
 private:
-	ConveyorSink *conveyor_sink;
+	ConveyorSinks *conveyor_sink;
 
 public:
-	SinkConveyorNode(Own<ConveyorNode> &&node, ConveyorSink &conv_sink)
+	SinkConveyorNode(Own<ConveyorNode> &&node, ConveyorSinks &conv_sink)
 		: ConveyorNode(std::move(node)), conveyor_sink{&conv_sink} {}
+
+	SinkConveyorNode(Own<ConveyorNode> &&node):
+		ConveyorNode(std::move(node)), conveyor_sink{nullptr}{}
 
 	// Event only queued if a critical error occured
 	void fire() override {
@@ -679,6 +698,17 @@ Conveyor<T> Conveyor<T>::attach(Args &&... args) {
 	Own<AttachConveyorNode<Args...>> attach_node =
 		heap<AttachConveyorNode<Args...>>(std::move(node), std::move(args...));
 	return Conveyor<T>{std::move(attach_node), storage};
+}
+
+template<>
+template<typename ErrorFunc>
+SinkConveyor Conveyor<void>::sink(ErrorFunc&& error_func){
+	Own<SinkConveyorNode> sink_node = heap<SinkConveyorNode>(std::move(node));
+	ConveyorStorage* storage_ptr = static_cast<ConveyorStorage*>(sink_node.get());
+	if(storage){
+		storage->setParent(storage_ptr);
+	}
+	return SinkConveyor{std::move(sink_node)};
 }
 
 void detachConveyor(Conveyor<void> &&conveyor);
