@@ -137,12 +137,13 @@ GIN_TEST("List Decoding"){
 	auto root = builder.initRoot<TestList>();
 
 	Error error = codec.decode<TestList>(root, buffer);
+	GIN_EXPECT(!error.failed(), std::string{"Error: "} + error.message());
+	
 	auto reader = root.asReader();
 
 	auto first = reader.get<0>();
 	auto second = reader.get<1>();
 
-	GIN_EXPECT(!error.failed(), std::string{"Error: "} + error.message());
 	GIN_EXPECT(first.get() == 2135231 && second.get() == 43871, "Values not correctly decoded");
 }
 
