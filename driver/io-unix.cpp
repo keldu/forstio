@@ -11,8 +11,15 @@ IFdOwner::IFdOwner(UnixEventPort &event_port, int file_descriptor, int fd_flags,
 }
 
 IFdOwner::~IFdOwner() {
-	event_port.unsubscribe(file_descriptor);
-	::close(file_descriptor);
+	if (file_descriptor >= 0) {
+		event_port.unsubscribe(file_descriptor);
+		::close(file_descriptor);
+	}
+}
+IFdOwner::IFdOwner(IFdOwner &&fd)
+	: file_descriptor{fd.file_descriptor}, fd_flags{fd.fd_flags},
+	  event_mask{fd.event_mask} {
+	fd.file_descriptor = -1;
 }
 
 void UnixIoStream::readStep() {

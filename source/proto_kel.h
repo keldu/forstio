@@ -9,9 +9,9 @@
 namespace gin {
 /// @todo replace types with these
 /*
-* I'm not really sure if anyone will use a union which is 
-* bigger than uint32_t max. At least I hope noone would do this
-*/
+ * I'm not really sure if anyone will use a union which is
+ * bigger than uint32_t max. At least I hope noone would do this
+ */
 using msg_union_id_t = uint32_t;
 using msg_packet_length_t = uint64_t;
 
