@@ -143,9 +143,8 @@ void Event::disarm() {
 
 bool Event::isArmed() const { return prev != nullptr; }
 
-SinkConveyor::SinkConveyor(Own<ConveyorNode>&& node_p):
-	node{std::move(node_p)}
-{}
+SinkConveyor::SinkConveyor(Own<ConveyorNode> &&node_p)
+	: node{std::move(node_p)} {}
 
 void EventLoop::setRunnable(bool runnable) { is_runnable = runnable; }
 

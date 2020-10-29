@@ -7,8 +7,8 @@
 #include <functional>
 #include <limits>
 #include <list>
-#include <type_traits>
 #include <queue>
+#include <type_traits>
 
 namespace gin {
 class ConveyorNode {
@@ -99,11 +99,12 @@ public:
 class SinkConveyor {
 private:
 	Own<ConveyorNode> node;
-public:
-	SinkConveyor(Own<ConveyorNode>&& node);
 
-	SinkConveyor(SinkConveyor&&) = default;
-	SinkConveyor& operator=(SinkConveyor&&) = default;
+public:
+	SinkConveyor(Own<ConveyorNode> &&node);
+
+	SinkConveyor(SinkConveyor &&) = default;
+	SinkConveyor &operator=(SinkConveyor &&) = default;
 };
 
 template <typename T> class Conveyor : public ConveyorBase {
@@ -150,9 +151,9 @@ public:
 	template <typename ErrorFunc> void detach(ErrorFunc &&err_func);
 
 	/*
-	*
-	*/
-	template <typename ErrorFunc> SinkConveyor sink(ErrorFunc&& error_func);
+	 *
+	 */
+	template <typename ErrorFunc> SinkConveyor sink(ErrorFunc &&error_func);
 
 	// Waiting and resolving
 	ErrorOr<FixVoid<T>> take();
@@ -547,8 +548,8 @@ public:
 	SinkConveyorNode(Own<ConveyorNode> &&node, ConveyorSinks &conv_sink)
 		: ConveyorNode(std::move(node)), conveyor_sink{&conv_sink} {}
 
-	SinkConveyorNode(Own<ConveyorNode> &&node):
-		ConveyorNode(std::move(node)), conveyor_sink{nullptr}{}
+	SinkConveyorNode(Own<ConveyorNode> &&node)
+		: ConveyorNode(std::move(node)), conveyor_sink{nullptr} {}
 
 	// Event only queued if a critical error occured
 	void fire() override {
@@ -700,12 +701,13 @@ Conveyor<T> Conveyor<T>::attach(Args &&... args) {
 	return Conveyor<T>{std::move(attach_node), storage};
 }
 
-template<>
-template<typename ErrorFunc>
-SinkConveyor Conveyor<void>::sink(ErrorFunc&& error_func){
+template <>
+template <typename ErrorFunc>
+SinkConveyor Conveyor<void>::sink(ErrorFunc &&error_func) {
 	Own<SinkConveyorNode> sink_node = heap<SinkConveyorNode>(std::move(node));
-	ConveyorStorage* storage_ptr = static_cast<ConveyorStorage*>(sink_node.get());
-	if(storage){
+	ConveyorStorage *storage_ptr =
+		static_cast<ConveyorStorage *>(sink_node.get());
+	if (storage) {
 		storage->setParent(storage_ptr);
 	}
 	return SinkConveyor{std::move(sink_node)};
