@@ -165,6 +165,16 @@ void EventLoop::leaveScope() {
 	local_loop = nullptr;
 }
 
+bool EventLoop::turnLoop(){
+	size_t turn_step = 0;
+	while (head && turn_step < 1024) {
+		if (!turn()) {
+			return false;
+		}
+		++turn_step;
+	}
+}
+
 bool EventLoop::turn() {
 	Event *event = head;
 
@@ -200,12 +210,7 @@ bool EventLoop::wait(const std::chrono::steady_clock::duration &duration) {
 		event_port->wait(duration);
 	}
 
-	while (head) {
-		if (!turn()) {
-			return false;
-		}
-	}
-	return true;
+	return turnLoop();
 }
 
 bool EventLoop::wait(const std::chrono::steady_clock::time_point &time_point) {
@@ -213,12 +218,7 @@ bool EventLoop::wait(const std::chrono::steady_clock::time_point &time_point) {
 		event_port->wait(time_point);
 	}
 
-	while (head) {
-		if (!turn()) {
-			return false;
-		}
-	}
-	return true;
+	return turnLoop();
 }
 
 bool EventLoop::wait() {
@@ -226,24 +226,15 @@ bool EventLoop::wait() {
 		event_port->wait();
 	}
 
-	while (head) {
-		if (!turn()) {
-			return false;
-		}
-	}
-	return true;
+	return turnLoop();
 }
 
 bool EventLoop::poll() {
 	if (event_port) {
 		event_port->poll();
 	}
-	while (head) {
-		if (!turn()) {
-			return false;
-		}
-	}
-	return true;
+	
+	return turnLoop();
 }
 
 EventPort *EventLoop::eventPort() { return event_port.get(); }

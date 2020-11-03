@@ -258,6 +258,7 @@ private:
 	void enterScope();
 	void leaveScope();
 
+	bool turnLoop();
 	bool turn();
 
 public:
