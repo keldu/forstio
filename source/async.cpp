@@ -167,12 +167,13 @@ void EventLoop::leaveScope() {
 
 bool EventLoop::turnLoop(){
 	size_t turn_step = 0;
-	while (head && turn_step < 1024) {
+	while (head && turn_step < 65536) {
 		if (!turn()) {
 			return false;
 		}
 		++turn_step;
 	}
+	return true;
 }
 
 bool EventLoop::turn() {
@@ -233,7 +234,7 @@ bool EventLoop::poll() {
 	if (event_port) {
 		event_port->poll();
 	}
-	
+
 	return turnLoop();
 }
 
