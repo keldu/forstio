@@ -19,5 +19,4 @@ class TlsIoProvider {
 
 };
 
-Own<TlsNetworkProvider> tlsUp
 }
