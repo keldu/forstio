@@ -4,19 +4,19 @@
 
 namespace gin {
 class TlsContext {
+public:
+	struct Options {};
+
 private:
 	/*
-	* Pimpl pattern to hide GnuTls include
-	*/
+	 * Pimpl pattern to hide GnuTls include
+	 */
 	class Impl;
 	Own<Impl> impl;
+
 public:
 	TlsContext();
 	~TlsContext();
 };
 
-class TlsIoProvider {
-
-};
-
-}
+} // namespace gin
