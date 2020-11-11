@@ -52,7 +52,7 @@ public:
 	int fd() const { return file_descriptor; }
 };
 
-class UnixEventPort : public EventPort {
+class UnixEventPort final : public EventPort {
 private:
 	int epoll_fd;
 	int signal_fd;
@@ -228,9 +228,9 @@ public:
 	}
 };
 
-class UnixIoStream : public IoStream,
-					 public IFdOwner,
-					 public DataReaderAndWriter {
+class UnixIoStream final : public IoStream,
+						   public IFdOwner,
+						   public DataReaderAndWriter {
 private:
 	WriteTaskAndStepHelper write_helper;
 	ReadTaskAndStepHelper read_helper;
@@ -257,7 +257,7 @@ public:
 	void notify(uint32_t mask) override;
 };
 
-class UnixServer : public Server, public IFdOwner {
+class UnixServer final : public Server, public IFdOwner {
 private:
 	Own<ConveyorFeeder<Own<IoStream>>> accept_feeder = nullptr;
 
@@ -343,7 +343,7 @@ public:
 	}
 };
 
-class UnixNetworkAddress : public NetworkAddress {
+class UnixNetworkAddress final : public NetworkAddress {
 private:
 	UnixEventPort &event_port;
 	const std::string path;
