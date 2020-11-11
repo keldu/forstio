@@ -18,141 +18,79 @@ IFdOwner::~IFdOwner() {
 	}
 }
 
-void UnixIoStream::readStep() {
-	if (read_ready) {
-		read_ready->feed();
-	}
-	while (!read_tasks.empty()) {
-		ReadIoTask &task = read_tasks.front();
-
-		ssize_t n = ::read(fd(), task.buffer, task.max_length);
-
-		if (n <= 0) {
-			if (n == 0) {
-				if (on_read_disconnect) {
-					on_read_disconnect->feed();
-				}
-				break;
-			}
-			int error = errno;
-			if (error == EAGAIN || error == EWOULDBLOCK) {
-				break;
-			} else {
-				if (read_done) {
-					read_done->fail(criticalError("Read failed"));
-				}
-				read_tasks.pop();
-			}
-		} else if (static_cast<size_t>(n) >= task.min_length &&
-				   static_cast<size_t>(n) <= task.max_length) {
-			if (read_done) {
-				read_done->feed(static_cast<size_t>(n));
-			}
-			size_t max_len = task.max_length;
-			read_tasks.pop();
-		} else {
-			task.buffer = reinterpret_cast<uint8_t *>(task.buffer) + n;
-			task.min_length -= static_cast<size_t>(n);
-			task.max_length -= static_cast<size_t>(n);
-		}
-	}
-}
-
-void UnixIoStream::writeStep() {
-	if (write_ready) {
-		write_ready->feed();
-	}
-	while (!write_tasks.empty()) {
-		WriteIoTask &task = write_tasks.front();
-
-		ssize_t n = ::write(fd(), task.buffer, task.length);
-
-		if (n < 0) {
-			int error = errno;
-			if (error == EAGAIN || error == EWOULDBLOCK) {
-				break;
-			} else {
-				if (write_done) {
-					write_done->fail(criticalError("Write failed"));
-				}
-				write_tasks.pop();
-			}
-		} else if (static_cast<size_t>(n) == task.length) {
-			if (write_done) {
-				write_done->feed(static_cast<size_t>(task.length));
-			}
-			write_tasks.pop();
-		} else {
-			task.buffer = reinterpret_cast<const uint8_t *>(task.buffer) +
-						  static_cast<size_t>(n);
-			task.length -= static_cast<size_t>(n);
-		}
-	}
-}
-
 UnixIoStream::UnixIoStream(UnixEventPort &event_port, int file_descriptor,
 						   int fd_flags, uint32_t event_mask)
 	: IFdOwner{event_port, file_descriptor, fd_flags, event_mask | EPOLLRDHUP} {
 }
 
+ssize_t UnixIoStream::dataRead(void *buffer, size_t length) {
+	return ::read(fd(), buffer, length);
+}
+
+ssize_t UnixIoStream::dataWrite(const void *buffer, size_t length) {
+	return ::write(fd(), buffer, length);
+}
+
 void UnixIoStream::read(void *buffer, size_t min_length, size_t max_length) {
-	bool is_ready = read_tasks.empty();
-	read_tasks.push(ReadIoTask{buffer, min_length, max_length});
+	bool is_ready = read_helper.read_tasks.empty();
+	read_helper.read_tasks.push(
+		ReadTaskAndStepHelper::ReadIoTask{buffer, min_length, max_length});
 	if (is_ready) {
-		readStep();
+		read_helper.readStep(*this);
 	}
 }
 
 Conveyor<size_t> UnixIoStream::readDone() {
 	auto caf = newConveyorAndFeeder<size_t>();
-	read_done = std::move(caf.feeder);
+	read_helper.read_done = std::move(caf.feeder);
 	return std::move(caf.conveyor);
 }
 
 Conveyor<void> UnixIoStream::readReady() {
 	auto caf = newConveyorAndFeeder<void>();
-	read_ready = std::move(caf.feeder);
+	read_helper.read_ready = std::move(caf.feeder);
 	return std::move(caf.conveyor);
 }
 
 Conveyor<void> UnixIoStream::onReadDisconnected() {
 	auto caf = newConveyorAndFeeder<void>();
-	on_read_disconnect = std::move(caf.feeder);
+	read_helper.on_read_disconnect = std::move(caf.feeder);
 	return std::move(caf.conveyor);
 }
 
 void UnixIoStream::write(const void *buffer, size_t length) {
-	bool is_ready = write_tasks.empty();
-	write_tasks.push(WriteIoTask{buffer, length});
+	bool is_ready = write_helper.write_tasks.empty();
+	write_helper.write_tasks.push(
+		WriteTaskAndStepHelper::WriteIoTask{buffer, length});
 	if (is_ready) {
-		writeStep();
+		write_helper.writeStep(*this);
 	}
 }
 
 Conveyor<size_t> UnixIoStream::writeDone() {
 	auto caf = newConveyorAndFeeder<size_t>();
-	write_done = std::move(caf.feeder);
+	write_helper.write_done = std::move(caf.feeder);
 	return std::move(caf.conveyor);
 }
 
 Conveyor<void> UnixIoStream::writeReady() {
 	auto caf = newConveyorAndFeeder<void>();
-	write_ready = std::move(caf.feeder);
+	write_helper.write_ready = std::move(caf.feeder);
 	return std::move(caf.conveyor);
 }
 
 void UnixIoStream::notify(uint32_t mask) {
 	if (mask & EPOLLOUT) {
-		writeStep();
+		write_helper.writeStep(*this);
 	}
 
 	if (mask & EPOLLIN) {
-		readStep();
+		read_helper.readStep(*this);
 	}
 
 	if (mask & EPOLLRDHUP) {
-		if (on_read_disconnect) {
-			on_read_disconnect->feed();
+		if (read_helper.on_read_disconnect) {
+			read_helper.on_read_disconnect->feed();
 		}
 	}
 }
