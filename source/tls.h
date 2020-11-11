@@ -9,7 +9,7 @@ public:
 
 private:
 	/*
-	 * Pimpl pattern to hide GnuTls include
+	 * Pimpl pattern to hide GnuTls includes
 	 */
 	class Impl;
 	Own<Impl> impl;

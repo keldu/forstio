@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "io.h"
+#include "io_helpers.h"
 
 namespace gin {
 constexpr int MAX_EPOLL_EVENTS = 256;
@@ -227,30 +228,17 @@ public:
 	}
 };
 
-class UnixIoStream : public IoStream, public IFdOwner {
+class UnixIoStream : public IoStream,
+					 public IFdOwner,
+					 public DataReaderAndWriter {
 private:
-	struct WriteIoTask {
-		const void *buffer;
-		size_t length;
-	};
-	std::queue<WriteIoTask> write_tasks;
-	Own<ConveyorFeeder<size_t>> write_done = nullptr;
-	Own<ConveyorFeeder<void>> write_ready = nullptr;
-
-	struct ReadIoTask {
-		void *buffer;
-		size_t min_length;
-		size_t max_length;
-	};
-	std::queue<ReadIoTask> read_tasks;
-	Own<ConveyorFeeder<size_t>> read_done = nullptr;
-	Own<ConveyorFeeder<void>> read_ready = nullptr;
-
-	Own<ConveyorFeeder<void>> on_read_disconnect = nullptr;
+	WriteTaskAndStepHelper write_helper;
+	ReadTaskAndStepHelper read_helper;
 
 private:
-	void readStep();
-	void writeStep();
+	// Interface impl for the helpers above
+	ssize_t dataRead(void *buffer, size_t length) override;
+	ssize_t dataWrite(const void *buffer, size_t length) override;
 
 public:
 	UnixIoStream(UnixEventPort &event_port, int file_descriptor, int fd_flags,

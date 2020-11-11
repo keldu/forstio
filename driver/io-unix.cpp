@@ -1,3 +1,4 @@
+#ifdef GIN_UNIX
 #include "driver/io-unix.h"
 
 #include <sstream>
@@ -317,3 +318,4 @@ AsyncIoContext setupAsyncIo() {
 	return {std::move(io_provider), prt_ref, wait_scope};
 }
 } // namespace gin
+#endif // GIN_UNIX

@@ -87,5 +87,8 @@ struct AsyncIoContext {
 	WaitScope &wait_scope;
 };
 
+/*
+ * Setup a default Context with an active waitscope
+ */
 AsyncIoContext setupAsyncIo();
 } // namespace gin
