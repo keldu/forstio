@@ -209,19 +209,10 @@ std::string UnixNetworkAddress::toString() const {
 	return oss.str();
 }
 
-UnixAsyncIoProvider::UnixAsyncIoProvider(UnixEventPort &port_ref,
-										 Own<EventPort> &&port)
-	: event_port{port_ref}, event_loop{std::move(port)}, wait_scope{
-															 event_loop} {}
+UnixNetwork::UnixNetwork(UnixEventPort &event_port) : event_port{event_port} {}
 
-Own<NetworkAddress> UnixAsyncIoProvider::parseAddress(const std::string &path,
-													  uint16_t port_hint) {
-	UnixEventPort *port =
-		reinterpret_cast<UnixEventPort *>(event_loop.eventPort());
-	if (!port) {
-		return nullptr;
-	}
-
+Own<NetworkAddress> UnixNetwork::parseAddress(const std::string &path,
+											  uint16_t port_hint) {
 	std::string_view addr_view{path};
 	{
 		std::string_view begins_with = "unix:";
@@ -233,9 +224,14 @@ Own<NetworkAddress> UnixAsyncIoProvider::parseAddress(const std::string &path,
 	std::list<SocketAddress> addresses =
 		SocketAddress::parse(addr_view, port_hint);
 
-	return heap<UnixNetworkAddress>(*port, *this, path, port_hint,
+	return heap<UnixNetworkAddress>(event_port, path, port_hint,
 									std::move(addresses));
 }
+
+UnixAsyncIoProvider::UnixAsyncIoProvider(UnixEventPort &port_ref,
+										 Own<EventPort> &&port)
+	: event_port{port_ref}, event_loop{std::move(port)}, wait_scope{event_loop},
+	  unix_network{port_ref} {}
 
 Own<InputStream> UnixAsyncIoProvider::wrapInputFd(int fd) {
 	return heap<UnixIoStream>(event_port, fd, 0, EPOLLIN);
@@ -244,6 +240,8 @@ Own<InputStream> UnixAsyncIoProvider::wrapInputFd(int fd) {
 EventLoop &UnixAsyncIoProvider::eventLoop() { return event_loop; }
 
 WaitScope &UnixAsyncIoProvider::waitScope() { return wait_scope; }
+
+Network &UnixAsyncIoProvider::network() { return unix_network; }
 
 AsyncIoContext setupAsyncIo() {
 	Own<UnixEventPort> prt = heap<UnixEventPort>();

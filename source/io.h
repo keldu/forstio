@@ -71,15 +71,34 @@ public:
 	virtual std::string toString() const = 0;
 };
 
+class Network {
+public:
+	virtual ~Network() = default;
+
+	virtual Own<NetworkAddress> parseAddress(const std::string &,
+											 uint16_t port_hint = 0) = 0;
+};
+
 class AsyncIoProvider {
 public:
 	virtual ~AsyncIoProvider() = default;
 
-	virtual Own<NetworkAddress> parseAddress(const std::string &,
-											 uint16_t port_hint = 0) = 0;
-
 	virtual Own<InputStream> wrapInputFd(int fd) = 0;
+
+	virtual Network &network() = 0;
 };
+
+/*
+* Future of io context structure ?
+*
+struct AsyncIoContext {
+	EventLoop event_loop;
+	EventPort& event_port;
+	WaitScope wait_scope;
+	Own<AsyncIoProvider> io_provider;
+	Network& network;
+};
+*/
 
 struct AsyncIoContext {
 	Own<AsyncIoProvider> io;

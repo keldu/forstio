@@ -346,22 +346,31 @@ public:
 class UnixNetworkAddress : public NetworkAddress {
 private:
 	UnixEventPort &event_port;
-	AsyncIoProvider &io_provider;
 	const std::string path;
 	uint16_t port_hint;
 	std::list<SocketAddress> addresses;
 
 public:
-	UnixNetworkAddress(UnixEventPort &event_port, AsyncIoProvider &io_provider,
-					   const std::string &path, uint16_t port_hint,
-					   std::list<SocketAddress> &&addr)
-		: event_port{event_port}, io_provider{io_provider}, path{path},
-		  port_hint{port_hint}, addresses{std::move(addr)} {}
+	UnixNetworkAddress(UnixEventPort &event_port, const std::string &path,
+					   uint16_t port_hint, std::list<SocketAddress> &&addr)
+		: event_port{event_port}, path{path}, port_hint{port_hint},
+		  addresses{std::move(addr)} {}
 
 	Own<Server> listen() override;
 	Own<IoStream> connect() override;
 
 	std::string toString() const override;
+};
+
+class UnixNetwork final : public Network {
+private:
+	UnixEventPort &event_port;
+
+public:
+	UnixNetwork(UnixEventPort &event_port);
+
+	Own<NetworkAddress> parseAddress(const std::string &,
+									 uint16_t port_hint = 0) override;
 };
 
 class UnixAsyncIoProvider final : public AsyncIoProvider {
@@ -370,15 +379,16 @@ private:
 	EventLoop event_loop;
 	WaitScope wait_scope;
 
+	UnixNetwork unix_network;
+
 public:
 	UnixAsyncIoProvider(UnixEventPort &port_ref, Own<EventPort> &&port);
-
-	Own<NetworkAddress> parseAddress(const std::string &,
-									 uint16_t port_hint = 0) override;
 
 	Own<InputStream> wrapInputFd(int fd) override;
 
 	EventLoop &eventLoop();
 	WaitScope &waitScope();
+
+	Network &network() override;
 };
 } // namespace gin
