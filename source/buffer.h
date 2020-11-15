@@ -10,7 +10,6 @@
 #include <vector>
 
 namespace gin {
-constexpr size_t RING_BUFFER_MAX_SIZE = 4096;
 /*
  * Access class to reduce templated BufferSegments bloat
  */
@@ -36,6 +35,15 @@ public:
 	virtual uint8_t &write(size_t i = 0) = 0;
 	virtual const uint8_t &write(size_t i = 0) const = 0;
 
+	/*
+	* Sometime buffers need to grow with a little more control
+	* than with push and pop for more efficient calls.
+	* There is nothing you can do if read hasn't been filled, but at
+	* least write can be increased if it is demanded.
+	*/
+	/// @todo uncomment and implement in child classes
+	// virtual Error writeRequireLength(size_t bytes) = 0;
+
 	virtual Error push(const uint8_t &value) = 0;
 	virtual Error push(const uint8_t &buffer, size_t size) = 0;
 	virtual Error pop(uint8_t &value) = 0;
@@ -45,14 +53,13 @@ public:
 	virtual std::string toHex() const = 0;
 };
 /*
- * Since we are only handing around data, a buffer pool would be quite nice
- */
+* Buffer size meant for default allocation size of the ringbuffer since
+* this class currently doesn't support proper resizing
+*/
+constexpr size_t RING_BUFFER_MAX_SIZE = 4096;
 /*
- * Buffers currently do not act as a ringbuffer even though that would be
- * possible since writing could be done up to the reading position and reading
- * can be done up to the current writing position Checks are in place to stop
- * that
- */
+* Buffer wrapping around if read caught up
+*/
 class RingBuffer final : public Buffer {
 private:
 	std::vector<uint8_t> buffer;
@@ -65,12 +72,6 @@ public:
 	RingBuffer(size_t size);
 
 	inline size_t size() const { return buffer.size(); }
-
-	/*
-	 * Shouldn't be used. Kinda unsafe if I shrink the buffer and don't adjust
-	 * other values
-	 */
-	// inline void resize(size_t size) { buffer.resize(size); }
 
 	inline uint8_t &operator[](size_t i) { return buffer[i]; }
 	inline const uint8_t &operator[](size_t i) const { return buffer[i]; }
@@ -102,7 +103,6 @@ public:
 
 /*
  * One time buffer
- * Resettable by responsible instances
  */
 class ArrayBuffer : public Buffer {
 private:
