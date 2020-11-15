@@ -17,6 +17,15 @@ private:
 public:
 	TlsContext();
 	~TlsContext();
+
+
+};
+
+class TlsNetwork : public Network {
+private:
+public:
+	Own<NetworkAddress> parseAddress(const std::string &,
+											 uint16_t port_hint = 0) override;
 };
 
 } // namespace gin
