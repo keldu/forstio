@@ -41,8 +41,7 @@ public:
 	* There is nothing you can do if read hasn't been filled, but at
 	* least write can be increased if it is demanded.
 	*/
-	/// @todo uncomment and implement in child classes
-	// virtual Error writeRequireLength(size_t bytes) = 0;
+	virtual Error writeRequireLength(size_t bytes) = 0;
 
 	virtual Error push(const uint8_t &value) = 0;
 	virtual Error push(const uint8_t &buffer, size_t size) = 0;
