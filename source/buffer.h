@@ -35,6 +35,15 @@ public:
 	virtual uint8_t &write(size_t i = 0) = 0;
 	virtual const uint8_t &write(size_t i = 0) const = 0;
 
+	/*
+	* Sometime buffers need to grow with a little more control
+	* than with push and pop for more efficient calls.
+	* There is nothing you can do if read hasn't been filled, but at
+	* least write can be increased if it is demanded.
+	*/
+	/// @todo uncomment and implement in child classes
+	// virtual Error writeRequireLength(size_t bytes) = 0;
+
 	virtual Error push(const uint8_t &value) = 0;
 	virtual Error push(const uint8_t &buffer, size_t size) = 0;
 	virtual Error pop(uint8_t &value) = 0;
