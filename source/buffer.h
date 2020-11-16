@@ -14,8 +14,7 @@ namespace gin {
  * Access class to reduce templated BufferSegments bloat
  */
 class Buffer {
-private:
-	friend class RingBuffer;
+protected:
 	~Buffer() = default;
 
 public:
@@ -36,29 +35,29 @@ public:
 	virtual const uint8_t &write(size_t i = 0) const = 0;
 
 	/*
-	* Sometime buffers need to grow with a little more control
-	* than with push and pop for more efficient calls.
-	* There is nothing you can do if read hasn't been filled, but at
-	* least write can be increased if it is demanded.
-	*/
+	 * Sometime buffers need to grow with a little more control
+	 * than with push and pop for more efficient calls.
+	 * There is nothing you can do if read hasn't been filled, but at
+	 * least write can be increased if it is demanded.
+	 */
 	virtual Error writeRequireLength(size_t bytes) = 0;
 
-	virtual Error push(const uint8_t &value) = 0;
-	virtual Error push(const uint8_t &buffer, size_t size) = 0;
-	virtual Error pop(uint8_t &value) = 0;
-	virtual Error pop(uint8_t &buffer, size_t size) = 0;
+	Error push(const uint8_t &value);
+	Error push(const uint8_t &buffer, size_t size);
+	Error pop(uint8_t &value);
+	Error pop(uint8_t &buffer, size_t size);
 
-	virtual std::string toString() const = 0;
-	virtual std::string toHex() const = 0;
+	std::string toString() const;
+	std::string toHex() const;
 };
 /*
-* Buffer size meant for default allocation size of the ringbuffer since
-* this class currently doesn't support proper resizing
-*/
+ * Buffer size meant for default allocation size of the ringbuffer since
+ * this class currently doesn't support proper resizing
+ */
 constexpr size_t RING_BUFFER_MAX_SIZE = 4096;
 /*
-* Buffer wrapping around if read caught up
-*/
+ * Buffer wrapping around if read caught up
+ */
 class RingBuffer final : public Buffer {
 private:
 	std::vector<uint8_t> buffer;
@@ -91,13 +90,7 @@ public:
 	uint8_t &write(size_t i = 0) override;
 	const uint8_t &write(size_t i = 0) const override;
 
-	Error push(const uint8_t &value) override;
-	Error push(const uint8_t &buffer, size_t size) override;
-	Error pop(uint8_t &value) override;
-	Error pop(uint8_t &buffer, size_t size) override;
-
-	std::string toString() const override;
-	std::string toHex() const override;
+	Error writeRequireLength(size_t bytes) override;
 };
 
 /*
@@ -129,10 +122,7 @@ public:
 	uint8_t &write(size_t i = 0) override;
 	const uint8_t &write(size_t i = 0) const override;
 
-	Error push(const uint8_t &value) override;
-	Error push(const uint8_t &buffer, size_t size) override;
-	Error pop(uint8_t &value) override;
-	Error pop(uint8_t &buffer, size_t size) override;
+	Error writeRequireLength(size_t bytes) override;
 };
 
 class ChainArrayBuffer : public Buffer {
@@ -161,9 +151,6 @@ public:
 	uint8_t &write(size_t i = 0) override;
 	const uint8_t &write(size_t i = 0) const override;
 
-	Error push(const uint8_t &value) override;
-	Error push(const uint8_t &buffer, size_t size) override;
-	Error pop(uint8_t &value) override;
-	Error pop(uint8_t &buffer, size_t size) override;
+	Error writeRequireLength(size_t bytes) override;
 };
 } // namespace gin

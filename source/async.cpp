@@ -165,7 +165,7 @@ void EventLoop::leaveScope() {
 	local_loop = nullptr;
 }
 
-bool EventLoop::turnLoop(){
+bool EventLoop::turnLoop() {
 	size_t turn_step = 0;
 	while (head && turn_step < 65536) {
 		if (!turn()) {
