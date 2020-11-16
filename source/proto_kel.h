@@ -34,10 +34,13 @@ template <> struct ProtoKelEncodeImpl<MessagePrimitive<std::string>> {
 						Buffer &buffer) {
 		std::string_view view = data.get();
 		size_t size = view.size();
-		if ((sizeof(size) + size) > buffer.writeCompositeLength()) {
-			return recoverableError("Buffer too small");
+
+		Error error = buffer.writeRequireLength(sizeof(size) + size);
+		if (error.failed()) {
+			return error;
 		}
-		Error error = StreamValue<size_t>::encode(size, buffer);
+
+		error = StreamValue<size_t>::encode(size, buffer);
 		if (error.failed()) {
 			return error;
 		}
@@ -373,10 +376,12 @@ public:
 		// Check the size of the packet for the first
 		// message length description
 
-		if (buffer.writeCompositeLength() <
-			(packet_length + sizeof(msg_packet_length_t))) {
-			return recoverableError("Buffer too small");
+		Error error = buffer.writeRequireLength(packet_length +
+												sizeof(msg_packet_length_t));
+		if (error.failed()) {
+			return error;
 		}
+
 		{
 			Error error =
 				StreamValue<msg_packet_length_t>::encode(packet_length, buffer);
