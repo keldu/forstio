@@ -66,8 +66,9 @@ template <typename... T> struct JsonEncodeImpl<MessageList<T...>> {
 			}
 		}
 		if constexpr ((i + 1u) < sizeof...(T)) {
-			if (buffer.push(',').failed()) {
-				return recoverableError("Failed buffer push");
+			Error error = buffer.push(',');
+			if (error.failed()) {
+				return error;
 			}
 		}
 		{
@@ -83,16 +84,18 @@ template <typename... T> struct JsonEncodeImpl<MessageList<T...>> {
 
 	static Error encode(typename MessageList<T...>::Reader data,
 						Buffer &buffer) {
-		if (buffer.push('[').failed()) {
-			return recoverableError("Failed buffer push");
+		Error error = buffer.push('[');
+		if (error.failed()) {
+			return error;
 		}
-		Error error =
+		error =
 			JsonEncodeImpl<MessageList<T...>>::encodeMembers<0>(data, buffer);
 		if (error.failed()) {
 			return error;
 		}
-		if (buffer.push(']').failed()) {
-			return recoverableError("Failed buffer push");
+		error = buffer.push(']');
+		if (error.failed()) {
+			return error;
 		}
 		return noError();
 	}
@@ -143,8 +146,9 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 			}
 		}
 		if constexpr ((i + 1u) < sizeof...(V)) {
-			if (buffer.push(',').failed()) {
-				return recoverableError("Failed buffer push");
+			Error error = buffer.push(',');
+			if (error.failed()) {
+				return error;
 			}
 		}
 		{
@@ -161,17 +165,18 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 	static Error
 	encode(typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
 		   Buffer &buffer) {
-		if (buffer.push('{').failed()) {
-			return recoverableError("Failed buffer push");
-		}
-		Error error =
-			JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>>::
-				encodeMembers<0>(data, buffer);
+		Error error = buffer.push('{');
 		if (error.failed()) {
 			return error;
 		}
-		if (buffer.push('}').failed()) {
-			return recoverableError("Failed buffer push");
+		error = JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>>::
+			encodeMembers<0>(data, buffer);
+		if (error.failed()) {
+			return error;
+		}
+		error = buffer.push('}');
+		if (error.failed()) {
+			return error;
 		}
 		return noError();
 	}
