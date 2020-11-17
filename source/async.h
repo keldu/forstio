@@ -24,6 +24,10 @@ public:
 };
 
 class EventLoop;
+/*
+* Event class inspired directly by capn'proto.
+* https://github.com/capnproto/capnproto
+*/
 class Event {
 private:
 	EventLoop &loop;
@@ -237,6 +241,10 @@ public:
 	void fire() override;
 };
 
+/*
+* EventLoop class inspired directly by capn'proto.
+* https://github.com/capnproto/capnproto
+*/
 class EventLoop {
 private:
 	friend class Event;
@@ -276,6 +284,10 @@ public:
 	ConveyorSinks &daemon();
 };
 
+/*
+* WaitScope class inspired directly by capn'proto.
+* https://github.com/capnproto/capnproto
+*/
 class WaitScope {
 private:
 	EventLoop &loop;
