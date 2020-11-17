@@ -60,6 +60,8 @@ private:
 
 	std::unordered_multimap<Signal, Own<ConveyorFeeder<void>>> signal_conveyors;
 
+	int pipefds[2];
+
 	std::vector<int> toUnixSignal(Signal signal) const {
 		switch (signal) {
 		case Signal::User1:
@@ -111,7 +113,7 @@ private:
 
 			for (int i = 0; i < nfds; ++i) {
 				if (events[i].data.u64 == 0) {
-					for (;;) {
+					while(1) {
 						struct ::signalfd_siginfo siginfo;
 						ssize_t n =
 							::read(signal_fd, &siginfo, sizeof(siginfo));
@@ -121,6 +123,17 @@ private:
 						assert(n == sizeof(siginfo));
 
 						notifySignalListener(siginfo.ssi_signo);
+					}
+				} else if( events[i].data.u64 == 1){
+					uint8_t i;
+					if(pipefds[0] < 0){
+						continue;
+					}
+					while(1){
+						ssize_t n = ::read(pipefds[0], &i, sizeof(i));
+						if(n < 0){
+							break;
+						}
 					}
 				} else {
 					IFdOwner *owner =
@@ -155,11 +168,22 @@ public:
 		event.events = EPOLLIN;
 		event.data.u64 = 0;
 		::epoll_ctl(epoll_fd, EPOLL_CTL_ADD, signal_fd, &event);
+
+		int rc = ::pipe(pipefds);
+		if(rc < 0){
+			return;
+		}
+		memset(&event, 0, sizeof(event));
+		event.events = EPOLLIN;
+		event.data.u64 = 1;
+		::epoll_ctl(epoll_fd, EPOLL_CTL_ADD, pipefds[0], &event);
 	}
 
 	~UnixEventPort() {
 		::close(epoll_fd);
 		::close(signal_fd);
+		::close(pipefds[0]);
+		::close(pipefds[1]);
 	}
 
 	Conveyor<void> onSignal(Signal signal) override {
@@ -199,6 +223,16 @@ public:
 						 time_point - now)
 						 .count());
 		}
+	}
+
+	void wake() const override {
+		/// @todo pipe() in the beginning and write something minor into it like uint8_t or sth
+		/// the value itself doesn't matter
+		if(pipefds[1] < 0){
+			return;
+		}
+		uint8_t i = 0;
+		::write(pipefds[1], &i, sizeof(i));
 	}
 
 	void subscribe(IFdOwner &owner, int fd, uint32_t event_mask) {
