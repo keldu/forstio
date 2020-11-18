@@ -113,7 +113,7 @@ private:
 
 			for (int i = 0; i < nfds; ++i) {
 				if (events[i].data.u64 == 0) {
-					while(1) {
+					while (1) {
 						struct ::signalfd_siginfo siginfo;
 						ssize_t n =
 							::read(signal_fd, &siginfo, sizeof(siginfo));
@@ -124,14 +124,14 @@ private:
 
 						notifySignalListener(siginfo.ssi_signo);
 					}
-				} else if( events[i].data.u64 == 1){
+				} else if (events[i].data.u64 == 1) {
 					uint8_t i;
-					if(pipefds[0] < 0){
+					if (pipefds[0] < 0) {
 						continue;
 					}
-					while(1){
+					while (1) {
 						ssize_t n = ::read(pipefds[0], &i, sizeof(i));
-						if(n < 0){
+						if (n < 0) {
 							break;
 						}
 					}
@@ -170,7 +170,7 @@ public:
 		::epoll_ctl(epoll_fd, EPOLL_CTL_ADD, signal_fd, &event);
 
 		int rc = ::pipe(pipefds);
-		if(rc < 0){
+		if (rc < 0) {
 			return;
 		}
 		memset(&event, 0, sizeof(event));
@@ -225,10 +225,10 @@ public:
 		}
 	}
 
-	void wake() const override {
-		/// @todo pipe() in the beginning and write something minor into it like uint8_t or sth
-		/// the value itself doesn't matter
-		if(pipefds[1] < 0){
+	void wake() override {
+		/// @todo pipe() in the beginning and write something minor into it like
+		/// uint8_t or sth the value itself doesn't matter
+		if (pipefds[1] < 0) {
 			return;
 		}
 		uint8_t i = 0;

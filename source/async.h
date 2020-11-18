@@ -25,9 +25,9 @@ public:
 
 class EventLoop;
 /*
-* Event class inspired directly by capn'proto.
-* https://github.com/capnproto/capnproto
-*/
+ * Event class inspired directly by capn'proto.
+ * https://github.com/capnproto/capnproto
+ */
 class Event {
 private:
 	EventLoop &loop;
@@ -217,7 +217,7 @@ public:
 	virtual void wait(const std::chrono::steady_clock::duration &) = 0;
 	virtual void wait(const std::chrono::steady_clock::time_point &) = 0;
 
-	virtual void wake() const = 0;
+	virtual void wake() = 0;
 };
 
 class SinkConveyorNode;
@@ -244,9 +244,9 @@ public:
 };
 
 /*
-* EventLoop class inspired directly by capn'proto.
-* https://github.com/capnproto/capnproto
-*/
+ * EventLoop class inspired directly by capn'proto.
+ * https://github.com/capnproto/capnproto
+ */
 class EventLoop {
 private:
 	friend class Event;
@@ -287,9 +287,9 @@ public:
 };
 
 /*
-* WaitScope class inspired directly by capn'proto.
-* https://github.com/capnproto/capnproto
-*/
+ * WaitScope class inspired directly by capn'proto.
+ * https://github.com/capnproto/capnproto
+ */
 class WaitScope {
 private:
 	EventLoop &loop;
