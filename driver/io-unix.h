@@ -51,7 +51,7 @@ public:
 	int fd() const { return file_descriptor; }
 };
 
-class UnixEventPort : public EventPort {
+class UnixEventPort final : public EventPort {
 private:
 	int epoll_fd;
 	int signal_fd;
@@ -261,7 +261,7 @@ public:
 	}
 };
 
-class UnixIoStream : public IoStream, public IFdOwner {
+class UnixIoStream final : public IoStream, public IFdOwner {
 private:
 	struct WriteIoTask {
 		const void *buffer;
@@ -303,7 +303,7 @@ public:
 	void notify(uint32_t mask) override;
 };
 
-class UnixServer : public Server, public IFdOwner {
+class UnixServer final : public Server, public IFdOwner {
 private:
 	Own<ConveyorFeeder<Own<IoStream>>> accept_feeder = nullptr;
 
@@ -389,7 +389,7 @@ public:
 	}
 };
 
-class UnixNetworkAddress : public NetworkAddress {
+class UnixNetworkAddress final : public NetworkAddress {
 private:
 	UnixEventPort &event_port;
 	AsyncIoProvider &io_provider;
