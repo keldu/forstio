@@ -6,6 +6,11 @@
 #include "common.h"
 
 namespace gin {
+/**
+ * Utility class for generating errors. Has a base distinction between
+ * critical and recoverable errors. Additional code ids can be provided to the
+ * constructor if additional distinctions are necessary.
+ */
 class Error {
 private:
 	std::string error_message;
@@ -32,6 +37,10 @@ Error criticalError(const std::string &msg);
 Error recoverableError(const std::string &msg);
 Error noError();
 
+/**
+ * Exception alternative. Since I code without exceptions this class is
+ * essentially a kind of exception replacement.
+ */
 template <typename T> class ErrorOr;
 
 class ErrorOrValue {

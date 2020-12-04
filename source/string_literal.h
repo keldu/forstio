@@ -4,6 +4,11 @@
 #include <string_view>
 
 namespace gin {
+/**
+ * Helper object which creates a templated string from the provided string
+ * literal. It guarantees compile time uniqueness and thus allows using strings
+ * in template parameters.
+ */
 template <typename T, T... Chars> class StringLiteral {
 public:
 	static constexpr std::array<T, sizeof...(Chars) + 1u> data = {Chars...,

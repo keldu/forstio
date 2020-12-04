@@ -111,57 +111,71 @@ public:
 	SinkConveyor &operator=(SinkConveyor &&) = default;
 };
 
+/**
+ * Main interface for async operations.
+ */
 template <typename T> class Conveyor : public ConveyorBase {
 public:
-	/*
+	/**
 	 * Construct a immediately fulfilled node
 	 */
 	Conveyor(FixVoid<T> value);
-	/*
-	 * empty promise
-	 * @todo remove this
+
+	/**
+	 * Construct a conveyor with a child node and the next storage point
 	 */
 	Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p);
 
 	Conveyor(Conveyor<T> &&) = default;
 	Conveyor<T> &operator=(Conveyor<T> &&) = default;
 
-	/*
-	 * This method converts passed values or errors from children
+	/**
+	 * This method converts values or errors from children
 	 */
 	template <typename Func, typename ErrorFunc = PropagateError>
 	ConveyorResult<Func, T> then(Func &&func,
 								 ErrorFunc &&error_func = PropagateError());
 
-	/*
+	/**
 	 * This method adds a buffer node in the conveyor chains and acts as a
-	 * scheduler interruption point.
+	 * scheduler interrupt point.
 	 */
 	Conveyor<T> buffer(size_t limit = std::numeric_limits<size_t>::max());
 
-	/*
+	/**
 	 * This method just takes ownership of any supplied types
 	 */
-	template <typename... Args> Conveyor<T> attach(Args &&... args);
+	template <typename... Args> Conveyor<T> attach(Args &&...args);
 
-	/*
-	 *
+	/** @todo implement
+	 * This method limits the total amount of passed elements
+	 * Be careful where you place this node into the chain.
 	 */
-	Conveyor<T> limit(size_t val = std::numeric_limits<size_t>::max());
+	Conveyor<T> limit(size_t val = 1);
 
-	/*
-	 *
+	/**
+	 * Moves the conveyor chain into a thread local storage point which drops
+	 * every element Use sink() if you want to control the lifetime of a chain
 	 */
-	template <typename ErrorFunc> void detach(ErrorFunc &&err_func);
+	template <typename ErrorFunc>
+	void detach(ErrorFunc &&err_func = PropagateError());
 
-	/*
-	 *
+	/**
+	 * Creates a local sink which drops elements, but lifetime control remains
+	 * in your hand.
 	 */
-	template <typename ErrorFunc> SinkConveyor sink(ErrorFunc &&error_func);
+	template <typename ErrorFunc>
+	SinkConveyor sink(ErrorFunc &&error_func = PropagateError());
 
-	// Waiting and resolving
+	/**
+	 * If no sink() or detach() is used you have to take elements out of the
+	 * chain yourself.
+	 */
 	ErrorOr<FixVoid<T>> take();
 
+	/** @todo implement
+	 * Specifically pump elements through this chain
+	 */
 	void poll();
 
 	// helper
@@ -206,6 +220,11 @@ template <typename T> ConveyorAndFeeder<T> oneTimeConveyorAndFeeder();
 
 enum class Signal : uint8_t { Terminate, User1 };
 
+/**
+ * Class which acts as a correspondent between the running framework and outside
+ * events which may be signals from the operating system or just other threads.
+ * Default EventPorts are supplied by setupAsyncIo() in io.h
+ */
 class EventPort {
 public:
 	virtual ~EventPort() = default;
@@ -510,7 +529,7 @@ private:
 	std::tuple<Args...> attached_data;
 
 public:
-	AttachConveyorNode(Own<ConveyorNode> &&dep, Args &&... args)
+	AttachConveyorNode(Own<ConveyorNode> &&dep, Args &&...args)
 		: AttachConveyorNodeBase(std::move(dep)), attached_data{
 													  std::move(args...)} {}
 };
@@ -710,7 +729,7 @@ template <typename T> Conveyor<T> Conveyor<T>::buffer(size_t size) {
 
 template <typename T>
 template <typename... Args>
-Conveyor<T> Conveyor<T>::attach(Args &&... args) {
+Conveyor<T> Conveyor<T>::attach(Args &&...args) {
 	Own<AttachConveyorNode<Args...>> attach_node =
 		heap<AttachConveyorNode<Args...>>(std::move(node), std::move(args...));
 	return Conveyor<T>{std::move(attach_node), storage};
