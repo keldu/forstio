@@ -7,6 +7,12 @@
 #include <cstring>
 
 namespace gin {
+/**
+ * Helper class to encode/decode any primtive type into/from litte endian.
+ * The shift class does this by shifting bytes. This type of procedure is
+ * platform independent. So it does not matter if the memory layout is
+ * little endian or big endian
+ */
 template <typename T, size_t size = sizeof(T)> class ShiftStreamValue;
 
 template <typename T> class ShiftStreamValue<T, 1> {
