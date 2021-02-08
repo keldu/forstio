@@ -413,11 +413,10 @@ public:
 class UnixAsyncIoProvider final : public AsyncIoProvider {
 private:
 	UnixEventPort &event_port;
-	EventLoop event_loop;
-	WaitScope wait_scope;
+	EventLoop &event_loop;
 
 public:
-	UnixAsyncIoProvider(UnixEventPort &port_ref, Own<EventPort> &&port);
+	UnixAsyncIoProvider(UnixEventPort &port_ref, EventLoop &event_loop);
 
 	Own<NetworkAddress> parseAddress(const std::string &,
 									 uint16_t port_hint = 0) override;
@@ -425,6 +424,5 @@ public:
 	Own<InputStream> wrapInputFd(int fd) override;
 
 	EventLoop &eventLoop();
-	WaitScope &waitScope();
 };
 } // namespace gin

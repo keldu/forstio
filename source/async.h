@@ -295,6 +295,9 @@ public:
 	EventLoop(Own<EventPort> &&port);
 	~EventLoop();
 
+	EventLoop(EventLoop &&) = default;
+	EventLoop &operator=(EventLoop &&) = default;
+
 	bool wait();
 	bool wait(const std::chrono::steady_clock::duration &);
 	bool wait(const std::chrono::steady_clock::time_point &);

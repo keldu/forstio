@@ -674,7 +674,7 @@ private:
 					iss << '?';
 					iss << '?';
 					iss << '?';
-					// There is alway a skip at the end so here we skip 3
+					// There is always a skip at the end so here we skip 3
 					// instead of 4 bytes
 					buffer.readAdvance(3);
 				} break;
