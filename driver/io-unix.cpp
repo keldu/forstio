@@ -310,8 +310,6 @@ AsyncIoContext setupAsyncIo() {
 	Own<UnixAsyncIoProvider> io_provider =
 		heap<UnixAsyncIoProvider>(prt_ref, event_loop);
 
-	WaitScope wait_scope{event_loop};
-	return {std::move(event_loop), prt_ref, std::move(io_provider),
-			std::move(wait_scope)};
+	return {std::move(event_loop), prt_ref, std::move(io_provider)};
 }
 } // namespace gin

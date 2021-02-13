@@ -85,7 +85,6 @@ struct AsyncIoContext {
 	EventLoop event_loop;
 	EventPort &event_port;
 	Own<AsyncIoProvider> io;
-	WaitScope wait_scope;
 };
 
 AsyncIoContext setupAsyncIo();
