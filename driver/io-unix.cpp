@@ -307,9 +307,11 @@ AsyncIoContext setupAsyncIo() {
 	Own<UnixEventPort> prt = heap<UnixEventPort>();
 	UnixEventPort &prt_ref = *prt;
 	EventLoop event_loop{std::move(prt)};
-	EventLoop &loop_ref = event_loop;
+
 	Own<UnixAsyncIoProvider> io_provider =
 		heap<UnixAsyncIoProvider>(prt_ref, std::move(event_loop));
+
+	EventLoop &loop_ref = io_provider->eventLoop();
 
 	return {std::move(io_provider), loop_ref, prt_ref};
 }
