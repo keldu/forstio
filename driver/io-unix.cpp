@@ -271,8 +271,8 @@ std::string UnixNetworkAddress::toString() const {
 }
 
 UnixAsyncIoProvider::UnixAsyncIoProvider(UnixEventPort &port_ref,
-										 EventLoop &event_loop)
-	: event_port{port_ref}, event_loop{event_loop} {}
+										 EventLoop &&event_loop)
+	: event_port{port_ref}, event_loop{std::move(event_loop)} {}
 
 Own<NetworkAddress> UnixAsyncIoProvider::parseAddress(const std::string &path,
 													  uint16_t port_hint) {
@@ -307,9 +307,10 @@ AsyncIoContext setupAsyncIo() {
 	Own<UnixEventPort> prt = heap<UnixEventPort>();
 	UnixEventPort &prt_ref = *prt;
 	EventLoop event_loop{std::move(prt)};
+	EventLoop &loop_ref = event_loop;
 	Own<UnixAsyncIoProvider> io_provider =
-		heap<UnixAsyncIoProvider>(prt_ref, event_loop);
+		heap<UnixAsyncIoProvider>(prt_ref, std::move(event_loop));
 
-	return {std::move(event_loop), prt_ref, std::move(io_provider)};
+	return {std::move(io_provider), loop_ref, prt_ref};
 }
 } // namespace gin

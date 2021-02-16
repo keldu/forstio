@@ -82,9 +82,9 @@ public:
 };
 
 struct AsyncIoContext {
-	EventLoop event_loop;
-	EventPort &event_port;
 	Own<AsyncIoProvider> io;
+	EventLoop &event_loop;
+	EventPort &event_port;
 };
 
 AsyncIoContext setupAsyncIo();

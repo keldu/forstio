@@ -413,10 +413,10 @@ public:
 class UnixAsyncIoProvider final : public AsyncIoProvider {
 private:
 	UnixEventPort &event_port;
-	EventLoop &event_loop;
+	EventLoop event_loop;
 
 public:
-	UnixAsyncIoProvider(UnixEventPort &port_ref, EventLoop &event_loop);
+	UnixAsyncIoProvider(UnixEventPort &port_ref, EventLoop &&event_loop);
 
 	Own<NetworkAddress> parseAddress(const std::string &,
 									 uint16_t port_hint = 0) override;

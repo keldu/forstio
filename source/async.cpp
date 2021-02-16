@@ -3,12 +3,15 @@
 #include <algorithm>
 #include <cassert>
 
+#include <iostream>
+
 namespace gin {
 namespace {
 thread_local EventLoop *local_loop = nullptr;
 
 EventLoop &currentEventLoop() {
 	EventLoop *loop = local_loop;
+	std::cout << "EventLoop: " << local_loop << std::endl;
 	assert(loop);
 	return *loop;
 }
@@ -162,6 +165,7 @@ void EventLoop::enterScope() {
 
 void EventLoop::leaveScope() {
 	assert(local_loop == this);
+	std::cout << "Leave" << std::endl;
 	local_loop = nullptr;
 }
 
