@@ -67,6 +67,7 @@ public:
 		Builder asBuilder() { return Builder{message}; }
 	};
 };
+
 template <> class MessagePrimitive<std::string> : public Message {
 private:
 	std::string value;
