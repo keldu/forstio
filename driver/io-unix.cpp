@@ -271,8 +271,8 @@ std::string UnixNetworkAddress::toString() const {
 }
 
 UnixAsyncIoProvider::UnixAsyncIoProvider(UnixEventPort &port_ref,
-										 EventLoop &&event_loop)
-	: event_port{port_ref}, event_loop{std::move(event_loop)} {}
+										 Own<EventPort> &&port)
+	: event_port{port_ref}, event_loop{std::move(port)} {}
 
 Own<NetworkAddress> UnixAsyncIoProvider::parseAddress(const std::string &path,
 													  uint16_t port_hint) {
@@ -306,10 +306,9 @@ EventLoop &UnixAsyncIoProvider::eventLoop() { return event_loop; }
 AsyncIoContext setupAsyncIo() {
 	Own<UnixEventPort> prt = heap<UnixEventPort>();
 	UnixEventPort &prt_ref = *prt;
-	EventLoop event_loop{std::move(prt)};
 
 	Own<UnixAsyncIoProvider> io_provider =
-		heap<UnixAsyncIoProvider>(prt_ref, std::move(event_loop));
+		heap<UnixAsyncIoProvider>(prt_ref, std::move(prt));
 
 	EventLoop &loop_ref = io_provider->eventLoop();
 

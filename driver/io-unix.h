@@ -7,6 +7,7 @@
 #include <csignal>
 #include <sys/signalfd.h>
 
+#include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
@@ -107,7 +108,6 @@ private:
 
 			if (nfds < 0) {
 				/// @todo error_handling
-				assert(false);
 				return false;
 			}
 
@@ -130,7 +130,7 @@ private:
 						continue;
 					}
 					while (1) {
-						ssize_t n = ::read(pipefds[0], &i, sizeof(i));
+						ssize_t n = ::recv(pipefds[0], &i, sizeof(i), 0);
 						if (n < 0) {
 							break;
 						}
@@ -169,7 +169,7 @@ public:
 		event.data.u64 = 0;
 		::epoll_ctl(epoll_fd, EPOLL_CTL_ADD, signal_fd, &event);
 
-		int rc = ::pipe(pipefds);
+		int rc = ::pipe2(pipefds, O_NONBLOCK | O_CLOEXEC);
 		if (rc < 0) {
 			return;
 		}
@@ -232,7 +232,7 @@ public:
 			return;
 		}
 		uint8_t i = 0;
-		::write(pipefds[1], &i, sizeof(i));
+		::send(pipefds[1], &i, sizeof(i), MSG_DONTWAIT);
 	}
 
 	void subscribe(IFdOwner &owner, int fd, uint32_t event_mask) {
@@ -416,7 +416,7 @@ private:
 	EventLoop event_loop;
 
 public:
-	UnixAsyncIoProvider(UnixEventPort &port_ref, EventLoop &&event_loop);
+	UnixAsyncIoProvider(UnixEventPort &port_ref, Own<EventPort> &&port);
 
 	Own<NetworkAddress> parseAddress(const std::string &,
 									 uint16_t port_hint = 0) override;
