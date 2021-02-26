@@ -264,7 +264,7 @@ struct JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 };
 
 /*
- * For JSON decoding we need a dynamic where we can query information from
+ * For JSON decoding we need a dynamic layer where we can query information from
  */
 template <typename T> struct JsonDecodeImpl;
 
@@ -403,7 +403,34 @@ private:
 	}
 
 	Error decodeBool(DynamicMessageBool::Builder message, Buffer &buffer) {
-		/// @todo unimplemented
+		assert((buffer.read() == 'T') || (buffer.read() == 't') ||
+			   (buffer.read() == 'F') || (buffer.read() == 'f'));
+
+		bool is_true = buffer.read() == 'T' || buffer.read() == 't';
+		buffer.readAdvance(1);
+
+		if (is_true) {
+			std::array<char, 3> check = {'r', 'u', 'e'};
+			for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 3; ++i) {
+				if (buffer.read() != check[i]) {
+					return criticalError(
+						"Assumed true value, but it is invalid");
+				}
+				buffer.readAdvance(1);
+			}
+		} else {
+			std::array<char, 4> check = {'a', 'l', 's', 'e'};
+			for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 4; ++i) {
+				if (buffer.read() != check[i]) {
+					return criticalError(
+						"Assumed false value, but it is invalid");
+				}
+				buffer.readAdvance(1);
+			}
+		}
+
+		message.set(is_true);
+
 		return noError();
 	}
 
@@ -546,7 +573,17 @@ private:
 	}
 
 	Error decodeNull(Buffer &buffer) {
-		/// @todo unimplemented
+		assert(buffer.read() == 'N' || buffer.read() == 'n');
+		buffer.readAdvance(1);
+
+		std::array<char, 3> check = {'u', 'l', 'l'};
+		for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 3; ++i) {
+			if (buffer.read() != check[i]) {
+				return criticalError("Assumed null value, but it is invalid");
+			}
+			buffer.readAdvance(1);
+		}
+
 		return noError();
 	}
 
@@ -701,6 +738,7 @@ private:
 			return recoverableError("Buffer too short");
 		}
 		if (buffer.read() == ']') {
+			buffer.readAdvance(1);
 			return noError();
 		}
 
@@ -708,8 +746,10 @@ private:
 		{ Error error = decodeValue(message, buffer); }
 
 		while (buffer.read() != ']') {
+			/// @todo unimplemented
+			assert(false);
 		}
-		/// @todo unimplemented
+		buffer.readAdvance(1);
 		return noError();
 	}
 
