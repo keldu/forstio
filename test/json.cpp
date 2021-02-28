@@ -40,7 +40,8 @@ GIN_TEST("JSON List Encoding"){
 typedef MessageStruct<
 	MessageStructMember<MessagePrimitive<uint32_t>, decltype("test_uint"_t)>,
 	MessageStructMember<MessagePrimitive<std::string>, decltype("test_string"_t)>,
-	MessageStructMember<MessagePrimitive<std::string>, decltype("test_name"_t)>
+	MessageStructMember<MessagePrimitive<std::string>, decltype("test_name"_t)>,
+	MessageStructMember<MessagePrimitive<bool>, decltype("test_bool"_t)>
 > TestStruct;
 
 GIN_TEST("JSON Struct Encoding"){
@@ -61,7 +62,7 @@ GIN_TEST("JSON Struct Encoding"){
 	RingBuffer temp_buffer;
 	codec.encode<TestStruct>(root.asReader(), temp_buffer);
 
-	std::string expected_result{"{\"test_uint\":23,\"test_string\":\"foo\",\"test_name\":\"test_name\"}"};
+	std::string expected_result{"{\"test_uint\":23,\"test_string\":\"foo\",\"test_name\":\"test_name\",\"test_bool\":false}"};
 	
 	std::string tmp_string = temp_buffer.toString();
 	GIN_EXPECT(tmp_string == expected_result, std::string{"Bad encoding:\n"} + tmp_string);
@@ -119,7 +120,8 @@ GIN_TEST("JSON Struct Decoding"){
 	{
 		"test_string" :"banana" ,
 		"test_uint" : 5,
-		"test_name" : "keldu"
+		"test_name" : "keldu",
+		"test_bool" : true
 	})";
 
 	auto builder = heapMessageBuilder();
@@ -135,6 +137,7 @@ GIN_TEST("JSON Struct Decoding"){
 	GIN_EXPECT( reader.get<decltype("test_string"_t)>().get() == "banana", "Test String has wrong value" );
 	GIN_EXPECT( reader.get<decltype("test_uint"_t)>().get() == 5, "Test Unsigned has wrong value" );
 	GIN_EXPECT( reader.get<decltype("test_name"_t)>().get() == "keldu", "Test Name has wrong value" );
+	GIN_EXPECT( reader.get<decltype("test_bool"_t)>().get() == true, "Test Bool has wrong value" );
 }
 
 typedef MessageStruct<
@@ -149,7 +152,8 @@ GIN_TEST("JSON Struct Decoding Two layer"){
 		"test_struct" :{
 			"test_string" : 	"banana",
 			"test_uint": 40,
-			"test_name":"HaDiKo"
+			"test_name":"HaDiKo",
+			"test_bool" :false
 		},
 		"test_uint": 5,
 		"test_name" : "keldu"
@@ -171,6 +175,7 @@ GIN_TEST("JSON Struct Decoding Two layer"){
 	GIN_EXPECT( inner_reader.get<decltype("test_string"_t)>().get() == "banana", "Test String has wrong value" );
 	GIN_EXPECT( inner_reader.get<decltype("test_uint"_t)>().get() == 40, "Test Unsigned has wrong value" );
 	GIN_EXPECT( inner_reader.get<decltype("test_name"_t)>().get() == "HaDiKo", "Test Name has wrong value" );
+	GIN_EXPECT( inner_reader.get<decltype("test_bool"_t)>().get() == false, "Test Bool has wrong value" );
 	GIN_EXPECT( reader.get<decltype("test_uint"_t)>().get() == 5, "Test Unsigned has wrong value" );
 	GIN_EXPECT( reader.get<decltype("test_name"_t)>().get() == "keldu", "Test Name has wrong value" );
 }

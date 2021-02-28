@@ -45,6 +45,19 @@ template <> struct JsonEncodeImpl<MessagePrimitive<std::string>> {
 	}
 };
 
+template <> struct JsonEncodeImpl<MessagePrimitive<bool>> {
+	static Error encode(typename MessagePrimitive<bool>::Reader data,
+						Buffer &buffer) {
+		std::string str = data.get() ? "true" : "false";
+		Error error = buffer.push(
+			*reinterpret_cast<const uint8_t *>(str.data()), str.size());
+		if (error.failed()) {
+			return error;
+		}
+		return noError();
+	}
+};
+
 template <typename... T> struct JsonEncodeImpl<MessageList<T...>> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(T), Error>::type
@@ -273,6 +286,21 @@ template <typename T> struct JsonDecodeImpl<MessagePrimitive<T>> {
 	// MessagePrimitive<T>::Builder){}
 	static Error decode(typename MessagePrimitive<T>::Builder,
 						DynamicMessage::DynamicReader) {
+
+		// This is also a valid null implementation :)
+		return noError();
+	}
+};
+template <> struct JsonDecodeImpl<MessagePrimitive<bool>> {
+	// static void decode(BufferView view, typename
+	// MessagePrimitive<T>::Builder){}
+	static Error decode(typename MessagePrimitive<bool>::Builder data,
+						DynamicMessage::DynamicReader reader) {
+		if (reader.type() != DynamicMessage::Type::Bool) {
+			return criticalError("Not a boolean");
+		}
+		DynamicMessageBool::Reader b_reader = reader.as<DynamicMessageBool>();
+		data.set(b_reader.get());
 		return noError();
 	}
 };
