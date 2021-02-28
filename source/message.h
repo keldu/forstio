@@ -280,6 +280,8 @@ public:
 
 		constexpr size_t size() { return std::tuple_size<value_type>::value; }
 
+		bool isSetExplicitly() const { return message.set_explicitly; }
+
 		Builder asBuilder() { return Builder{message}; }
 	};
 };
@@ -376,6 +378,8 @@ public:
 		}
 
 		size_t index() const { return message.values.index(); }
+
+		bool isSetExplicitly() const { return message.set_explicitly; }
 
 		constexpr size_t size() { return std::variant_size<value_type>::value; }
 

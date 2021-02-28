@@ -58,6 +58,8 @@ GIN_TEST("JSON Struct Encoding"){
 	auto string_name = root.init<decltype("test_name"_t)>();
 	string_name.set("test_name"_t.view());
 
+	root.init<decltype("test_bool"_t)>().set(false);
+
 	JsonCodec codec;
 	RingBuffer temp_buffer;
 	codec.encode<TestStruct>(root.asReader(), temp_buffer);

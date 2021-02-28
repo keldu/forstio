@@ -27,7 +27,7 @@ template <typename T> struct JsonEncodeImpl<MessagePrimitive<T>> {
 		if (error.failed()) {
 			return error;
 		}
-		return Error{};
+		return noError();
 	}
 };
 
@@ -41,7 +41,7 @@ template <> struct JsonEncodeImpl<MessagePrimitive<std::string>> {
 		if (error.failed()) {
 			return error;
 		}
-		return Error{};
+		return noError();
 	}
 };
 
@@ -64,18 +64,29 @@ template <typename... T> struct JsonEncodeImpl<MessageList<T...>> {
 	encodeMembers(typename MessageList<T...>::Reader data, Buffer &buffer) {
 		(void)data;
 		(void)buffer;
-		return Error{};
+		return noError();
 	}
 	template <size_t i = 0>
 		static typename std::enable_if <
 		i<sizeof...(T), Error>::type
 		encodeMembers(typename MessageList<T...>::Reader data, Buffer &buffer) {
-		{
-			Error error =
-				JsonEncodeImpl<typename ParameterPackType<i, T...>::type>::
-					encode(data.template get<i>(), buffer);
-			if (error.failed()) {
-				return error;
+		if (data.template get<i>().isSetExplicitly()) {
+			{
+				Error error =
+					JsonEncodeImpl<typename ParameterPackType<i, T...>::type>::
+						encode(data.template get<i>(), buffer);
+				if (error.failed()) {
+					return error;
+				}
+			}
+		} else {
+			{
+				std::string_view str = "null";
+				Error error = buffer.push(
+					*reinterpret_cast<const uint8_t *>(str.data()), str.size());
+				if (error.failed()) {
+					return error;
+				}
 			}
 		}
 		if constexpr ((i + 1u) < sizeof...(T)) {
@@ -150,10 +161,17 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 				return error;
 			}
 		}
-		{
+		if (data.template get<i>().isSetExplicitly()) {
 			Error error =
 				JsonEncodeImpl<typename ParameterPackType<i, V...>::type>::
 					encode(data.template get<i>(), buffer);
+			if (error.failed()) {
+				return error;
+			}
+		} else {
+			std::string_view str = "null";
+			Error error = buffer.push(
+				*reinterpret_cast<const uint8_t *>(str.data()), str.size());
 			if (error.failed()) {
 				return error;
 			}
@@ -417,6 +435,12 @@ struct JsonDecodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 };
 
 class JsonCodec {
+public:
+	struct Limits {
+		size_t depth = 16;
+		size_t elements = 1024;
+	};
+
 private:
 	bool isWhitespace(int8_t letter) {
 		return letter == '\t' || letter == ' ' || letter == '\r' ||
@@ -851,7 +875,8 @@ private:
 		return noError();
 	}
 
-	ErrorOr<Own<DynamicMessage>> decodeDynamic(Buffer &buffer) {
+	ErrorOr<Own<DynamicMessage>> decodeDynamic(Buffer &buffer,
+											   const Limits &limits) {
 		skipWhitespace(buffer);
 		if (buffer.readCompositeLength() == 0) {
 			return recoverableError("Buffer too short");
@@ -891,8 +916,10 @@ public:
 	}
 
 	template <typename T>
-	Error decode(typename T::Builder builder, Buffer &buffer) {
-		ErrorOr<Own<DynamicMessage>> error_or_message = decodeDynamic(buffer);
+	Error decode(typename T::Builder builder, Buffer &buffer,
+				 const Limits &limits = Limits{16, 1024}) {
+		ErrorOr<Own<DynamicMessage>> error_or_message =
+			decodeDynamic(buffer, limits);
 		if (error_or_message.isError()) {
 			return error_or_message.error();
 		}
