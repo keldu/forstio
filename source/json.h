@@ -15,6 +15,54 @@
 #include <iostream>
 
 namespace gin {
+class JsonCodec {
+public:
+	struct Limits {
+		size_t depth = 16;
+		size_t elements = 1024;
+	};
+
+private:
+	struct Context {
+		Buffer &buffer;
+		size_t offset = 0;
+		size_t depth = 0;
+		size_t elements = 0;
+
+		void readAdvance(size_t bytes);
+	};
+
+	bool isWhitespace(int8_t letter);
+
+	void skipWhitespace(Buffer &buffer);
+
+	Error decodeBool(DynamicMessageBool::Builder message, Buffer &buffer);
+
+	// Not yet clear if double or integer
+	Error decodeNumber(Own<DynamicMessage> &message, Buffer &buffer);
+
+	Error decodeNull(Buffer &buffer);
+
+	Error decodeValue(Own<DynamicMessage> &message, Buffer &buffer);
+
+	Error decodeRawString(std::string &raw, Buffer &buffer);
+
+	Error decodeList(DynamicMessageList::Builder builder, Buffer &buffer);
+
+	Error decodeStruct(DynamicMessageStruct::Builder message, Buffer &buffer);
+
+	ErrorOr<Own<DynamicMessage>> decodeDynamic(Buffer &buffer,
+											   const Limits &limits);
+
+public:
+	template <typename T>
+	Error encode(typename T::Reader reader, Buffer &buffer);
+
+	template <typename T>
+	Error decode(typename T::Builder builder, Buffer &buffer,
+				 const Limits &limits = Limits{16, 1024});
+};
+
 template <typename T> struct JsonEncodeImpl;
 
 template <typename T> struct JsonEncodeImpl<MessagePrimitive<T>> {
@@ -487,378 +535,423 @@ struct JsonDecodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 	}
 };
 
-class JsonCodec {
-public:
-	struct Limits {
-		size_t depth = 16;
-		size_t elements = 1024;
-	};
+bool JsonCodec::isWhitespace(int8_t letter) {
+	return letter == '\t' || letter == ' ' || letter == '\r' || letter == '\n';
+}
 
-private:
-	bool isWhitespace(int8_t letter) {
-		return letter == '\t' || letter == ' ' || letter == '\r' ||
-			   letter == '\n';
+void JsonCodec::skipWhitespace(Buffer &buffer) {
+	while (buffer.readCompositeLength() > 0 && isWhitespace(buffer.read())) {
+		buffer.readAdvance(1);
 	}
+}
 
-	void skipWhitespace(Buffer &buffer) {
-		while (buffer.readCompositeLength() > 0 &&
-			   isWhitespace(buffer.read())) {
+Error JsonCodec::decodeBool(DynamicMessageBool::Builder message,
+							Buffer &buffer) {
+	assert((buffer.read() == 'T') || (buffer.read() == 't') ||
+		   (buffer.read() == 'F') || (buffer.read() == 'f'));
+
+	bool is_true = buffer.read() == 'T' || buffer.read() == 't';
+	buffer.readAdvance(1);
+
+	if (is_true) {
+		std::array<char, 3> check = {'r', 'u', 'e'};
+		for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 3; ++i) {
+			if (buffer.read() != check[i]) {
+				return criticalError("Assumed true value, but it is invalid");
+			}
+			buffer.readAdvance(1);
+		}
+	} else {
+		std::array<char, 4> check = {'a', 'l', 's', 'e'};
+		for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 4; ++i) {
+			if (buffer.read() != check[i]) {
+				return criticalError("Assumed false value, but it is invalid");
+			}
 			buffer.readAdvance(1);
 		}
 	}
 
-	Error decodeBool(DynamicMessageBool::Builder message, Buffer &buffer) {
-		assert((buffer.read() == 'T') || (buffer.read() == 't') ||
-			   (buffer.read() == 'F') || (buffer.read() == 'f'));
+	message.set(is_true);
 
-		bool is_true = buffer.read() == 'T' || buffer.read() == 't';
-		buffer.readAdvance(1);
+	return noError();
+}
 
-		if (is_true) {
-			std::array<char, 3> check = {'r', 'u', 'e'};
-			for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 3; ++i) {
-				if (buffer.read() != check[i]) {
-					return criticalError(
-						"Assumed true value, but it is invalid");
-				}
-				buffer.readAdvance(1);
-			}
-		} else {
-			std::array<char, 4> check = {'a', 'l', 's', 'e'};
-			for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 4; ++i) {
-				if (buffer.read() != check[i]) {
-					return criticalError(
-						"Assumed false value, but it is invalid");
-				}
-				buffer.readAdvance(1);
-			}
-		}
+// Not yet clear if double or integer
+Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
+	assert((buffer.read() >= '0' && buffer.read() <= '9') ||
+		   buffer.read() == '+' || buffer.read() == '-');
+	size_t offset = 0;
 
-		message.set(is_true);
-
-		return noError();
+	if (buffer.read() == '-') {
+		++offset;
+	} else if (buffer.read() == '+') {
+		return criticalError("Not a valid number with +");
 	}
+	if (offset >= buffer.readCompositeLength()) {
+		return recoverableError("Buffer too short");
+	}
+	bool integer = true;
+	if (buffer.read(offset) >= '1' && buffer.read(offset) <= '9') {
+		++offset;
 
-	// Not yet clear if double or integer
-	Error decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
-		assert((buffer.read() >= '0' && buffer.read() <= '9') ||
-			   buffer.read() == '+' || buffer.read() == '-');
-		size_t offset = 0;
-
-		if (buffer.read() == '-') {
-			++offset;
-		} else if (buffer.read() == '+') {
-			return criticalError("Not a valid number with +");
-		}
 		if (offset >= buffer.readCompositeLength()) {
 			return recoverableError("Buffer too short");
 		}
-		bool integer = true;
-		if (buffer.read(offset) >= '1' && buffer.read(offset) <= '9') {
-			++offset;
 
-			if (offset >= buffer.readCompositeLength()) {
-				return recoverableError("Buffer too short");
-			}
-
-			while (1) {
-				if (buffer.read(offset) >= '0' && buffer.read(offset) <= '9') {
-					++offset;
-
-					if (offset >= buffer.readCompositeLength()) {
-						return recoverableError("Buffer too short");
-					}
-					continue;
-				}
-				break;
-			}
-		} else if (buffer.read(offset) == '0') {
-			++offset;
-		} else {
-			return criticalError("Not a JSON number");
-		}
-		if (offset >= buffer.readCompositeLength()) {
-			return recoverableError("Buffer too short");
-		}
-		if (buffer.read(offset) == '.') {
-			integer = false;
-			++offset;
-
-			if (offset >= buffer.readCompositeLength()) {
-				return recoverableError("Buffer too short");
-			}
-
-			size_t partial_start = offset;
-
-			while (1) {
-				if (buffer.read(offset) >= '0' && buffer.read(offset) <= '9') {
-					++offset;
-
-					if (offset >= buffer.readCompositeLength()) {
-						return recoverableError("Buffer too short");
-					}
-					continue;
-				}
-				break;
-			}
-
-			if (offset == partial_start) {
-				return criticalError("No numbers after '.'");
-			}
-		}
-		if (buffer.read(offset) == 'e' || buffer.read(offset) == 'E') {
-			integer = false;
-			++offset;
-
-			if (offset >= buffer.readCompositeLength()) {
-				return recoverableError("Buffer too short");
-			}
-
-			if (buffer.read(offset) == '+' || buffer.read(offset) == '-') {
+		while (1) {
+			if (buffer.read(offset) >= '0' && buffer.read(offset) <= '9') {
 				++offset;
+
 				if (offset >= buffer.readCompositeLength()) {
 					return recoverableError("Buffer too short");
 				}
+				continue;
 			}
-
-			size_t exp_start = offset;
-
-			while (1) {
-				if (buffer.read(offset) >= '0' && buffer.read(offset) <= '9') {
-					++offset;
-
-					if (offset >= buffer.readCompositeLength()) {
-						return recoverableError("Buffer too short");
-					}
-					continue;
-				}
-				break;
-			}
-			if (offset == exp_start) {
-				return criticalError("No numbers after exponent token");
-			}
+			break;
 		}
+	} else if (buffer.read(offset) == '0') {
+		++offset;
+	} else {
+		return criticalError("Not a JSON number");
+	}
+	if (offset >= buffer.readCompositeLength()) {
+		return recoverableError("Buffer too short");
+	}
+	if (buffer.read(offset) == '.') {
+		integer = false;
+		++offset;
 
 		if (offset >= buffer.readCompositeLength()) {
 			return recoverableError("Buffer too short");
 		}
 
-		std::string_view number_view{reinterpret_cast<char *>(&buffer.read()),
-									 offset};
-		if (integer) {
-			int64_t result;
-			auto fc_result = std::from_chars(
-				number_view.data(), number_view.data() + number_view.size(),
-				result);
-			if (fc_result.ec != std::errc{}) {
-				return criticalError("Not an integer");
+		size_t partial_start = offset;
+
+		while (1) {
+			if (buffer.read(offset) >= '0' && buffer.read(offset) <= '9') {
+				++offset;
+
+				if (offset >= buffer.readCompositeLength()) {
+					return recoverableError("Buffer too short");
+				}
+				continue;
 			}
-			auto int_msg = std::make_unique<DynamicMessageSigned>();
-			DynamicMessageSigned::Builder builder{*int_msg};
-			builder.set(result);
-			message = std::move(int_msg);
-		} else {
-			std::string number_copy{number_view};
-			double result;
-			try {
-				result = std::stod(number_copy);
-			} catch (std::exception &e) {
-				return criticalError("Not a double");
-			}
-			//
-			auto dbl_msg = std::make_unique<DynamicMessageDouble>();
-			DynamicMessageDouble::Builder builder{*dbl_msg};
-			builder.set(result);
-			message = std::move(dbl_msg);
+			break;
 		}
 
-		buffer.readAdvance(offset);
-		skipWhitespace(buffer);
-		return noError();
-	}
-
-	Error decodeNull(Buffer &buffer) {
-		assert(buffer.read() == 'N' || buffer.read() == 'n');
-		buffer.readAdvance(1);
-
-		std::array<char, 3> check = {'u', 'l', 'l'};
-		for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 3; ++i) {
-			if (buffer.read() != check[i]) {
-				return criticalError("Assumed null value, but it is invalid");
-			}
-			buffer.readAdvance(1);
+		if (offset == partial_start) {
+			return criticalError("No numbers after '.'");
 		}
-
-		return noError();
 	}
+	if (buffer.read(offset) == 'e' || buffer.read(offset) == 'E') {
+		integer = false;
+		++offset;
 
-	Error decodeValue(Own<DynamicMessage> &message, Buffer &buffer) {
-		skipWhitespace(buffer);
-		if (buffer.readCompositeLength() == 0) {
+		if (offset >= buffer.readCompositeLength()) {
 			return recoverableError("Buffer too short");
 		}
 
-		switch (buffer.read()) {
-		case '"': {
-			std::string str;
-			Error error = decodeRawString(str, buffer);
-			if (error.failed()) {
-				return error;
+		if (buffer.read(offset) == '+' || buffer.read(offset) == '-') {
+			++offset;
+			if (offset >= buffer.readCompositeLength()) {
+				return recoverableError("Buffer too short");
 			}
-			Own<DynamicMessageString> msg_string =
-				std::make_unique<DynamicMessageString>();
-			DynamicMessageString::Builder builder{*msg_string};
-			builder.set(std::move(str));
-			message = std::move(msg_string);
-		} break;
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
-		case '+':
-		case '-': {
-			Error error = decodeNumber(message, buffer);
-			if (error.failed()) {
-				return error;
-			}
-		} break;
-		case 't':
-		case 'T':
-		case 'f':
-		case 'F': {
-			Own<DynamicMessageBool> msg_bool =
-				std::make_unique<DynamicMessageBool>();
-			decodeBool(DynamicMessageBool::Builder{*msg_bool}, buffer);
-			message = std::move(msg_bool);
-		} break;
-		case '{': {
-			Own<DynamicMessageStruct> msg_struct =
-				std::make_unique<DynamicMessageStruct>();
-			Error error = decodeStruct(
-				DynamicMessageStruct::Builder{*msg_struct}, buffer);
-			if (error.failed()) {
-				return error;
-			}
-			message = std::move(msg_struct);
-		} break;
-		case '[': {
-			Own<DynamicMessageList> msg_list =
-				std::make_unique<DynamicMessageList>();
-			decodeList(DynamicMessageList::Builder{*msg_list}, buffer);
-			message = std::move(msg_list);
-		} break;
-		case 'n':
-		case 'N': {
-			Own<DynamicMessageNull> msg_null =
-				std::make_unique<DynamicMessageNull>();
-			decodeNull(buffer);
-			message = std::move(msg_null);
-		} break;
-		default: {
-			return criticalError("Cannot identify next JSON value");
-		}
 		}
 
-		skipWhitespace(buffer);
-		return noError();
+		size_t exp_start = offset;
+
+		while (1) {
+			if (buffer.read(offset) >= '0' && buffer.read(offset) <= '9') {
+				++offset;
+
+				if (offset >= buffer.readCompositeLength()) {
+					return recoverableError("Buffer too short");
+				}
+				continue;
+			}
+			break;
+		}
+		if (offset == exp_start) {
+			return criticalError("No numbers after exponent token");
+		}
 	}
 
-	Error decodeRawString(std::string &raw, Buffer &buffer) {
-		assert(buffer.read() == '"');
+	if (offset >= buffer.readCompositeLength()) {
+		return recoverableError("Buffer too short");
+	}
+
+	std::string_view number_view{reinterpret_cast<char *>(&buffer.read()),
+								 offset};
+	if (integer) {
+		int64_t result;
+		auto fc_result =
+			std::from_chars(number_view.data(),
+							number_view.data() + number_view.size(), result);
+		if (fc_result.ec != std::errc{}) {
+			return criticalError("Not an integer");
+		}
+		auto int_msg = std::make_unique<DynamicMessageSigned>();
+		DynamicMessageSigned::Builder builder{*int_msg};
+		builder.set(result);
+		message = std::move(int_msg);
+	} else {
+		std::string number_copy{number_view};
+		double result;
+		try {
+			result = std::stod(number_copy);
+		} catch (std::exception &e) {
+			return criticalError("Not a double");
+		}
+		//
+		auto dbl_msg = std::make_unique<DynamicMessageDouble>();
+		DynamicMessageDouble::Builder builder{*dbl_msg};
+		builder.set(result);
+		message = std::move(dbl_msg);
+	}
+
+	buffer.readAdvance(offset);
+	skipWhitespace(buffer);
+	return noError();
+}
+
+Error JsonCodec::decodeNull(Buffer &buffer) {
+	assert(buffer.read() == 'N' || buffer.read() == 'n');
+	buffer.readAdvance(1);
+
+	std::array<char, 3> check = {'u', 'l', 'l'};
+	for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 3; ++i) {
+		if (buffer.read() != check[i]) {
+			return criticalError("Assumed null value, but it is invalid");
+		}
 		buffer.readAdvance(1);
-		std::stringstream iss;
-		bool string_done = false;
-		while (!string_done) {
+	}
+
+	return noError();
+}
+
+Error JsonCodec::decodeValue(Own<DynamicMessage> &message, Buffer &buffer) {
+	skipWhitespace(buffer);
+	if (buffer.readCompositeLength() == 0) {
+		return recoverableError("Buffer too short");
+	}
+
+	switch (buffer.read()) {
+	case '"': {
+		std::string str;
+		Error error = decodeRawString(str, buffer);
+		if (error.failed()) {
+			return error;
+		}
+		Own<DynamicMessageString> msg_string =
+			std::make_unique<DynamicMessageString>();
+		DynamicMessageString::Builder builder{*msg_string};
+		builder.set(std::move(str));
+		message = std::move(msg_string);
+	} break;
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+	case '+':
+	case '-': {
+		Error error = decodeNumber(message, buffer);
+		if (error.failed()) {
+			return error;
+		}
+	} break;
+	case 't':
+	case 'T':
+	case 'f':
+	case 'F': {
+		Own<DynamicMessageBool> msg_bool =
+			std::make_unique<DynamicMessageBool>();
+		decodeBool(DynamicMessageBool::Builder{*msg_bool}, buffer);
+		message = std::move(msg_bool);
+	} break;
+	case '{': {
+		Own<DynamicMessageStruct> msg_struct =
+			std::make_unique<DynamicMessageStruct>();
+		Error error =
+			decodeStruct(DynamicMessageStruct::Builder{*msg_struct}, buffer);
+		if (error.failed()) {
+			return error;
+		}
+		message = std::move(msg_struct);
+	} break;
+	case '[': {
+		Own<DynamicMessageList> msg_list =
+			std::make_unique<DynamicMessageList>();
+		decodeList(DynamicMessageList::Builder{*msg_list}, buffer);
+		message = std::move(msg_list);
+	} break;
+	case 'n':
+	case 'N': {
+		Own<DynamicMessageNull> msg_null =
+			std::make_unique<DynamicMessageNull>();
+		decodeNull(buffer);
+		message = std::move(msg_null);
+	} break;
+	default: {
+		return criticalError("Cannot identify next JSON value");
+	}
+	}
+
+	skipWhitespace(buffer);
+	return noError();
+}
+
+Error JsonCodec::decodeRawString(std::string &raw, Buffer &buffer) {
+	assert(buffer.read() == '"');
+	buffer.readAdvance(1);
+	std::stringstream iss;
+	bool string_done = false;
+	while (!string_done) {
+		if (buffer.readCompositeLength() == 0) {
+			return recoverableError("Buffer too short");
+		}
+		switch (buffer.read()) {
+		case '\\':
+			buffer.readAdvance(1);
 			if (buffer.readCompositeLength() == 0) {
 				return recoverableError("Buffer too short");
 			}
 			switch (buffer.read()) {
 			case '\\':
-				buffer.readAdvance(1);
-				if (buffer.readCompositeLength() == 0) {
-					return recoverableError("Buffer too short");
-				}
-				switch (buffer.read()) {
-				case '\\':
-				case '/':
-				case '"':
-					iss << buffer.read();
-					break;
-				case 'b':
-					iss << '\b';
-					break;
-				case 'f':
-					iss << '\f';
-					break;
-				case 'n':
-					iss << '\n';
-					break;
-				case 'r':
-					iss << '\r';
-					break;
-				case 't':
-					iss << '\t';
-					break;
-				case 'u': {
-					buffer.readAdvance(1);
-					if (buffer.readCompositeLength() < 4) {
-						return recoverableError(
-							"Broken unicode or short buffer");
-					}
-					/// @todo correct unicode handling
-					iss << '?'; // dummy line
-					iss << '?';
-					iss << '?';
-					iss << '?';
-					// There is always a skip at the end so here we skip 3
-					// instead of 4 bytes
-					buffer.readAdvance(3);
-				} break;
-				}
-				break;
+			case '/':
 			case '"':
-				string_done = true;
-				break;
-			default:
 				iss << buffer.read();
 				break;
+			case 'b':
+				iss << '\b';
+				break;
+			case 'f':
+				iss << '\f';
+				break;
+			case 'n':
+				iss << '\n';
+				break;
+			case 'r':
+				iss << '\r';
+				break;
+			case 't':
+				iss << '\t';
+				break;
+			case 'u': {
+				buffer.readAdvance(1);
+				if (buffer.readCompositeLength() < 4) {
+					return recoverableError("Broken unicode or short buffer");
+				}
+				/// @todo correct unicode handling
+				iss << '?'; // dummy line
+				iss << '?';
+				iss << '?';
+				iss << '?';
+				// There is always a skip at the end so here we skip 3
+				// instead of 4 bytes
+				buffer.readAdvance(3);
+			} break;
 			}
-			buffer.readAdvance(1);
+			break;
+		case '"':
+			string_done = true;
+			break;
+		default:
+			iss << buffer.read();
+			break;
 		}
-		raw = iss.str();
-		return noError();
+		buffer.readAdvance(1);
+	}
+	raw = iss.str();
+	return noError();
+}
+
+Error JsonCodec::decodeList(DynamicMessageList::Builder builder,
+							Buffer &buffer) {
+	assert(buffer.read() == '[');
+	buffer.readAdvance(1);
+	skipWhitespace(buffer);
+	if (buffer.readCompositeLength() == 0) {
+		return recoverableError("Buffer too short");
 	}
 
-	Error decodeList(DynamicMessageList::Builder builder, Buffer &buffer) {
-		assert(buffer.read() == '[');
-		buffer.readAdvance(1);
-		skipWhitespace(buffer);
+	while (buffer.read() != ']') {
+
+		Own<DynamicMessage> message = nullptr;
+		{
+			Error error = decodeValue(message, buffer);
+			if (error.failed()) {
+				return error;
+			}
+		}
+		builder.push(std::move(message));
 		if (buffer.readCompositeLength() == 0) {
 			return recoverableError("Buffer too short");
 		}
 
-		while (buffer.read() != ']') {
+		switch (buffer.read()) {
+		case ']':
+			break;
+		case ',':
+			buffer.readAdvance(1);
+			skipWhitespace(buffer);
+			if (buffer.readCompositeLength() == 0) {
+				return recoverableError("Buffer too short");
+			}
+			break;
+		default:
+			return criticalError("Not a JSON Object");
+		}
+	}
+	buffer.readAdvance(1);
+	return noError();
+}
 
-			Own<DynamicMessage> message = nullptr;
+Error JsonCodec::decodeStruct(DynamicMessageStruct::Builder message,
+							  Buffer &buffer) {
+	assert(buffer.read() == '{');
+	buffer.readAdvance(1);
+	skipWhitespace(buffer);
+	if (buffer.readCompositeLength() == 0) {
+		return recoverableError("Buffer too short");
+	}
+
+	while (buffer.read() != '}') {
+		if (buffer.read() == '"') {
+			std::string key_string;
 			{
-				Error error = decodeValue(message, buffer);
+				Error error = decodeRawString(key_string, buffer);
 				if (error.failed()) {
 					return error;
 				}
 			}
-			builder.push(std::move(message));
+			skipWhitespace(buffer);
+			if (buffer.readCompositeLength() == 0) {
+				return recoverableError("Buffer too short");
+			}
+			if (buffer.read() != ':') {
+				return criticalError("Expecting a ':' token");
+			}
+			buffer.readAdvance(1);
+			Own<DynamicMessage> msg = nullptr;
+			{
+				Error error = decodeValue(msg, buffer);
+				if (error.failed()) {
+					return error;
+				}
+			}
+			message.init(key_string, std::move(msg));
 			if (buffer.readCompositeLength() == 0) {
 				return recoverableError("Buffer too short");
 			}
 
 			switch (buffer.read()) {
-			case ']':
+			case '}':
 				break;
 			case ',':
 				buffer.readAdvance(1);
@@ -870,129 +963,72 @@ private:
 			default:
 				return criticalError("Not a JSON Object");
 			}
-		}
-		buffer.readAdvance(1);
-		return noError();
-	}
-
-	Error decodeStruct(DynamicMessageStruct::Builder message, Buffer &buffer) {
-		assert(buffer.read() == '{');
-		buffer.readAdvance(1);
-		skipWhitespace(buffer);
-		if (buffer.readCompositeLength() == 0) {
-			return recoverableError("Buffer too short");
-		}
-
-		while (buffer.read() != '}') {
-			if (buffer.read() == '"') {
-				std::string key_string;
-				{
-					Error error = decodeRawString(key_string, buffer);
-					if (error.failed()) {
-						return error;
-					}
-				}
-				skipWhitespace(buffer);
-				if (buffer.readCompositeLength() == 0) {
-					return recoverableError("Buffer too short");
-				}
-				if (buffer.read() != ':') {
-					return criticalError("Expecting a ':' token");
-				}
-				buffer.readAdvance(1);
-				Own<DynamicMessage> msg = nullptr;
-				{
-					Error error = decodeValue(msg, buffer);
-					if (error.failed()) {
-						return error;
-					}
-				}
-				message.init(key_string, std::move(msg));
-				if (buffer.readCompositeLength() == 0) {
-					return recoverableError("Buffer too short");
-				}
-
-				switch (buffer.read()) {
-				case '}':
-					break;
-				case ',':
-					buffer.readAdvance(1);
-					skipWhitespace(buffer);
-					if (buffer.readCompositeLength() == 0) {
-						return recoverableError("Buffer too short");
-					}
-					break;
-				default:
-					return criticalError("Not a JSON Object");
-				}
-			} else {
-				return criticalError("Not a JSON Object");
-			}
-		}
-		buffer.readAdvance(1);
-		return noError();
-	}
-
-	ErrorOr<Own<DynamicMessage>> decodeDynamic(Buffer &buffer,
-											   const Limits &limits) {
-		skipWhitespace(buffer);
-		if (buffer.readCompositeLength() == 0) {
-			return recoverableError("Buffer too short");
-		}
-		if (buffer.read() == '{') {
-
-			Own<DynamicMessageStruct> message =
-				std::make_unique<DynamicMessageStruct>();
-			Error error =
-				decodeStruct(DynamicMessageStruct::Builder{*message}, buffer);
-			if (error.failed()) {
-				return error;
-			}
-			skipWhitespace(buffer);
-
-			return Own<DynamicMessage>{std::move(message)};
-		} else if (buffer.read() == '[') {
-
-			Own<DynamicMessageList> message =
-				std::make_unique<DynamicMessageList>();
-			Error error = decodeList(*message, buffer);
-			if (error.failed()) {
-				return error;
-			}
-			skipWhitespace(buffer);
-
-			return Own<DynamicMessage>{std::move(message)};
 		} else {
 			return criticalError("Not a JSON Object");
 		}
 	}
+	buffer.readAdvance(1);
+	return noError();
+}
 
-public:
-	template <typename T>
-	Error encode(typename T::Reader reader, Buffer &buffer) {
-		return JsonEncodeImpl<T>::encode(reader, buffer);
+ErrorOr<Own<DynamicMessage>> JsonCodec::decodeDynamic(Buffer &buffer,
+													  const Limits &limits) {
+	skipWhitespace(buffer);
+	if (buffer.readCompositeLength() == 0) {
+		return recoverableError("Buffer too short");
+	}
+	if (buffer.read() == '{') {
+
+		Own<DynamicMessageStruct> message =
+			std::make_unique<DynamicMessageStruct>();
+		Error error =
+			decodeStruct(DynamicMessageStruct::Builder{*message}, buffer);
+		if (error.failed()) {
+			return error;
+		}
+		skipWhitespace(buffer);
+
+		return Own<DynamicMessage>{std::move(message)};
+	} else if (buffer.read() == '[') {
+
+		Own<DynamicMessageList> message =
+			std::make_unique<DynamicMessageList>();
+		Error error = decodeList(*message, buffer);
+		if (error.failed()) {
+			return error;
+		}
+		skipWhitespace(buffer);
+
+		return Own<DynamicMessage>{std::move(message)};
+	} else {
+		return criticalError("Not a JSON Object");
+	}
+}
+
+template <typename T>
+Error JsonCodec::encode(typename T::Reader reader, Buffer &buffer) {
+	return JsonEncodeImpl<T>::encode(reader, buffer);
+}
+
+template <typename T>
+Error JsonCodec::decode(typename T::Builder builder, Buffer &buffer,
+						const Limits &limits) {
+	ErrorOr<Own<DynamicMessage>> error_or_message =
+		decodeDynamic(buffer, limits);
+	if (error_or_message.isError()) {
+		return error_or_message.error();
 	}
 
-	template <typename T>
-	Error decode(typename T::Builder builder, Buffer &buffer,
-				 const Limits &limits = Limits{16, 1024}) {
-		ErrorOr<Own<DynamicMessage>> error_or_message =
-			decodeDynamic(buffer, limits);
-		if (error_or_message.isError()) {
-			return error_or_message.error();
-		}
-
-		Own<DynamicMessage> message = std::move(error_or_message.value());
-		if (!message) {
-			return criticalError("No message object created");
-		}
-		if (message->type() == DynamicMessage::Type::Null) {
-			return criticalError("Can't decode to json");
-		}
-		DynamicMessage::DynamicReader reader{*message};
-		Error static_error = JsonDecodeImpl<T>::decode(builder, reader);
-		return static_error;
+	Own<DynamicMessage> message = std::move(error_or_message.value());
+	if (!message) {
+		return criticalError("No message object created");
 	}
-};
+	if (message->type() == DynamicMessage::Type::Null) {
+		return criticalError("Can't decode to json");
+	}
+	DynamicMessage::DynamicReader reader{*message};
+	Error static_error = JsonDecodeImpl<T>::decode(builder, reader);
+	return static_error;
+}
 
 } // namespace gin
