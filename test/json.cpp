@@ -145,7 +145,8 @@ GIN_TEST("JSON Struct Decoding"){
 GIN_TEST("JSON List Decoding"){
 	std::string json_string = R"(
 	[
-		12, "free"
+		12, 
+			"free"
 	])";
 
 	auto builder = heapMessageBuilder();
