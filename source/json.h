@@ -384,6 +384,59 @@ template <> struct JsonDecodeImpl<MessagePrimitive<std::string>> {
 	}
 };
 
+template <typename... T> struct JsonDecodeImpl<MessageList<T...>> {
+	template <size_t i = 0>
+	static typename std::enable_if<i == sizeof...(T), Error>::type
+	decodeMembers(typename MessageList<T...>::Builder builder,
+				  DynamicMessageList::Reader reader) {
+		(void)builder;
+		(void)reader;
+		return noError();
+	}
+
+	template <size_t i = 0>
+		static typename std::enable_if <
+		i<sizeof...(T), Error>::type
+		decodeMembers(typename MessageList<T...>::Builder builder,
+					  DynamicMessageList::Reader reader) {
+
+		DynamicMessage::DynamicReader member_reader = reader.get(i);
+
+		{
+			Error error =
+				JsonDecodeImpl<typename ParameterPackType<i, T...>::type>::
+					decode(builder.template init<i>(), member_reader);
+
+			if (error.failed()) {
+				return error;
+			}
+		}
+		{
+			Error error =
+				JsonDecodeImpl<MessageList<T...>>::decodeMembers<i + 1>(builder,
+																		reader);
+			if (error.failed()) {
+				return error;
+			}
+		}
+		return noError();
+	}
+
+	static Error decode(typename MessageList<T...>::Builder builder,
+						DynamicMessage::DynamicReader reader) {
+		if (reader.type() != DynamicMessage::Type::List) {
+			return criticalError("Not a list");
+		}
+
+		Error error = JsonDecodeImpl<MessageList<T...>>::decodeMembers<0>(
+			builder, reader.as<DynamicMessageList>());
+		if (error.failed()) {
+			return error;
+		}
+		return noError();
+	}
+};
+
 template <typename... V, typename... K>
 struct JsonDecodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 	template <size_t i = 0>
@@ -789,17 +842,34 @@ private:
 		if (buffer.readCompositeLength() == 0) {
 			return recoverableError("Buffer too short");
 		}
-		if (buffer.read() == ']') {
-			buffer.readAdvance(1);
-			return noError();
-		}
-
-		Own<DynamicMessage> message = nullptr;
-		{ Error error = decodeValue(message, buffer); }
 
 		while (buffer.read() != ']') {
-			/// @todo unimplemented
-			assert(false);
+
+			Own<DynamicMessage> message = nullptr;
+			{
+				Error error = decodeValue(message, buffer);
+				if (error.failed()) {
+					return error;
+				}
+			}
+			builder.push(std::move(message));
+			if (buffer.readCompositeLength() == 0) {
+				return recoverableError("Buffer too short");
+			}
+
+			switch (buffer.read()) {
+			case ']':
+				break;
+			case ',':
+				buffer.readAdvance(1);
+				skipWhitespace(buffer);
+				if (buffer.readCompositeLength() == 0) {
+					return recoverableError("Buffer too short");
+				}
+				break;
+			default:
+				return criticalError("Not a JSON Object");
+			}
 		}
 		buffer.readAdvance(1);
 		return noError();
@@ -811,10 +881,6 @@ private:
 		skipWhitespace(buffer);
 		if (buffer.readCompositeLength() == 0) {
 			return recoverableError("Buffer too short");
-		}
-		if (buffer.read() == '}') {
-			buffer.readAdvance(1);
-			return noError();
 		}
 
 		while (buffer.read() != '}') {
@@ -846,14 +912,6 @@ private:
 					return recoverableError("Buffer too short");
 				}
 
-				/*
-				skipWhitespace(buffer);
-				if(buffer.readCompositeLength() == 0){
-					return recoverableError("Buffer too short");
-				}
-				/// @todo value decode
-				skipWhitespace(buffer);
-				*/
 				switch (buffer.read()) {
 				case '}':
 					break;

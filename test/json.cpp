@@ -142,6 +142,26 @@ GIN_TEST("JSON Struct Decoding"){
 	GIN_EXPECT( reader.get<decltype("test_bool"_t)>().get() == true, "Test Bool has wrong value" );
 }
 
+GIN_TEST("JSON List Decoding"){
+	std::string json_string = R"(
+	[
+		12, "free"
+	])";
+
+	auto builder = heapMessageBuilder();
+	TestList::Builder root = builder.initRoot<TestList>();
+
+	JsonCodec codec;
+	RingBuffer temp_buffer;
+	temp_buffer.push(*reinterpret_cast<const uint8_t*>(json_string.data()), json_string.size());
+	Error error = codec.decode<TestList>(root, temp_buffer);
+	GIN_EXPECT( !error.failed(), error.message() );
+
+	auto reader = root.asReader();
+	GIN_EXPECT( reader.get<0>().get() == 12, "Test Unsigned has wrong value" );
+	GIN_EXPECT( reader.get<1>().get() == "free", "Test String has wrong value" );
+}
+
 typedef MessageStruct<
 	MessageStructMember<MessagePrimitive<uint32_t>, decltype("test_uint"_t)>,
 	MessageStructMember<TestStruct, decltype("test_struct"_t)>,
