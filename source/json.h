@@ -23,36 +23,55 @@ public:
 	};
 
 private:
-	struct Context {
+	struct ReadContext {
+	public:
 		Buffer &buffer;
+		const Limits &limits;
 		size_t offset = 0;
 		size_t depth = 0;
 		size_t elements = 0;
 
-		void readAdvance(size_t bytes);
+		size_t readLength() const {
+			size_t remaining = buffer.readCompositeLength();
+			assert(offset <= remaining);
+			return offset > remaining ? 0 : remaining - offset;
+		}
+		uint8_t &read(size_t i = 0) {
+			assert(readLength() > i);
+
+			return buffer.read(offset + i);
+		}
+		void readAdvance(size_t bytes) {
+			size_t remaining = readLength();
+			assert(remaining >= bytes);
+
+			bytes = std::min(bytes, remaining);
+			offset += bytes;
+		}
 	};
+
+	template <typename T> friend class JsonDecodeImpl;
 
 	bool isWhitespace(int8_t letter);
 
-	void skipWhitespace(Buffer &buffer);
+	void skipWhitespace(ReadContext &);
 
-	Error decodeBool(DynamicMessageBool::Builder message, Buffer &buffer);
+	Error decodeBool(DynamicMessageBool::Builder message, ReadContext &);
 
-	// Not yet clear if double or integer
-	Error decodeNumber(Own<DynamicMessage> &message, Buffer &buffer);
+	// Not yet clear if this number is a double or an integer
+	Error decodeNumber(Own<DynamicMessage> &message, ReadContext &);
 
-	Error decodeNull(Buffer &buffer);
+	Error decodeNull(ReadContext &);
 
-	Error decodeValue(Own<DynamicMessage> &message, Buffer &buffer);
+	Error decodeValue(Own<DynamicMessage> &message, ReadContext &);
 
-	Error decodeRawString(std::string &raw, Buffer &buffer);
+	Error decodeRawString(std::string &raw, ReadContext &);
 
-	Error decodeList(DynamicMessageList::Builder builder, Buffer &buffer);
+	Error decodeList(DynamicMessageList::Builder builder, ReadContext &);
 
-	Error decodeStruct(DynamicMessageStruct::Builder message, Buffer &buffer);
+	Error decodeStruct(DynamicMessageStruct::Builder message, ReadContext &);
 
-	ErrorOr<Own<DynamicMessage>> decodeDynamic(Buffer &buffer,
-											   const Limits &limits);
+	ErrorOr<Own<DynamicMessage>> decodeDynamic(ReadContext &);
 
 public:
 	template <typename T>
@@ -539,14 +558,14 @@ bool JsonCodec::isWhitespace(int8_t letter) {
 	return letter == '\t' || letter == ' ' || letter == '\r' || letter == '\n';
 }
 
-void JsonCodec::skipWhitespace(Buffer &buffer) {
-	while (buffer.readCompositeLength() > 0 && isWhitespace(buffer.read())) {
-		buffer.readAdvance(1);
+void JsonCodec::skipWhitespace(ReadContext &ctx) {
+	while (ctx.readLength() > 0 && isWhitespace(ctx.read())) {
+		ctx.readAdvance(1);
 	}
 }
 
 Error JsonCodec::decodeBool(DynamicMessageBool::Builder message,
-							Buffer &buffer) {
+							ReadContext &buffer) {
 	assert((buffer.read() == 'T') || (buffer.read() == 't') ||
 		   (buffer.read() == 'F') || (buffer.read() == 'f'));
 
@@ -555,7 +574,7 @@ Error JsonCodec::decodeBool(DynamicMessageBool::Builder message,
 
 	if (is_true) {
 		std::array<char, 3> check = {'r', 'u', 'e'};
-		for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 3; ++i) {
+		for (size_t i = 0; buffer.readLength() > 0 && i < 3; ++i) {
 			if (buffer.read() != check[i]) {
 				return criticalError("Assumed true value, but it is invalid");
 			}
@@ -563,7 +582,7 @@ Error JsonCodec::decodeBool(DynamicMessageBool::Builder message,
 		}
 	} else {
 		std::array<char, 4> check = {'a', 'l', 's', 'e'};
-		for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 4; ++i) {
+		for (size_t i = 0; buffer.readLength() > 0 && i < 4; ++i) {
 			if (buffer.read() != check[i]) {
 				return criticalError("Assumed false value, but it is invalid");
 			}
@@ -577,7 +596,8 @@ Error JsonCodec::decodeBool(DynamicMessageBool::Builder message,
 }
 
 // Not yet clear if double or integer
-Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
+Error JsonCodec::decodeNumber(Own<DynamicMessage> &message,
+							  ReadContext &buffer) {
 	assert((buffer.read() >= '0' && buffer.read() <= '9') ||
 		   buffer.read() == '+' || buffer.read() == '-');
 	size_t offset = 0;
@@ -587,14 +607,14 @@ Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
 	} else if (buffer.read() == '+') {
 		return criticalError("Not a valid number with +");
 	}
-	if (offset >= buffer.readCompositeLength()) {
+	if (offset >= buffer.readLength()) {
 		return recoverableError("Buffer too short");
 	}
 	bool integer = true;
 	if (buffer.read(offset) >= '1' && buffer.read(offset) <= '9') {
 		++offset;
 
-		if (offset >= buffer.readCompositeLength()) {
+		if (offset >= buffer.readLength()) {
 			return recoverableError("Buffer too short");
 		}
 
@@ -602,7 +622,7 @@ Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
 			if (buffer.read(offset) >= '0' && buffer.read(offset) <= '9') {
 				++offset;
 
-				if (offset >= buffer.readCompositeLength()) {
+				if (offset >= buffer.readLength()) {
 					return recoverableError("Buffer too short");
 				}
 				continue;
@@ -614,14 +634,14 @@ Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
 	} else {
 		return criticalError("Not a JSON number");
 	}
-	if (offset >= buffer.readCompositeLength()) {
+	if (offset >= buffer.readLength()) {
 		return recoverableError("Buffer too short");
 	}
 	if (buffer.read(offset) == '.') {
 		integer = false;
 		++offset;
 
-		if (offset >= buffer.readCompositeLength()) {
+		if (offset >= buffer.readLength()) {
 			return recoverableError("Buffer too short");
 		}
 
@@ -631,7 +651,7 @@ Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
 			if (buffer.read(offset) >= '0' && buffer.read(offset) <= '9') {
 				++offset;
 
-				if (offset >= buffer.readCompositeLength()) {
+				if (offset >= buffer.readLength()) {
 					return recoverableError("Buffer too short");
 				}
 				continue;
@@ -647,13 +667,13 @@ Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
 		integer = false;
 		++offset;
 
-		if (offset >= buffer.readCompositeLength()) {
+		if (offset >= buffer.readLength()) {
 			return recoverableError("Buffer too short");
 		}
 
 		if (buffer.read(offset) == '+' || buffer.read(offset) == '-') {
 			++offset;
-			if (offset >= buffer.readCompositeLength()) {
+			if (offset >= buffer.readLength()) {
 				return recoverableError("Buffer too short");
 			}
 		}
@@ -664,7 +684,7 @@ Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
 			if (buffer.read(offset) >= '0' && buffer.read(offset) <= '9') {
 				++offset;
 
-				if (offset >= buffer.readCompositeLength()) {
+				if (offset >= buffer.readLength()) {
 					return recoverableError("Buffer too short");
 				}
 				continue;
@@ -676,7 +696,7 @@ Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
 		}
 	}
 
-	if (offset >= buffer.readCompositeLength()) {
+	if (offset >= buffer.readLength()) {
 		return recoverableError("Buffer too short");
 	}
 
@@ -714,12 +734,12 @@ Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
 	return noError();
 }
 
-Error JsonCodec::decodeNull(Buffer &buffer) {
+Error JsonCodec::decodeNull(ReadContext &buffer) {
 	assert(buffer.read() == 'N' || buffer.read() == 'n');
 	buffer.readAdvance(1);
 
 	std::array<char, 3> check = {'u', 'l', 'l'};
-	for (size_t i = 0; buffer.readCompositeLength() > 0 && i < 3; ++i) {
+	for (size_t i = 0; buffer.readLength() > 0 && i < 3; ++i) {
 		if (buffer.read() != check[i]) {
 			return criticalError("Assumed null value, but it is invalid");
 		}
@@ -729,9 +749,10 @@ Error JsonCodec::decodeNull(Buffer &buffer) {
 	return noError();
 }
 
-Error JsonCodec::decodeValue(Own<DynamicMessage> &message, Buffer &buffer) {
+Error JsonCodec::decodeValue(Own<DynamicMessage> &message,
+							 ReadContext &buffer) {
 	skipWhitespace(buffer);
-	if (buffer.readCompositeLength() == 0) {
+	if (buffer.readLength() == 0) {
 		return recoverableError("Buffer too short");
 	}
 
@@ -806,19 +827,19 @@ Error JsonCodec::decodeValue(Own<DynamicMessage> &message, Buffer &buffer) {
 	return noError();
 }
 
-Error JsonCodec::decodeRawString(std::string &raw, Buffer &buffer) {
+Error JsonCodec::decodeRawString(std::string &raw, ReadContext &buffer) {
 	assert(buffer.read() == '"');
 	buffer.readAdvance(1);
 	std::stringstream iss;
 	bool string_done = false;
 	while (!string_done) {
-		if (buffer.readCompositeLength() == 0) {
+		if (buffer.readLength() == 0) {
 			return recoverableError("Buffer too short");
 		}
 		switch (buffer.read()) {
 		case '\\':
 			buffer.readAdvance(1);
-			if (buffer.readCompositeLength() == 0) {
+			if (buffer.readLength() == 0) {
 				return recoverableError("Buffer too short");
 			}
 			switch (buffer.read()) {
@@ -844,7 +865,7 @@ Error JsonCodec::decodeRawString(std::string &raw, Buffer &buffer) {
 				break;
 			case 'u': {
 				buffer.readAdvance(1);
-				if (buffer.readCompositeLength() < 4) {
+				if (buffer.readLength() < 4) {
 					return recoverableError("Broken unicode or short buffer");
 				}
 				/// @todo correct unicode handling
@@ -872,11 +893,11 @@ Error JsonCodec::decodeRawString(std::string &raw, Buffer &buffer) {
 }
 
 Error JsonCodec::decodeList(DynamicMessageList::Builder builder,
-							Buffer &buffer) {
+							ReadContext &buffer) {
 	assert(buffer.read() == '[');
 	buffer.readAdvance(1);
 	skipWhitespace(buffer);
-	if (buffer.readCompositeLength() == 0) {
+	if (buffer.readLength() == 0) {
 		return recoverableError("Buffer too short");
 	}
 
@@ -890,7 +911,7 @@ Error JsonCodec::decodeList(DynamicMessageList::Builder builder,
 			}
 		}
 		builder.push(std::move(message));
-		if (buffer.readCompositeLength() == 0) {
+		if (buffer.readLength() == 0) {
 			return recoverableError("Buffer too short");
 		}
 
@@ -900,7 +921,7 @@ Error JsonCodec::decodeList(DynamicMessageList::Builder builder,
 		case ',':
 			buffer.readAdvance(1);
 			skipWhitespace(buffer);
-			if (buffer.readCompositeLength() == 0) {
+			if (buffer.readLength() == 0) {
 				return recoverableError("Buffer too short");
 			}
 			break;
@@ -913,11 +934,11 @@ Error JsonCodec::decodeList(DynamicMessageList::Builder builder,
 }
 
 Error JsonCodec::decodeStruct(DynamicMessageStruct::Builder message,
-							  Buffer &buffer) {
+							  ReadContext &buffer) {
 	assert(buffer.read() == '{');
 	buffer.readAdvance(1);
 	skipWhitespace(buffer);
-	if (buffer.readCompositeLength() == 0) {
+	if (buffer.readLength() == 0) {
 		return recoverableError("Buffer too short");
 	}
 
@@ -931,7 +952,7 @@ Error JsonCodec::decodeStruct(DynamicMessageStruct::Builder message,
 				}
 			}
 			skipWhitespace(buffer);
-			if (buffer.readCompositeLength() == 0) {
+			if (buffer.readLength() == 0) {
 				return recoverableError("Buffer too short");
 			}
 			if (buffer.read() != ':') {
@@ -946,7 +967,7 @@ Error JsonCodec::decodeStruct(DynamicMessageStruct::Builder message,
 				}
 			}
 			message.init(key_string, std::move(msg));
-			if (buffer.readCompositeLength() == 0) {
+			if (buffer.readLength() == 0) {
 				return recoverableError("Buffer too short");
 			}
 
@@ -956,7 +977,7 @@ Error JsonCodec::decodeStruct(DynamicMessageStruct::Builder message,
 			case ',':
 				buffer.readAdvance(1);
 				skipWhitespace(buffer);
-				if (buffer.readCompositeLength() == 0) {
+				if (buffer.readLength() == 0) {
 					return recoverableError("Buffer too short");
 				}
 				break;
@@ -971,10 +992,9 @@ Error JsonCodec::decodeStruct(DynamicMessageStruct::Builder message,
 	return noError();
 }
 
-ErrorOr<Own<DynamicMessage>> JsonCodec::decodeDynamic(Buffer &buffer,
-													  const Limits &limits) {
+ErrorOr<Own<DynamicMessage>> JsonCodec::decodeDynamic(ReadContext &buffer) {
 	skipWhitespace(buffer);
-	if (buffer.readCompositeLength() == 0) {
+	if (buffer.readLength() == 0) {
 		return recoverableError("Buffer too short");
 	}
 	if (buffer.read() == '{') {
@@ -1013,11 +1033,15 @@ Error JsonCodec::encode(typename T::Reader reader, Buffer &buffer) {
 template <typename T>
 Error JsonCodec::decode(typename T::Builder builder, Buffer &buffer,
 						const Limits &limits) {
-	ErrorOr<Own<DynamicMessage>> error_or_message =
-		decodeDynamic(buffer, limits);
+
+	ReadContext context{buffer, limits};
+
+	ErrorOr<Own<DynamicMessage>> error_or_message = decodeDynamic(context);
 	if (error_or_message.isError()) {
 		return error_or_message.error();
 	}
+
+	buffer.readAdvance(context.offset);
 
 	Own<DynamicMessage> message = std::move(error_or_message.value());
 	if (!message) {
