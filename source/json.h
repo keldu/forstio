@@ -23,6 +23,38 @@ public:
 	};
 
 private:
+	struct WriteContext {
+	public:
+		Buffer &buffer;
+		const Limits &limits;
+
+		size_t offset = 0;
+		size_t depth = 0;
+		size_t elements = 0;
+
+		Error push(const uint8_t &buffer, size_t size) {
+			Error error = writeRequireLength(offset + size);
+			if (error.failed()) {
+				return error;
+			}
+
+			size_t write_left = size;
+			while (write_left > 0) {
+			}
+
+			offset += size;
+		}
+
+		Error push(uint8_t value) {
+			Error error = writeRequireLength(offset + 1);
+			if (error.failed()) {
+				return error;
+			}
+
+			++offset;
+		}
+	};
+
 	struct ReadContext {
 	public:
 		Buffer &buffer;
