@@ -38,14 +38,22 @@ private:
 				return error;
 			}
 
+			const uint8_t *buffer_ptr = &buffer;
 			size_t write_left = size;
 			while (write_left > 0) {
+				size_t segment =
+					std::min(buffer.writeSegmentLength(), write_left);
+				memcpy(&buffer.write(offset), buffer_ptr, segment);
+				/// @todo i need to know the offset write segment length before
+				/// write has been advanced :/
+				/// @todo change the buffer interface to use an offset with
+				/// default size_t offset = 0
 			}
 
 			offset += size;
 		}
 
-		Error push(uint8_t value) {
+		Error push(const uint8_t &value) {
 			Error error = writeRequireLength(offset + 1);
 			if (error.failed()) {
 				return error;
