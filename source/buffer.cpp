@@ -106,19 +106,38 @@ size_t RingBuffer::readCompositeLength() const {
  * If write is ahead then it's the simple distance again. If read is ahead it's
  * until the end of the buffer/segment
  */
-size_t RingBuffer::readSegmentLength() const {
-	return writePosition() < readPosition()
-			   ? (buffer.size() - readPosition())
+size_t RingBuffer::readSegmentLength(size_t offset) const {
+	assert(offset <= readCompositeLength();
+	offset = std::min(offset, readCompositeLength());
+	
+	size_t read_offset = readPosition() + offset;
+	read_offset = read_offset >= buffer.size() ? read_offset - buffer.size() : read_offset;
+	
+	// case 1 write is located before read and reached read
+	// then offset can be used normally
+	// case 2 write is located at read, but read reached write
+	// then it is set to zero by readCompositeLength()
+	// case 3 write is located after read
+	// since std::min you can use simple subtraction
+
+
+	/// @todo it can happen that read_offset wrapped around the ring buffer
+	/// In that case it had to calculate ```writePosition() - read_offset```
+	/// 
+	/// Also the remaining read_composite size may be relevant
+	return writePosition() < read_offset
+			   ? (buffer.size() - read_offset)
 			   : (write_reached_read
-					  ? (buffer.size() - readPosition())
+					  ? (buffer.size() - read_offset)
 					  : writePosition() -
-							readPosition()); //(writePosition() -
+							read_offset); //(writePosition() -
 											 // readPosition()) :
 											 //(write_reached_read ? () : 0 );
 }
 
 void RingBuffer::readAdvance(size_t bytes) {
 	assert(bytes <= readCompositeLength());
+	bytes = std::min(bytes, readCompositeLength());
 	size_t advanced = read_position + bytes;
 	read_position = advanced >= buffer.size() ? advanced - buffer.size()
 											  : advanced;
