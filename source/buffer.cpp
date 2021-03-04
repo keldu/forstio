@@ -107,37 +107,40 @@ size_t RingBuffer::readCompositeLength() const {
  * until the end of the buffer/segment
  */
 size_t RingBuffer::readSegmentLength(size_t offset) const {
-	assert(offset <= readCompositeLength();
-	offset = std::min(offset, readCompositeLength());
-	
+	size_t read_composite = readCompositeLength();
+	assert(offset <= read_composite);
+	offset = std::min(offset, read_composite);
+	size_t remaining = read_composite - offset;
+
 	size_t read_offset = readPosition() + offset;
-	read_offset = read_offset >= buffer.size() ? read_offset - buffer.size() : read_offset;
-	
+	read_offset = read_offset >= buffer.size() ? read_offset - buffer.size()
+											   : read_offset;
+
 	// case 1 write is located before read and reached read
 	// then offset can be used normally
 	// case 2 write is located at read, but read reached write
 	// then it is set to zero by readCompositeLength()
 	// case 3 write is located after read
 	// since std::min you can use simple subtraction
+	if (writePosition() < read_offset) {
+		return buffer.size() - read_offset;
+	}
 
+	if (writePosition() == read_offset) {
+		if (remaining > 0) {
+			return buffer.size() - read_offset;
+		} else {
+			return 0;
+		}
+	}
 
-	/// @todo it can happen that read_offset wrapped around the ring buffer
-	/// In that case it had to calculate ```writePosition() - read_offset```
-	/// 
-	/// Also the remaining read_composite size may be relevant
-	return writePosition() < read_offset
-			   ? (buffer.size() - read_offset)
-			   : (write_reached_read
-					  ? (buffer.size() - read_offset)
-					  : writePosition() -
-							read_offset); //(writePosition() -
-											 // readPosition()) :
-											 //(write_reached_read ? () : 0 );
+	return writePosition() - read_offset;
 }
 
 void RingBuffer::readAdvance(size_t bytes) {
-	assert(bytes <= readCompositeLength());
-	bytes = std::min(bytes, readCompositeLength());
+	size_t read_composite = readCompositeLength();
+	assert(bytes <= read_composite);
+	bytes = std::min(bytes, read_composite);
 	size_t advanced = read_position + bytes;
 	read_position = advanced >= buffer.size() ? advanced - buffer.size()
 											  : advanced;
@@ -168,10 +171,24 @@ size_t RingBuffer::writeCompositeLength() const {
 					  : buffer.size() - (writePosition() - readPosition()));
 }
 
-size_t RingBuffer::writeSegmentLength() const {
-	return readPosition() > writePosition()
-			   ? (readPosition() - writePosition())
-			   : (write_reached_read ? 0 : (buffer.size() - writePosition()));
+size_t RingBuffer::writeSegmentLength(size_t offset) const {
+	size_t write_composite = writeCompositeLength();
+	assert(offset <= write_composite);
+	offset = std::min(offset, write_composite);
+
+	size_t write_offset = writePosition() + offset;
+	write_offset = write_offset >= buffer.size() ? write_offset - buffer.size()
+												 : write_offset;
+
+	if (read_position > write_offset) {
+		return read_position - write_offset;
+	}
+
+	if (write_reached_read) {
+		return 0;
+	}
+
+	return buffer.size() - write_offset;
 }
 
 void RingBuffer::writeAdvance(size_t bytes) {
@@ -233,8 +250,14 @@ size_t ArrayBuffer::readCompositeLength() const {
 	return write_position - read_position;
 }
 
-size_t ArrayBuffer::readSegmentLength() const {
-	return write_position - read_position;
+size_t ArrayBuffer::readSegmentLength(size_t offset) const {
+	size_t read_composite = readCompositeLength();
+	assert(offset <= read_composite);
+
+	offset = std::min(read_composite, offset);
+	size_t read_offset = read_position + offset;
+
+	return write_position - read_offset;
 }
 
 void ArrayBuffer::readAdvance(size_t bytes) {
@@ -261,9 +284,15 @@ size_t ArrayBuffer::writeCompositeLength() const {
 	return buffer.size() - write_position;
 }
 
-size_t ArrayBuffer::writeSegmentLength() const {
+size_t ArrayBuffer::writeSegmentLength(size_t offset) const {
 	assert(write_position <= buffer.size());
-	return buffer.size() - write_position;
+	size_t write_composite = writeCompositeLength();
+
+	assert(offset <= write_composite);
+	offset = std::min(write_composite, offset);
+	size_t write_offset = write_position + offset;
+
+	return buffer.size() - write_offset;
 }
 
 void ArrayBuffer::writeAdvance(size_t bytes) {

@@ -8,6 +8,7 @@
 
 #include <cassert>
 #include <charconv>
+#include <cstring>
 #include <sstream>
 #include <string_view>
 #include <tuple>
@@ -32,35 +33,33 @@ private:
 		size_t depth = 0;
 		size_t elements = 0;
 
-		Error push(const uint8_t &buffer, size_t size) {
-			Error error = writeRequireLength(offset + size);
+		Error push(const uint8_t &buffer_ref, size_t size) {
+			Error error = buffer.writeRequireLength(offset + size);
 			if (error.failed()) {
 				return error;
 			}
 
-			const uint8_t *buffer_ptr = &buffer;
+			const uint8_t *buffer_ptr = &buffer_ref;
 			size_t write_left = size;
 			while (write_left > 0) {
 				size_t segment =
-					std::min(buffer.writeSegmentLength(), write_left);
+					std::min(buffer.writeSegmentLength(offset), write_left);
+				if (segment == 0) {
+					return recoverableError("Buffer segment size 0");
+				}
 				memcpy(&buffer.write(offset), buffer_ptr, segment);
+
+				offset += segment;
+				write_left -= segment;
+				buffer_ptr += segment;
 				/// @todo i need to know the offset write segment length before
 				/// write has been advanced :/
 				/// @todo change the buffer interface to use an offset with
 				/// default size_t offset = 0
 			}
-
-			offset += size;
 		}
 
-		Error push(const uint8_t &value) {
-			Error error = writeRequireLength(offset + 1);
-			if (error.failed()) {
-				return error;
-			}
-
-			++offset;
-		}
+		Error push(const uint8_t &value) { return push(value, 1); }
 	};
 
 	struct ReadContext {
