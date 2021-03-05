@@ -27,7 +27,6 @@ private:
 	struct WriteContext {
 	public:
 		Buffer &buffer;
-		const Limits &limits;
 
 		size_t offset = 0;
 		size_t depth = 0;
@@ -57,10 +56,13 @@ private:
 				/// @todo change the buffer interface to use an offset with
 				/// default size_t offset = 0
 			}
+
+			return noError();
 		}
 
 		Error push(const uint8_t &value) { return push(value, 1); }
 	};
+	template <typename T> friend class JsonEncodeImpl;
 
 	struct ReadContext {
 	public:
@@ -125,7 +127,7 @@ template <typename T> struct JsonEncodeImpl;
 
 template <typename T> struct JsonEncodeImpl<MessagePrimitive<T>> {
 	static Error encode(typename MessagePrimitive<T>::Reader data,
-						Buffer &buffer) {
+						JsonCodec::WriteContext &buffer) {
 		std::string stringified = std::to_string(data.get());
 		Error error =
 			buffer.push(*reinterpret_cast<const uint8_t *>(stringified.data()),
@@ -139,7 +141,7 @@ template <typename T> struct JsonEncodeImpl<MessagePrimitive<T>> {
 
 template <> struct JsonEncodeImpl<MessagePrimitive<std::string>> {
 	static Error encode(typename MessagePrimitive<std::string>::Reader data,
-						Buffer &buffer) {
+						JsonCodec::WriteContext &buffer) {
 		std::string str =
 			std::string{"\""} + std::string{data.get()} + std::string{"\""};
 		Error error = buffer.push(
@@ -153,7 +155,7 @@ template <> struct JsonEncodeImpl<MessagePrimitive<std::string>> {
 
 template <> struct JsonEncodeImpl<MessagePrimitive<bool>> {
 	static Error encode(typename MessagePrimitive<bool>::Reader data,
-						Buffer &buffer) {
+						JsonCodec::WriteContext &buffer) {
 		std::string str = data.get() ? "true" : "false";
 		Error error = buffer.push(
 			*reinterpret_cast<const uint8_t *>(str.data()), str.size());
@@ -167,7 +169,8 @@ template <> struct JsonEncodeImpl<MessagePrimitive<bool>> {
 template <typename... T> struct JsonEncodeImpl<MessageList<T...>> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(T), Error>::type
-	encodeMembers(typename MessageList<T...>::Reader data, Buffer &buffer) {
+	encodeMembers(typename MessageList<T...>::Reader data,
+				  JsonCodec::WriteContext &buffer) {
 		(void)data;
 		(void)buffer;
 		return noError();
@@ -175,7 +178,8 @@ template <typename... T> struct JsonEncodeImpl<MessageList<T...>> {
 	template <size_t i = 0>
 		static typename std::enable_if <
 		i<sizeof...(T), Error>::type
-		encodeMembers(typename MessageList<T...>::Reader data, Buffer &buffer) {
+		encodeMembers(typename MessageList<T...>::Reader data,
+					  JsonCodec::WriteContext &buffer) {
 		if (data.template get<i>().isSetExplicitly()) {
 			{
 				Error error =
@@ -213,7 +217,7 @@ template <typename... T> struct JsonEncodeImpl<MessageList<T...>> {
 	}
 
 	static Error encode(typename MessageList<T...>::Reader data,
-						Buffer &buffer) {
+						JsonCodec::WriteContext &buffer) {
 		Error error = buffer.push('[');
 		if (error.failed()) {
 			return error;
@@ -237,7 +241,7 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 	static typename std::enable_if<i == sizeof...(V), Error>::type
 	encodeMembers(
 		typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
-		Buffer &buffer) {
+		JsonCodec::WriteContext &buffer) {
 		(void)data;
 		(void)buffer;
 		return Error{};
@@ -246,7 +250,7 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 		static typename std::enable_if <
 		i<sizeof...(V), Error>::type encodeMembers(
 			typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
-			Buffer &buffer) {
+			JsonCodec::WriteContext &buffer) {
 		{
 			Error error = buffer.push('\"');
 			if (error.failed()) {
@@ -301,7 +305,7 @@ struct JsonEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 
 	static Error
 	encode(typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
-		   Buffer &buffer) {
+		   JsonCodec::WriteContext &buffer) {
 		Error error = buffer.push('{');
 		if (error.failed()) {
 			return error;
@@ -324,7 +328,7 @@ struct JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), Error>::type encodeMember(
 		typename MessageUnion<MessageUnionMember<V, K>...>::Reader data,
-		Buffer &buffer) {
+		JsonCodec::WriteContext &buffer) {
 		(void)data;
 		(void)buffer;
 		return noError();
@@ -333,7 +337,7 @@ struct JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 		static typename std::enable_if <
 		i<sizeof...(V), Error>::type encodeMember(
 			typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader,
-			Buffer &buffer) {
+			JsonCodec::WriteContext &buffer) {
 		/// @todo only encode if alternative is set, skip in other cases
 		/// use holds_alternative
 
@@ -395,7 +399,7 @@ struct JsonEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 
 	static Error
 	encode(typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader,
-		   Buffer &buffer) {
+		   JsonCodec::WriteContext &buffer) {
 		return encodeMember<0>(reader, buffer);
 	}
 };
@@ -1066,7 +1070,15 @@ ErrorOr<Own<DynamicMessage>> JsonCodec::decodeDynamic(ReadContext &buffer) {
 
 template <typename T>
 Error JsonCodec::encode(typename T::Reader reader, Buffer &buffer) {
-	return JsonEncodeImpl<T>::encode(reader, buffer);
+	WriteContext context{buffer};
+	Error error = JsonEncodeImpl<T>::encode(reader, context);
+	if (error.failed()) {
+		return error;
+	}
+
+	buffer.writeAdvance(context.offset);
+
+	return error;
 }
 
 template <typename T>
