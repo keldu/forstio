@@ -553,6 +553,7 @@ struct JsonDecodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 	static typename std::enable_if<i == sizeof...(V), Error>::type
 	decodeMembers(typename MessageStruct<MessageStructMember<V, K>...>::Builder,
 				  DynamicMessageStruct::Reader reader) {
+		(void)reader;
 		return noError();
 	}
 	template <size_t i = 0>

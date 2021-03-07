@@ -7,6 +7,8 @@
 #include "source/message.h"
 #include "source/json.h"
 
+#include "./data/json.h"
+
 using gin::MessageList;
 using gin::MessageStruct;
 using gin::MessageStructMember;
@@ -201,5 +203,87 @@ GIN_TEST("JSON Struct Decoding Two layer"){
 	GIN_EXPECT( inner_reader.get<decltype("test_bool"_t)>().get() == false, "Test Bool has wrong value" );
 	GIN_EXPECT( reader.get<decltype("test_uint"_t)>().get() == 5, "Test Unsigned has wrong value" );
 	GIN_EXPECT( reader.get<decltype("test_name"_t)>().get() == "keldu", "Test Name has wrong value" );
+}
+
+typedef MessageStruct<
+	MessageStructMember<
+		MessageStruct<
+			MessageStructMember< MessagePrimitive<std::string>, decltype("title"_t)>,
+			MessageStructMember<
+				MessageStruct<
+					MessageStructMember<MessagePrimitive<std::string>,decltype("title"_t)>,
+					MessageStructMember<
+						MessageStruct<
+							MessageStructMember<
+								MessageStruct<
+									MessageStructMember<MessagePrimitive<std::string>,decltype("ID"_t)>,
+									MessageStructMember<MessagePrimitive<std::string>,decltype("SortAs"_t)>,
+									MessageStructMember<MessagePrimitive<std::string>,decltype("GlossTerm"_t)>,
+									MessageStructMember<MessagePrimitive<std::string>,decltype("Acronym"_t)>,
+									MessageStructMember<MessagePrimitive<std::string>,decltype("Abbrev"_t)>,
+									MessageStructMember<
+										MessageStruct<
+											MessageStructMember<MessagePrimitive<std::string>, decltype("para"_t)>,
+											MessageStructMember<
+												MessageList<
+													MessagePrimitive<std::string>,
+													MessagePrimitive<std::string>
+												>
+											, decltype("GlossSeeAlso"_t)>
+										>
+									, decltype("GlossDef"_t)>,
+									MessageStructMember<MessagePrimitive<std::string>, decltype("GlossSee"_t)>
+								>
+							, decltype("GlossEntry"_t)>
+						>
+					, decltype("GlossList"_t)>
+				>
+			, decltype("GlossDiv"_t)>
+		>
+	, decltype("glossary"_t)>
+> TestJsonOrgExample;
+
+GIN_TEST ("JSON.org Decoding Example"){
+	auto builder = heapMessageBuilder();
+	TestJsonOrgExample::Builder root = builder.initRoot<TestJsonOrgExample>();
+
+	JsonCodec codec;
+	RingBuffer temp_buffer;
+	temp_buffer.push(*reinterpret_cast<const uint8_t*>(gin::json_org_example.data()), gin::json_org_example.size());
+
+	Error error = codec.decode<TestJsonOrgExample>(root, temp_buffer);
+	GIN_EXPECT(!error.failed(), error.message());
+
+	auto reader = root.asReader();
+
+	auto glossary_reader = reader.get<decltype("glossary"_t)>();
+
+	GIN_EXPECT(glossary_reader.get<decltype("title"_t)>().get() == "example glossary", "Bad glossary title");
+
+	auto gloss_div_reader = glossary_reader.get<decltype("GlossDiv"_t)>();
+
+	GIN_EXPECT(gloss_div_reader.get<decltype("title"_t)>().get() == "S", "bad gloss div value" );
+
+	auto gloss_list_reader = gloss_div_reader.get<decltype("GlossList"_t)>();
+
+	auto gloss_entry_reader = gloss_list_reader.get<decltype("GlossEntry"_t)>();
+
+	GIN_EXPECT(gloss_entry_reader.get<decltype("ID"_t)>().get() == "SGML", "bad ID value" );
+	GIN_EXPECT(gloss_entry_reader.get<decltype("SortAs"_t)>().get() == "SGML", "bad SortAs value" );
+	GIN_EXPECT(gloss_entry_reader.get<decltype("GlossTerm"_t)>().get() == "Standard Generalized Markup Language", "bad GlossTerm value" );
+	GIN_EXPECT(gloss_entry_reader.get<decltype("Acronym"_t)>().get() == "SGML", "bad Acronym value" );
+	GIN_EXPECT(gloss_entry_reader.get<decltype("Abbrev"_t)>().get() == "ISO 8879:1986", "bad Abbrev value" );
+	GIN_EXPECT(gloss_entry_reader.get<decltype("GlossSee"_t)>().get() == "markup", "bad GlossSee value" );
+
+	auto gloss_def_reader = gloss_entry_reader.get<decltype("GlossDef"_t)>();
+
+	GIN_EXPECT(gloss_def_reader.get<decltype("para"_t)>().get() == "A meta-markup language, used to create markup languages such as DocBook.", "para value wrong");
+
+	auto gloss_see_also_reader = gloss_def_reader.get<decltype("GlossSeeAlso"_t)>();
+
+	GIN_EXPECT(gloss_see_also_reader.get<0>().get() == "GML", "List 0 value wrong");
+	GIN_EXPECT(gloss_see_also_reader.get<1>().get() == "XML", "List 1 value wrong");
+
+	// (void) gloss_div_reader;
 }
 }
