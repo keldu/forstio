@@ -15,6 +15,33 @@ namespace gin {
 using msg_union_id_t = uint32_t;
 using msg_packet_length_t = uint64_t;
 
+class ProtoKelCodec {
+private:
+	struct ReadContext {
+		Buffer &buffer;
+		size_t offset = 0;
+	};
+
+	template <typename T> friend struct ProtoKelEncodeImpl;
+
+	template <typename T> friend struct ProtoKelDecodeImpl;
+
+public:
+	struct Version {
+		size_t major;
+		size_t minor;
+		size_t security;
+	};
+
+	const Version version() const { return Version{0, 0, 0}; }
+
+	template <typename T>
+	Error encode(typename T::Reader reader, Buffer &buffer);
+
+	template <typename T>
+	Error decode(typename T::Builder builder, Buffer &buffer);
+};
+
 template <typename T> struct ProtoKelEncodeImpl;
 
 template <typename T> struct ProtoKelEncodeImpl<MessagePrimitive<T>> {
@@ -360,69 +387,64 @@ struct ProtoKelDecodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 	}
 };
 
-class ProtoKelCodec {
-public:
-	struct Version {
-		size_t major;
-		size_t minor;
-		size_t security;
-	};
+template <typename T>
+Error ProtoKelCodec::encode(typename T::Reader reader, Buffer &buffer) {
+	BufferView view{buffer};
 
-	const Version version() const { return Version{0, 0, 0}; }
+	msg_packet_length_t packet_length = ProtoKelEncodeImpl<T>::size(reader);
+	// Check the size of the packet for the first
+	// message length description
 
-	template <typename T>
-	Error encode(typename T::Reader reader, Buffer &buffer) {
-		msg_packet_length_t packet_length = ProtoKelEncodeImpl<T>::size(reader);
-		// Check the size of the packet for the first
-		// message length description
+	Error error =
+		view.writeRequireLength(packet_length + sizeof(msg_packet_length_t));
+	if (error.failed()) {
+		return error;
+	}
 
-		Error error = buffer.writeRequireLength(packet_length +
-												sizeof(msg_packet_length_t));
+	{
+		Error error =
+			StreamValue<msg_packet_length_t>::encode(packet_length, view);
 		if (error.failed()) {
 			return error;
 		}
-
-		{
-			Error error =
-				StreamValue<msg_packet_length_t>::encode(packet_length, buffer);
-			if (error.failed()) {
-				return error;
-			}
-		}
-		{
-			Error error = ProtoKelEncodeImpl<T>::encode(reader, buffer);
-			if (error.failed()) {
-				return error;
-			}
-		}
-
-		return noError();
-	};
-
-	template <typename T>
-	Error decode(typename T::Builder builder, Buffer &buffer) {
-		msg_packet_length_t packet_length = 0;
-		{
-			Error error =
-				StreamValue<msg_packet_length_t>::decode(packet_length, buffer);
-			if (error.failed()) {
-				return error;
-			}
-		}
-		{
-			Error error = ProtoKelDecodeImpl<T>::decode(builder, buffer);
-			if (error.failed()) {
-				return error;
-			}
-		}
-		{
-			if (ProtoKelEncodeImpl<T>::size(builder.asReader()) !=
-				packet_length) {
-				return criticalError("Bad packet format");
-			}
-		}
-		return noError();
 	}
-};
+	{
+		Error error = ProtoKelEncodeImpl<T>::encode(reader, view);
+		if (error.failed()) {
+			return error;
+		}
+	}
+
+	buffer.writeAdvance(view.writeOffset());
+	return noError();
+}
+
+template <typename T>
+Error ProtoKelCodec::decode(typename T::Builder builder, Buffer &buffer) {
+	BufferView view{buffer};
+
+	msg_packet_length_t packet_length = 0;
+	{
+		Error error =
+			StreamValue<msg_packet_length_t>::decode(packet_length, view);
+		if (error.failed()) {
+			return error;
+		}
+	}
+	{
+		Error error = ProtoKelDecodeImpl<T>::decode(builder, view);
+		if (error.failed()) {
+			return error;
+		}
+	}
+	{
+		if (ProtoKelEncodeImpl<T>::size(builder.asReader()) != packet_length) {
+			return criticalError("Bad packet format");
+		}
+	}
+
+	buffer.readAdvance(view.readOffset());
+	return noError();
+}
 
 } // namespace gin

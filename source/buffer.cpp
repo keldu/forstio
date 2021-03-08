@@ -80,6 +80,117 @@ std::string Buffer::toHex() const {
 	return oss.str();
 }
 
+BufferView::BufferView(Buffer &buffer)
+	: buffer{buffer}, read_offset{0}, write_offset{0} {}
+
+size_t BufferView::readPosition() const {
+	return read_offset + buffer.readPosition();
+}
+
+size_t BufferView::readCompositeLength() const {
+	assert(read_offset <= buffer.readCompositeLength());
+	if (read_offset > buffer.readCompositeLength()) {
+		return 0;
+	}
+
+	return buffer.readCompositeLength() - read_offset;
+}
+
+size_t BufferView::readSegmentLength(size_t offset) const {
+	size_t off = offset + read_offset;
+	assert(off <= buffer.readCompositeLength());
+	if (off > buffer.readCompositeLength()) {
+		return 0;
+	}
+
+	return buffer.readSegmentLength(off);
+}
+
+void BufferView::readAdvance(size_t bytes) {
+	size_t offset = bytes + read_offset;
+	assert(offset <= buffer.readCompositeLength());
+	if (offset > buffer.readCompositeLength()) {
+		read_offset += buffer.readCompositeLength();
+		return;
+	}
+
+	read_offset += bytes;
+}
+
+uint8_t &BufferView::read(size_t i) {
+	size_t pos = i + read_offset;
+
+	assert(pos < buffer.readCompositeLength());
+
+	return buffer.read(pos);
+}
+
+const uint8_t &BufferView::read(size_t i) const {
+	size_t pos = i + read_offset;
+
+	assert(pos < buffer.readCompositeLength());
+
+	return buffer.read(pos);
+}
+
+size_t BufferView::writePosition() const {
+	return write_offset + buffer.writePosition();
+}
+
+size_t BufferView::writeCompositeLength() const {
+	assert(write_offset <= buffer.writeCompositeLength());
+	if (write_offset > buffer.writeCompositeLength()) {
+		return 0;
+	}
+
+	return buffer.writeCompositeLength() - write_offset;
+}
+
+size_t BufferView::writeSegmentLength(size_t offset) const {
+	size_t off = offset + write_offset;
+	assert(off <= buffer.writeCompositeLength());
+	if (off > buffer.writeCompositeLength()) {
+		return 0;
+	}
+
+	return buffer.writeSegmentLength(off);
+}
+
+void BufferView::writeAdvance(size_t bytes) {
+	size_t offset = bytes + write_offset;
+	assert(offset <= buffer.writeCompositeLength());
+	if (offset > buffer.writeCompositeLength()) {
+		write_offset += buffer.writeCompositeLength();
+		return;
+	}
+
+	write_offset += bytes;
+}
+
+uint8_t &BufferView::write(size_t i) {
+	size_t pos = i + write_offset;
+
+	assert(pos < buffer.writeCompositeLength());
+
+	return buffer.write(pos);
+}
+
+const uint8_t &BufferView::write(size_t i) const {
+	size_t pos = i + write_offset;
+
+	assert(pos < buffer.writeCompositeLength());
+
+	return buffer.write(pos);
+}
+
+Error BufferView::writeRequireLength(size_t bytes) {
+	return buffer.writeRequireLength(bytes + write_offset);
+}
+
+size_t BufferView::readOffset() const { return read_offset; }
+
+size_t BufferView::writeOffset() const { return write_offset; }
+
 RingBuffer::RingBuffer() : read_position{0}, write_position{0} {
 	buffer.resize(RING_BUFFER_MAX_SIZE);
 }
