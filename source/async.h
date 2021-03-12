@@ -137,13 +137,15 @@ public:
 								 ErrorFunc &&error_func = PropagateError());
 
 	/**
-	 * This method adds a buffer node in the conveyor chains and acts as a
-	 * scheduler interrupt point.
+	 * This method adds a buffer node in the conveyor chains which acts as a
+	 * scheduler interrupt point and collects elements up to the supplied limit.
 	 */
 	Conveyor<T> buffer(size_t limit = std::numeric_limits<size_t>::max());
 
 	/**
-	 * This method just takes ownership of any supplied types
+	 * This method just takes ownership of any supplied types,
+	 * which are destroyed when the chain gets destroyed.
+	 * Useful for resource management.
 	 */
 	template <typename... Args> Conveyor<T> attach(Args &&...args);
 
@@ -155,16 +157,17 @@ public:
 
 	/**
 	 * Moves the conveyor chain into a thread local storage point which drops
-	 * every element Use sink() if you want to control the lifetime of a chain
+	 * every element. Use sink() if you want to control the lifetime of a
+	 * conveyor chain
 	 */
-	template <typename ErrorFunc>
+	template <typename ErrorFunc = PropagateError>
 	void detach(ErrorFunc &&err_func = PropagateError());
 
 	/**
 	 * Creates a local sink which drops elements, but lifetime control remains
 	 * in your hand.
 	 */
-	template <typename ErrorFunc>
+	template <typename ErrorFunc = PropagateError>
 	SinkConveyor sink(ErrorFunc &&error_func = PropagateError());
 
 	/**
