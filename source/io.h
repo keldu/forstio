@@ -87,5 +87,5 @@ struct AsyncIoContext {
 	EventPort &event_port;
 };
 
-AsyncIoContext setupAsyncIo();
+ErrorOr<AsyncIoContext> setupAsyncIo();
 } // namespace gin

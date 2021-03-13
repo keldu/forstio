@@ -37,8 +37,7 @@ ConveyorBase::ConveyorBase(Own<ConveyorNode> &&node_p,
 	: node{std::move(node_p)}, storage{storage_p} {}
 
 Error PropagateError::operator()(const Error &error) const {
-	Error err{error};
-	return err;
+	return error.copyError();
 }
 
 Error PropagateError::operator()(Error &&error) { return std::move(error); }

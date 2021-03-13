@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <variant>
 
 #include "common.h"
@@ -13,28 +14,59 @@ namespace gin {
  */
 class Error {
 private:
-	std::string error_message;
+	std::variant<std::string_view, std::string> error_message;
 	int8_t error_;
 
 public:
 	Error();
-	Error(const std::string &msg);
-	Error(const std::string &msg, int8_t code);
-	Error(const Error &error);
+	Error(const std::string_view &msg, int8_t code);
+	Error(std::string &&msg, int8_t code);
 	Error(Error &&error);
 
-	Error &operator=(const Error &) = default;
+	GIN_FORBID_COPY(Error);
+
 	Error &operator=(Error &&) = default;
 
-	const std::string &message() const;
+	const std::string_view message() const;
 	bool failed() const;
 
 	bool isCritical() const;
 	bool isRecoverable() const;
+
+	Error copyError() const;
 };
 
-Error criticalError(const std::string &msg);
-Error recoverableError(const std::string &msg);
+template <typename Formatter>
+Error makeError(const Formatter &formatter, int8_t code,
+				const std::string_view &generic = "") {
+	try {
+		std::string error_msg = formatter();
+		return Error{std::move(error_msg), code};
+	} catch (std::bad_alloc &) {
+		return Error{generic, code};
+	}
+}
+
+Error criticalError(const std::string_view &generic) {
+	return Error{generic, -1};
+}
+
+template <typename Formatter>
+Error criticalError(const Formatter &formatter,
+					const std::string_view &generic = "") {
+	return makeError(formatter, -1, generic);
+}
+
+Error recoverableError(const std::string_view &generic) {
+	return Error{generic, 1};
+}
+
+template <typename Formatter>
+Error recoverableError(const Formatter &formatter,
+					   const std::string_view &generic = "") {
+	return makeError(formatter, -1, generic);
+}
+
 Error noError();
 
 /**
