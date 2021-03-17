@@ -47,9 +47,7 @@ Error makeError(const Formatter &formatter, int8_t code,
 	}
 }
 
-Error criticalError(const std::string_view &generic) {
-	return Error{generic, -1};
-}
+Error criticalError(const std::string_view &generic);
 
 template <typename Formatter>
 Error criticalError(const Formatter &formatter,
@@ -57,9 +55,7 @@ Error criticalError(const Formatter &formatter,
 	return makeError(formatter, -1, generic);
 }
 
-Error recoverableError(const std::string_view &generic) {
-	return Error{generic, 1};
-}
+Error recoverableError(const std::string_view &generic);
 
 template <typename Formatter>
 Error recoverableError(const Formatter &formatter,

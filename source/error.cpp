@@ -45,6 +45,14 @@ Error Error::copyError() const {
 	return error;
 }
 
+Error criticalError(const std::string_view& generic){
+	return Error{generic, -1};
+}
+
+Error recoverableError(const std::string_view& generic){
+	return Error{generic, 1};
+}
+
 Error noError() { return Error{}; }
 
 } // namespace gin
