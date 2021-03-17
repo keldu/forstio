@@ -9,14 +9,24 @@ Error::Error(const std::string_view &msg, int8_t code)
 Error::Error(std::string &&msg, int8_t code)
 	: error_message{std::move(msg)}, error_{code} {}
 
-Error::Error(const Error &error)
-	: error_message{error.error_message}, error_{error.error_} {}
-
 Error::Error(Error &&error)
 	: error_message{std::move(error.error_message)}, error_{std::move(
 														 error.error_)} {}
 
-const std::string_view Error::message() const { return error_message; }
+const std::string_view Error::message() const { 
+	
+	return std::visit([this](auto&& arg) -> const std::string_view {
+		using T = std::decay_t<decltype(arg)>;
+
+		if constexpr (std::is_same_v<T, std::string>){
+			return std::string_view{arg};
+		}else if constexpr (std::is_same_v<T, std::string_view>){
+			return arg;
+		}else{
+			return "Error. Good luck :)";
+		}
+	}, error_message);
+}
 
 bool Error::failed() const { return error_ != 0; }
 

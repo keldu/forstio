@@ -313,9 +313,9 @@ ErrorOr<AsyncIoContext> setupAsyncIo() {
 
 		EventLoop &loop_ref = io_provider->eventLoop();
 
-		return {std::move(io_provider), loop_ref, prt_ref};
+		return {{std::move(io_provider), loop_ref, prt_ref}};
 	} catch (std::bad_alloc &) {
-		return criticalError("");
+		return criticalError("Out of memory");
 	}
 }
 } // namespace gin

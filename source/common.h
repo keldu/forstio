@@ -15,53 +15,16 @@ namespace gin {
 	classname(const classname &) = delete;                                     \
 	classname &operator=(const classname &) = delete
 
-template <typename T> using Maybe = std::optional<T>;
+template<typename T> using Maybe = std::optional<T>;
 
-template <typename T> class Own {
-private:
-	T *data = nullptr;
-
-public:
-	Own() = default;
-	Own(T *d) : data{d} {}
-	~Own() {
-		if (data) {
-			delete data;
-		}
-	}
-
-	Own(Own<T> &&rhs) : data{rhs.data} { rhs.data = nullptr; }
-
-	Own<T> &operator=(Own<T> &&rhs) {
-		if (data) {
-			delete data;
-		}
-
-		data = rhs.data;
-		rhs.data = nullptr;
-
-		return *this;
-	}
-
-	T *operator->() const noexcept { return data; }
-
-	explicit operator bool() const noexcept { return data; }
-
-	T *get() noexcept { return data; }
-
-	typename std::add_lvalue_reference<T>::type operator*() const {
-		return *data;
-	}
-
-	GIN_FORBID_COPY(Own);
-};
+template <typename T> using Own = std::unique_ptr<T>;
 
 template <typename T> using Our = std::shared_ptr<T>;
 
 template <typename T> using Lent = std::weak_ptr<T>;
 
 template <typename T, class... Args> Own<T> heap(Args &&...args) {
-	return Own<T>(new T{std::forward<Args>(args)...});
+	return Own<T>(new (std::nothrow) T(std::forward<Args>(args)...));
 }
 
 template <typename T, class... Args> Our<T> share(Args &&...args) {
