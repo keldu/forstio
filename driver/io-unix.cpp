@@ -262,12 +262,16 @@ Own<IoStream> UnixNetworkAddress::connect() {
 }
 
 std::string UnixNetworkAddress::toString() const {
-	std::ostringstream oss;
-	oss << "Address: " << path;
-	if (port_hint > 0) {
-		oss << "\nPort: " << port_hint;
+	try {
+		std::ostringstream oss;
+		oss << "Address: " << path;
+		if (port_hint > 0) {
+			oss << "\nPort: " << port_hint;
+		}
+		return oss.str();
+	} catch (std::bad_alloc &) {
+		return {};
 	}
-	return oss.str();
 }
 
 UnixAsyncIoProvider::UnixAsyncIoProvider(UnixEventPort &port_ref,

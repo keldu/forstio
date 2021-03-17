@@ -276,11 +276,11 @@ void ConveyorSinks::fail(Error &&error) {
 
 void ConveyorSinks::add(Conveyor<void> &&sink) {
 	auto nas = Conveyor<void>::fromConveyor(std::move(sink));
-	
+
 	Own<SinkConveyorNode> sink_node = nullptr;
 	try {
 		sink_node = heap<SinkConveyorNode>(std::move(nas.first), *this);
-	}catch(std::bad_alloc&){
+	} catch (std::bad_alloc &) {
 		return;
 	}
 	if (nas.second) {

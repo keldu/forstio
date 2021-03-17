@@ -39,15 +39,11 @@ Conveyor<T>::Conveyor(FixVoid<T> value) : ConveyorBase(nullptr, nullptr) {
 	// Is there any way to do  this?
 	// @todo new ConveyorBase constructor for Immediate values
 
-	Own<ImmediateConveyorNode<FixVoid<T>>> immediate = nullptr;
-	try {
-		immediate = heap<ImmediateConveyorNode<FixVoid<T>>>(std::move(value));
-		storage = reinterpret_cast<ConveyorStorage *>(immediate.get());
-		node = std::move(immediate);
-	} catch (std::bad_alloc &e) {
-		node = nullptr;
-		storage = nullptr;
-	}
+	Own<ImmediateConveyorNode<FixVoid<T>>> immediate =
+		heap<ImmediateConveyorNode<FixVoid<T>>>(std::move(value));
+
+	storage = reinterpret_cast<ConveyorStorage *>(immediate.get());
+	node = std::move(immediate);
 }
 
 template <typename T>
@@ -57,18 +53,10 @@ Conveyor<T>::Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p)
 template <typename T>
 template <typename Func, typename ErrorFunc>
 ConveyorResult<Func, T> Conveyor<T>::then(Func &&func, ErrorFunc &&error_func) {
-	Own<ConveyorNode> conversion_node = nullptr;
-
-	try {
+	Own<ConveyorNode> conversion_node =
 		heap<ConvertConveyorNode<FixVoid<ReduceErrorOr<ReturnType<Func, T>>>,
 								 FixVoid<T>, Func, ErrorFunc>>(
 			std::move(node), std::move(func), std::move(error_func));
-	} catch (std::bad_alloc &e) {
-		node = nullptr;
-		storage = nullptr;
-		return Conveyor<ReduceErrorOr<ReturnType<Func, T>>>::toConveyor(
-			nullptr, nullptr);
-	}
 
 	return Conveyor<ReduceErrorOr<ReturnType<Func, T>>>::toConveyor(
 		std::move(conversion_node), storage);
