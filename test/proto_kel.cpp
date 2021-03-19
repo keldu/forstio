@@ -33,7 +33,7 @@ GIN_TEST("Primitive Encoding"){
 
 	Error error = ProtoKelEncodeImpl<TestSize>::encode(root.asReader(), temp_buffer);
 
-	GIN_EXPECT(!error.failed(), "Error: " + error.message());
+	GIN_EXPECT(!error.failed(), error.message());
 	GIN_EXPECT(temp_buffer.readCompositeLength() == sizeof(value), "Bad Size: " + std::to_string(temp_buffer.readCompositeLength()));
 	GIN_EXPECT(temp_buffer[0] == 5 && temp_buffer[1] == 0 && temp_buffer[2] == 0 && temp_buffer[3] == 0, "Wrong encoded values");
 }
@@ -54,7 +54,7 @@ GIN_TEST("List Encoding"){
 
 	Error error = codec.encode<TestList>(root.asReader(), buffer);
 
-	GIN_EXPECT(!error.failed(), "Error: " + error.message());
+	GIN_EXPECT(!error.failed(), error.message());
 	GIN_EXPECT(buffer.readCompositeLength() == 14, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
 	GIN_EXPECT("06 00 00 00\n00 00 00 00\nbf 94 20 00\n5f ab" == buffer.toHex(), "Not equal encoding\n"+buffer.toHex());
 }
@@ -80,7 +80,7 @@ GIN_TEST("Struct Encoding"){
 
 	Error error = codec.encode<TestStruct>(root.asReader(), buffer);
 
-	GIN_EXPECT(!error.failed(), "Error: " + error.message());
+	GIN_EXPECT(!error.failed(), error.message());
 	GIN_EXPECT(buffer.readCompositeLength() == 40, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
 	GIN_EXPECT("20 00 00 00\n00 00 00 00\n17 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f 09\n00 00 00 00\n00 00 00 74\n65 73 74 5f\n6e 61 6d 65"
 		== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
@@ -100,7 +100,7 @@ GIN_TEST("Union Encoding"){
 
 		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
 
-		GIN_EXPECT(!error.failed(), "Error: " + error.message());
+		GIN_EXPECT(!error.failed(), error.message());
 		GIN_EXPECT(buffer.readCompositeLength() == 16, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
 		GIN_EXPECT("08 00 00 00\n00 00 00 00\n00 00 00 00\n17 00 00 00"
 			== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
@@ -117,7 +117,7 @@ GIN_TEST("Union Encoding"){
 
 		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
 
-		GIN_EXPECT(!error.failed(), "Error: " + error.message());
+		GIN_EXPECT(!error.failed(), error.message());
 		GIN_EXPECT(buffer.readCompositeLength() == 23, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
 		GIN_EXPECT("0f 00 00 00\n00 00 00 00\n01 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f"
 			== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
@@ -137,7 +137,7 @@ GIN_TEST("List Decoding"){
 	auto root = builder.initRoot<TestList>();
 
 	Error error = codec.decode<TestList>(root, buffer);
-	GIN_EXPECT(!error.failed(), std::string{"Error: "} + error.message());
+	GIN_EXPECT(!error.failed(), error.message());
 	
 	auto reader = root.asReader();
 
@@ -166,7 +166,7 @@ GIN_TEST("Struct Decoding"){
 	auto test_uint = reader.get<decltype("test_uint"_t)>();
 	auto test_name = reader.get<decltype("test_name"_t)>();
 
-	GIN_EXPECT(!error.failed(), std::string{"Error: "} + error.message());
+	GIN_EXPECT(!error.failed(), error.message());
 	GIN_EXPECT(foo_string.get() == "foo" && test_uint.get() == 23 && test_name.get() == "test_name", "Values not correctly decoded");
 }
 
@@ -185,7 +185,7 @@ GIN_TEST("Union Decoding"){
 
 	Error error = codec.decode<TestUnion>(root, buffer);
 
-	GIN_EXPECT(!error.failed(), "Error: " + error.message());
+	GIN_EXPECT(!error.failed(), error.message());
 	GIN_EXPECT(reader.holdsAlternative<decltype("test_string"_t)>(), "Wrong union value");
 	auto str_rd = reader.get<decltype("test_string"_t)>();
 	GIN_EXPECT(str_rd.get() == "foo", "Wrong value: " + std::string{str_rd.get()});

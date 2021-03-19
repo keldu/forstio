@@ -91,7 +91,7 @@ GIN_TEST("JSON Union Encoding"){
 
 		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
 
-		GIN_EXPECT(!error.failed(), "Error: " + error.message());
+		GIN_EXPECT(!error.failed(), error.message());
 		
 		std::string expected_result{"{\"test_uint\":23}"};
 			
@@ -110,7 +110,7 @@ GIN_TEST("JSON Union Encoding"){
 
 		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
 
-		GIN_EXPECT(!error.failed(), "Error: " + error.message());
+		GIN_EXPECT(!error.failed(), error.message());
 
 		std::string expected_result{"{\"test_string\":\"foo\"}"};
 			

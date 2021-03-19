@@ -1017,7 +1017,7 @@ Error JsonCodec::decode(typename T::Builder builder, Buffer &buffer,
 
 	ErrorOr<Own<DynamicMessage>> error_or_message = decodeDynamic(view, limits);
 	if (error_or_message.isError()) {
-		return error_or_message.error();
+		return std::move(error_or_message.error());
 	}
 
 	Own<DynamicMessage> message = std::move(error_or_message.value());

@@ -122,7 +122,7 @@ template <typename T> ErrorOr<FixVoid<T>> Conveyor<T>::take() {
 		if (storage->queued() > 0) {
 			ErrorOr<FixVoid<T>> result;
 			node->getResult(result);
-			return ErrorOr<FixVoid<T>>{result};
+			return result;
 		} else {
 			return ErrorOr<FixVoid<T>>{
 				recoverableError("Conveyor buffer has no elements")};
