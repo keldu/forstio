@@ -681,18 +681,19 @@ Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
 		if (fc_result.ec != std::errc{}) {
 			return criticalError("Not an integer");
 		}
+
+		//
 		auto int_msg = std::make_unique<DynamicMessageSigned>();
 		DynamicMessageSigned::Builder builder{*int_msg};
 		builder.set(result);
 		message = std::move(int_msg);
 	} else {
-		std::string number_copy{number_view};
 		double result;
-		try {
-			result = std::stod(number_copy);
-		} catch (std::exception &e) {
+		auto fc_result =  std::from_chars(number_view.data(), number_view.data() + number_view.size(), result);
+		if (fc_result.ec != std::errc{}) {
 			return criticalError("Not a double");
 		}
+
 		//
 		auto dbl_msg = std::make_unique<DynamicMessageDouble>();
 		DynamicMessageDouble::Builder builder{*dbl_msg};

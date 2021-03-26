@@ -561,14 +561,18 @@ public:
 		: ConvertConveyorNodeBase(std::move(dep)), func{std::move(func)},
 		  error_func{std::move(error_func)} {}
 
-	void getImpl(ErrorOrValue &err_or_val) override {
+	void getImpl(ErrorOrValue &err_or_val) noexcept override {
 		ErrorOr<DepT> dep_eov;
 		ErrorOr<T> &eov = err_or_val.as<T>();
 		if (child) {
 			child->getResult(dep_eov);
 			if (dep_eov.isValue()) {
-				eov = FixVoidCaller<T, DepT>::apply(func,
+				try{
+					eov = FixVoidCaller<T, DepT>::apply(func,
 													std::move(dep_eov.value()));
+				}catch(const std::bad_alloc&){
+					eov = criticalError("Out of memory");
+				}
 			} else if (dep_eov.isError()) {
 				eov = error_func(std::move(dep_eov.error()));
 			} else {
@@ -608,7 +612,7 @@ public:
 	size_t queued() const override { return 0; }
 
 	// ConveyorNode
-	void getResult(ErrorOrValue &err_or_val) override {
+	void getResult(ErrorOrValue &err_or_val) noexcept override {
 		err_or_val.as<Void>() =
 			criticalError("In a sink node no result can be returned");
 	}
@@ -653,7 +657,7 @@ public:
 	void childFired() override;
 
 	// ConveyorNode
-	void getResult(ErrorOrValue &err_or_val) override {
+	void getResult(ErrorOrValue &err_or_val) noexcept override  {
 		if (retrieved) {
 			err_or_val.as<FixVoid<T>>() = criticalError("Already taken value");
 		} else {
