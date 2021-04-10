@@ -567,11 +567,15 @@ public:
 		if (child) {
 			child->getResult(dep_eov);
 			if (dep_eov.isValue()) {
-				try{
-					eov = FixVoidCaller<T, DepT>::apply(func,
-													std::move(dep_eov.value()));
-				}catch(const std::bad_alloc&){
+				try {
+					eov = FixVoidCaller<T, DepT>::apply(
+						func, std::move(dep_eov.value()));
+				} catch (const std::bad_alloc &) {
 					eov = criticalError("Out of memory");
+				} catch (const std::exception &) {
+					eov = criticalError(
+						"Exception in chain occured. Return ErrorOr<T> if you "
+						"want to handle errors which are recoverable");
 				}
 			} else if (dep_eov.isError()) {
 				eov = error_func(std::move(dep_eov.error()));
@@ -657,7 +661,7 @@ public:
 	void childFired() override;
 
 	// ConveyorNode
-	void getResult(ErrorOrValue &err_or_val) noexcept override  {
+	void getResult(ErrorOrValue &err_or_val) noexcept override {
 		if (retrieved) {
 			err_or_val.as<FixVoid<T>>() = criticalError("Already taken value");
 		} else {

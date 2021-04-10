@@ -481,7 +481,7 @@ struct JsonDecodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), Error>::type
 	decodeMembers(typename MessageStruct<MessageStructMember<V, K>...>::Builder,
-				  DynamicMessageStruct::Reader reader) {
+				  DynamicMessageStruct::Reader) {
 		return noError();
 	}
 	template <size_t i = 0>
@@ -688,11 +688,25 @@ Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
 		builder.set(result);
 		message = std::move(int_msg);
 	} else {
+		std::string double_hack{number_view};
 		double result;
-		auto fc_result =  std::from_chars(number_view.data(), number_view.data() + number_view.size(), result);
+		// This is hacky because technically c++17 allows noexcept from_chars
+		// doubles, but clang++ and g++ don't implement it since that is
+		// apparently hard.
+		try {
+			result = std::stod(double_hack);
+		} catch (const std::exception &) {
+			return criticalError("Not a double");
+		}
+
+		/*
+		auto fc_result =
+			std::from_chars(number_view.data(),
+							number_view.data() + number_view.size(), result);
 		if (fc_result.ec != std::errc{}) {
 			return criticalError("Not a double");
 		}
+		*/
 
 		//
 		auto dbl_msg = std::make_unique<DynamicMessageDouble>();
