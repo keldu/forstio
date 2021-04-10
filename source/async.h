@@ -145,13 +145,15 @@ public:
 	/**
 	 * This method just takes ownership of any supplied types,
 	 * which are destroyed when the chain gets destroyed.
-	 * Useful for resource management.
+	 * Useful for resource lifetime control.
 	 */
 	template <typename... Args> Conveyor<T> attach(Args &&...args);
 
 	/** @todo implement
 	 * This method limits the total amount of passed elements
 	 * Be careful where you place this node into the chain.
+	 * If you meant to fork it and destroy paths you shouldn't place
+	 * an interrupt point between the fork and this limiter
 	 */
 	Conveyor<T> limit(size_t val = 1);
 
