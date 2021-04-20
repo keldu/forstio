@@ -117,9 +117,14 @@ public:
 template <typename T> class Conveyor : public ConveyorBase {
 public:
 	/**
-	 * Construct a immediately fulfilled node
+	 * Construct an immediately fulfilled node
 	 */
 	Conveyor(FixVoid<T> value);
+
+	/**
+	 * Construct an immediately failed node
+	 */
+	Conveyor(Error &&error);
 
 	/**
 	 * Construct a conveyor with a child node and the next storage point
@@ -650,11 +655,12 @@ public:
 template <typename T>
 class ImmediateConveyorNode : public ImmediateConveyorNodeBase {
 private:
-	FixVoid<T> value;
+	ErrorOr<FixVoid<T>> value;
 	bool retrieved;
 
 public:
 	ImmediateConveyorNode(FixVoid<T> &&val);
+	ImmediateConveyorNode(Error &&error);
 
 	// ConveyorStorage
 	size_t space() const override;

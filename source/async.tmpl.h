@@ -8,6 +8,10 @@ template <typename T>
 ImmediateConveyorNode<T>::ImmediateConveyorNode(FixVoid<T> &&val)
 	: value{std::move(val)}, retrieved{false} {}
 
+template <typename T>
+ImmediateConveyorNode<T>::ImmediateConveyorNode(Error &&error)
+	: value{std::move(error)}, retrieved{false} {}
+
 template <typename T> size_t ImmediateConveyorNode<T>::space() const {
 	return 0;
 }
@@ -41,6 +45,23 @@ Conveyor<T>::Conveyor(FixVoid<T> value) : ConveyorBase(nullptr, nullptr) {
 
 	Own<ImmediateConveyorNode<FixVoid<T>>> immediate =
 		heap<ImmediateConveyorNode<FixVoid<T>>>(std::move(value));
+
+	if (!immediate) {
+		return;
+	}
+
+	storage = reinterpret_cast<ConveyorStorage *>(immediate.get());
+	node = std::move(immediate);
+}
+
+template <typename T>
+Conveyor<T>::Conveyor(Error &&error) : ConveyorBase(nullptr, nullptr) {
+	Own<ImmediateConveyorNode<FixVoid<T>>> immediate =
+		heap<ImmediateConveyorNode<FixVoid<T>>>(std::move(error));
+
+	if (!immediate) {
+		return;
+	}
 
 	storage = reinterpret_cast<ConveyorStorage *>(immediate.get());
 	node = std::move(immediate);

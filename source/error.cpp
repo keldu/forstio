@@ -41,7 +41,7 @@ Error Error::copyError() const {
 	error.error_ = error_;
 	try {
 		error.error_message = error_message;
-	} catch (std::bad_alloc &) {
+	} catch (const std::bad_alloc &) {
 		error.error_message =
 			std::string_view{"Error while copying Error string. Out of memory"};
 	}
