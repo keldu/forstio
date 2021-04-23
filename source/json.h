@@ -18,8 +18,11 @@ namespace gin {
 class JsonCodec {
 public:
 	struct Limits {
-		size_t depth = 16;
-		size_t elements = 1024;
+		size_t depth;
+		size_t elements;
+
+		Limits() : depth{16}, elements{1024} {}
+		Limits(size_t d, size_t e) : depth{d}, elements{e} {}
 	};
 
 private:
@@ -34,13 +37,16 @@ private:
 
 	Error decodeNull(Buffer &buffer);
 
-	Error decodeValue(Own<DynamicMessage> &message, Buffer &buffer);
+	Error decodeValue(Own<DynamicMessage> &message, Buffer &buffer,
+					  const Limits &limits, Limits &counter);
 
 	Error decodeRawString(std::string &raw, Buffer &buffer);
 
-	Error decodeList(DynamicMessageList::Builder builder, Buffer &buffer);
+	Error decodeList(DynamicMessageList::Builder builder, Buffer &buffer,
+					 const Limits &limits, Limits &counter);
 
-	Error decodeStruct(DynamicMessageStruct::Builder message, Buffer &buffer);
+	Error decodeStruct(DynamicMessageStruct::Builder message, Buffer &buffer,
+					   const Limits &limits, Limits &counter);
 
 	ErrorOr<Own<DynamicMessage>> decodeDynamic(Buffer &buffer,
 											   const Limits &limits);
@@ -51,7 +57,7 @@ public:
 
 	template <typename T>
 	Error decode(typename T::Builder builder, Buffer &buffer,
-				 const Limits &limits = Limits{16, 1024});
+				 const Limits &limits = Limits{});
 };
 
 template <typename T> struct JsonEncodeImpl;
@@ -536,6 +542,22 @@ void JsonCodec::skipWhitespace(Buffer &buffer) {
 	}
 }
 
+struct JsonCodecLimitGuardHelper {
+	JsonCodec::Limits &counter;
+
+	JsonCodecLimitGuardHelper(JsonCodec::Limits &l) : counter{l} {
+		++counter.depth;
+		++counter.elements;
+	}
+
+	~JsonCodecLimitGuardHelper() { --counter.depth; }
+
+	static bool inLimit(const JsonCodec::Limits &counter,
+						const JsonCodec::Limits &top) {
+		return counter.depth < top.depth && counter.elements < top.elements;
+	}
+};
+
 Error JsonCodec::decodeBool(DynamicMessageBool::Builder message,
 							Buffer &buffer) {
 	assert((buffer.read() == 'T') || (buffer.read() == 't') ||
@@ -722,6 +744,7 @@ Error JsonCodec::decodeNumber(Own<DynamicMessage> &message, Buffer &buffer) {
 
 Error JsonCodec::decodeNull(Buffer &buffer) {
 	assert(buffer.read() == 'N' || buffer.read() == 'n');
+
 	buffer.readAdvance(1);
 
 	std::array<char, 3> check = {'u', 'l', 'l'};
@@ -735,8 +758,16 @@ Error JsonCodec::decodeNull(Buffer &buffer) {
 	return noError();
 }
 
-Error JsonCodec::decodeValue(Own<DynamicMessage> &message, Buffer &buffer) {
+Error JsonCodec::decodeValue(Own<DynamicMessage> &message, Buffer &buffer,
+							 const Limits &limits, Limits &counter) {
 	skipWhitespace(buffer);
+
+	JsonCodecLimitGuardHelper ctr_helper{counter};
+
+	if (!JsonCodecLimitGuardHelper::inLimit(counter, limits)) {
+		return criticalError("Not in limit");
+	}
+
 	if (buffer.readCompositeLength() == 0) {
 		return recoverableError("Buffer too short");
 	}
@@ -783,8 +814,8 @@ Error JsonCodec::decodeValue(Own<DynamicMessage> &message, Buffer &buffer) {
 	case '{': {
 		Own<DynamicMessageStruct> msg_struct =
 			std::make_unique<DynamicMessageStruct>();
-		Error error =
-			decodeStruct(DynamicMessageStruct::Builder{*msg_struct}, buffer);
+		Error error = decodeStruct(DynamicMessageStruct::Builder{*msg_struct},
+								   buffer, limits, counter);
 		if (error.failed()) {
 			return error;
 		}
@@ -793,7 +824,8 @@ Error JsonCodec::decodeValue(Own<DynamicMessage> &message, Buffer &buffer) {
 	case '[': {
 		Own<DynamicMessageList> msg_list =
 			std::make_unique<DynamicMessageList>();
-		decodeList(DynamicMessageList::Builder{*msg_list}, buffer);
+		decodeList(DynamicMessageList::Builder{*msg_list}, buffer, limits,
+				   counter);
 		message = std::move(msg_list);
 	} break;
 	case 'n':
@@ -814,6 +846,7 @@ Error JsonCodec::decodeValue(Own<DynamicMessage> &message, Buffer &buffer) {
 
 Error JsonCodec::decodeRawString(std::string &raw, Buffer &buffer) {
 	assert(buffer.read() == '"');
+
 	buffer.readAdvance(1);
 	std::stringstream iss;
 	bool string_done = false;
@@ -877,8 +910,8 @@ Error JsonCodec::decodeRawString(std::string &raw, Buffer &buffer) {
 	return noError();
 }
 
-Error JsonCodec::decodeList(DynamicMessageList::Builder builder,
-							Buffer &buffer) {
+Error JsonCodec::decodeList(DynamicMessageList::Builder builder, Buffer &buffer,
+							const Limits &limits, Limits &counter) {
 	assert(buffer.read() == '[');
 	buffer.readAdvance(1);
 	skipWhitespace(buffer);
@@ -890,7 +923,7 @@ Error JsonCodec::decodeList(DynamicMessageList::Builder builder,
 
 		Own<DynamicMessage> message = nullptr;
 		{
-			Error error = decodeValue(message, buffer);
+			Error error = decodeValue(message, buffer, limits, counter);
 			if (error.failed()) {
 				return error;
 			}
@@ -919,7 +952,8 @@ Error JsonCodec::decodeList(DynamicMessageList::Builder builder,
 }
 
 Error JsonCodec::decodeStruct(DynamicMessageStruct::Builder message,
-							  Buffer &buffer) {
+							  Buffer &buffer, const Limits &limits,
+							  Limits &counter) {
 	assert(buffer.read() == '{');
 	buffer.readAdvance(1);
 	skipWhitespace(buffer);
@@ -946,7 +980,7 @@ Error JsonCodec::decodeStruct(DynamicMessageStruct::Builder message,
 			buffer.readAdvance(1);
 			Own<DynamicMessage> msg = nullptr;
 			{
-				Error error = decodeValue(msg, buffer);
+				Error error = decodeValue(msg, buffer, limits, counter);
 				if (error.failed()) {
 					return error;
 				}
@@ -979,6 +1013,8 @@ Error JsonCodec::decodeStruct(DynamicMessageStruct::Builder message,
 
 ErrorOr<Own<DynamicMessage>> JsonCodec::decodeDynamic(Buffer &buffer,
 													  const Limits &limits) {
+	Limits counter{0, 0};
+
 	skipWhitespace(buffer);
 	if (buffer.readCompositeLength() == 0) {
 		return recoverableError("Buffer too short");
@@ -987,8 +1023,8 @@ ErrorOr<Own<DynamicMessage>> JsonCodec::decodeDynamic(Buffer &buffer,
 
 		Own<DynamicMessageStruct> message =
 			std::make_unique<DynamicMessageStruct>();
-		Error error =
-			decodeStruct(DynamicMessageStruct::Builder{*message}, buffer);
+		Error error = decodeStruct(DynamicMessageStruct::Builder{*message},
+								   buffer, limits, counter);
 		if (error.failed()) {
 			return error;
 		}
@@ -999,7 +1035,7 @@ ErrorOr<Own<DynamicMessage>> JsonCodec::decodeDynamic(Buffer &buffer,
 
 		Own<DynamicMessageList> message =
 			std::make_unique<DynamicMessageList>();
-		Error error = decodeList(*message, buffer);
+		Error error = decodeList(*message, buffer, limits, counter);
 		if (error.failed()) {
 			return error;
 		}

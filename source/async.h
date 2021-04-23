@@ -197,6 +197,13 @@ public:
 	fromConveyor(Conveyor<T> &&conveyor);
 };
 
+/*
+ * Join Conveyors into a single one
+ */
+// template<typename... Args>
+// Conveyor<std::tuple<Args...>> joinConveyors(std::tuple<Conveyor<Args...>>&
+// conveyors);
+
 template <typename T> class ConveyorFeeder {
 public:
 	virtual ~ConveyorFeeder() = default;
