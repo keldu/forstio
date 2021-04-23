@@ -27,6 +27,13 @@ private:
 	template <typename T> friend struct ProtoKelDecodeImpl;
 
 public:
+	struct Limits {
+		msg_packet_length_t packet_size;
+
+		Limits() : packet_size{4096} {}
+		Limits(msg_packet_length_t ps) : packet_size{ps} {}
+	};
+
 	struct Version {
 		size_t major;
 		size_t minor;
@@ -39,7 +46,8 @@ public:
 	Error encode(typename T::Reader reader, Buffer &buffer);
 
 	template <typename T>
-	Error decode(typename T::Builder builder, Buffer &buffer);
+	Error decode(typename T::Builder builder, Buffer &buffer,
+				 const Limits &limits = Limits{});
 };
 
 template <typename T> struct ProtoKelEncodeImpl;
@@ -111,7 +119,7 @@ template <typename... T> struct ProtoKelEncodeImpl<MessageList<T...>> {
 
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(T), size_t>::type
-	sizeMembers(typename MessageList<T...>::Reader data) {
+	sizeMembers(typename MessageList<T...>::Reader) {
 		return 0;
 	}
 
@@ -420,7 +428,8 @@ Error ProtoKelCodec::encode(typename T::Reader reader, Buffer &buffer) {
 }
 
 template <typename T>
-Error ProtoKelCodec::decode(typename T::Builder builder, Buffer &buffer) {
+Error ProtoKelCodec::decode(typename T::Builder builder, Buffer &buffer,
+							const Limits &limits) {
 	BufferView view{buffer};
 
 	msg_packet_length_t packet_length = 0;
@@ -431,6 +440,11 @@ Error ProtoKelCodec::decode(typename T::Builder builder, Buffer &buffer) {
 			return error;
 		}
 	}
+
+	if (packet_length > limits.packet_size) {
+		return criticalError("Packet size too big");
+	}
+
 	{
 		Error error = ProtoKelDecodeImpl<T>::decode(builder, view);
 		if (error.failed()) {
