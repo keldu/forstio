@@ -6,11 +6,15 @@ namespace gin {
 
 template <typename T>
 ImmediateConveyorNode<T>::ImmediateConveyorNode(FixVoid<T> &&val)
-	: value{std::move(val)}, retrieved{false} {}
+	: value{std::move(val)}, retrieved{false} {
+	armLast();
+}
 
 template <typename T>
 ImmediateConveyorNode<T>::ImmediateConveyorNode(Error &&error)
-	: value{std::move(error)}, retrieved{false} {}
+	: value{std::move(error)}, retrieved{false} {
+	armLast();
+}
 
 template <typename T> size_t ImmediateConveyorNode<T>::space() const {
 	return 0;
@@ -50,7 +54,7 @@ Conveyor<T>::Conveyor(FixVoid<T> value) : ConveyorBase(nullptr, nullptr) {
 		return;
 	}
 
-	storage = reinterpret_cast<ConveyorStorage *>(immediate.get());
+	storage = static_cast<ConveyorStorage *>(immediate.get());
 	node = std::move(immediate);
 }
 
@@ -63,7 +67,7 @@ Conveyor<T>::Conveyor(Error &&error) : ConveyorBase(nullptr, nullptr) {
 		return;
 	}
 
-	storage = reinterpret_cast<ConveyorStorage *>(immediate.get());
+	storage = static_cast<ConveyorStorage *>(immediate.get());
 	node = std::move(immediate);
 }
 
