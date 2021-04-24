@@ -152,7 +152,10 @@ EventLoop::EventLoop() {}
 EventLoop::EventLoop(Own<EventPort> &&event_port)
 	: event_port{std::move(event_port)} {}
 
-EventLoop::~EventLoop() { assert(local_loop != this); }
+EventLoop::~EventLoop() {
+	assert(local_loop != this);
+	daemon_sink = nullptr;
+}
 
 void EventLoop::enterScope() {
 	assert(!local_loop);
