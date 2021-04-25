@@ -6,22 +6,18 @@ namespace gin {
 
 template <typename T>
 ImmediateConveyorNode<T>::ImmediateConveyorNode(FixVoid<T> &&val)
-	: value{std::move(val)}, retrieved{false} {
-	armLast();
-}
+	: value{std::move(val)}, retrieved{0} {}
 
 template <typename T>
 ImmediateConveyorNode<T>::ImmediateConveyorNode(Error &&error)
-	: value{std::move(error)}, retrieved{false} {
-	armLast();
-}
+	: value{std::move(error)}, retrieved{0} {}
 
 template <typename T> size_t ImmediateConveyorNode<T>::space() const {
 	return 0;
 }
 
 template <typename T> size_t ImmediateConveyorNode<T>::queued() const {
-	return retrieved ? 0 : 1;
+	return retrieved > 1 ? 0 : 1;
 }
 
 template <typename T> void ImmediateConveyorNode<T>::childFired() {
@@ -33,7 +29,9 @@ template <typename T> void ImmediateConveyorNode<T>::fire() {
 	if (parent) {
 		parent->childFired();
 	}
-	armLast();
+	if(queued() > 0){
+		armLast();
+	}
 }
 
 template <typename T> T reduceErrorOrType(T *);

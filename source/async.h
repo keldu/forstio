@@ -25,7 +25,7 @@ public:
 
 class EventLoop;
 /*
- * Event class inspired directly by capn'proto.
+ * Event class similar to capn'proto.
  * https://github.com/capnproto/capnproto
  */
 class Event {
@@ -114,7 +114,7 @@ public:
 /**
  * Main interface for async operations.
  */
-template <typename T> class Conveyor : public ConveyorBase {
+template <typename T> class Conveyor final : public ConveyorBase {
 public:
 	/**
 	 * Construct an immediately fulfilled node
@@ -258,7 +258,7 @@ public:
 
 class SinkConveyorNode;
 
-class ConveyorSinks : public Event {
+class ConveyorSinks final : public Event {
 private:
 	friend class SinkConveyorNode;
 
@@ -280,7 +280,7 @@ public:
 };
 
 /*
- * EventLoop class inspired directly by capn'proto.
+ * EventLoop class similar to capn'proto.
  * https://github.com/capnproto/capnproto
  */
 class EventLoop {
@@ -326,7 +326,7 @@ public:
 };
 
 /*
- * WaitScope class inspired directly by capn'proto.
+ * WaitScope class similar to capn'proto.
  * https://github.com/capnproto/capnproto
  */
 class WaitScope {
@@ -385,7 +385,7 @@ template <> struct FixVoidCaller<Void, Void> {
 template <typename T> class AdaptConveyorNode;
 
 template <typename T>
-class AdaptConveyorFeeder : public ConveyorFeeder<UnfixVoid<T>> {
+class AdaptConveyorFeeder final : public ConveyorFeeder<UnfixVoid<T>> {
 private:
 	AdaptConveyorNode<T> *feedee = nullptr;
 
@@ -402,7 +402,7 @@ public:
 };
 
 template <typename T>
-class AdaptConveyorNode : public ConveyorNode, public ConveyorStorage {
+class AdaptConveyorNode final : public ConveyorNode, public ConveyorStorage {
 private:
 	AdaptConveyorFeeder<T> *feeder = nullptr;
 
@@ -432,7 +432,7 @@ public:
 template <typename T> class OneTimeConveyorNode;
 
 template <typename T>
-class OneTimeConveyorFeeder : public ConveyorFeeder<UnfixVoid<T>> {
+class OneTimeConveyorFeeder final : public ConveyorFeeder<UnfixVoid<T>> {
 private:
 	OneTimeConveyorNode<T> *feedee = nullptr;
 
@@ -449,7 +449,7 @@ public:
 };
 
 template <typename T>
-class OneTimeConveyorNode : public ConveyorNode, public ConveyorStorage {
+class OneTimeConveyorNode final : public ConveyorNode, public ConveyorStorage {
 private:
 	OneTimeConveyorFeeder<T> *feeder = nullptr;
 
@@ -486,7 +486,7 @@ public:
 };
 
 template <typename T>
-class QueueBufferConveyorNode : public QueueBufferConveyorNodeBase {
+class QueueBufferConveyorNode final : public QueueBufferConveyorNodeBase {
 private:
 	std::queue<ErrorOr<T>> storage;
 	size_t max_store;
@@ -540,11 +540,13 @@ public:
 	AttachConveyorNodeBase(Own<ConveyorNode> &&dep)
 		: ConveyorNode(std::move(dep)) {}
 
+	virtual ~AttachConveyorNodeBase() = default;
+
 	void getResult(ErrorOrValue &err_or_val) override;
 };
 
 template <typename... Args>
-class AttachConveyorNode : public AttachConveyorNodeBase {
+class AttachConveyorNode final : public AttachConveyorNodeBase {
 private:
 	std::tuple<Args...> attached_data;
 
@@ -557,6 +559,7 @@ public:
 class ConvertConveyorNodeBase : public ConveyorNode {
 public:
 	ConvertConveyorNodeBase(Own<ConveyorNode> &&dep);
+	virtual ~ConvertConveyorNodeBase() = default;
 
 	void getResult(ErrorOrValue &err_or_val) override;
 
@@ -564,7 +567,7 @@ public:
 };
 
 template <typename T, typename DepT, typename Func, typename ErrorFunc>
-class ConvertConveyorNode : public ConvertConveyorNodeBase {
+class ConvertConveyorNode final : public ConvertConveyorNodeBase {
 private:
 	Func func;
 	ErrorFunc error_func;
@@ -602,7 +605,7 @@ public:
 	}
 };
 
-class SinkConveyorNode : public ConveyorNode, public ConveyorStorage {
+class SinkConveyorNode final : public ConveyorNode, public ConveyorStorage {
 private:
 	ConveyorSinks *conveyor_sink;
 
@@ -657,13 +660,14 @@ public:
 class ImmediateConveyorNodeBase : public ConveyorNode, public ConveyorStorage {
 private:
 public:
+	virtual ~ImmediateConveyorNodeBase() = default;
 };
 
 template <typename T>
-class ImmediateConveyorNode : public ImmediateConveyorNodeBase {
+class ImmediateConveyorNode final : public ImmediateConveyorNodeBase {
 private:
 	ErrorOr<FixVoid<T>> value;
-	bool retrieved;
+	uint8_t retrieved;
 
 public:
 	ImmediateConveyorNode(FixVoid<T> &&val);
@@ -681,8 +685,8 @@ public:
 			err_or_val.as<FixVoid<T>>() = criticalError("Already taken value");
 		} else {
 			err_or_val.as<FixVoid<T>>() = std::move(value);
-			retrieved = true;
 		}
+		++retrieved;
 	}
 
 	// Event

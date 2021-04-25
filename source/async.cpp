@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cassert>
 
+#include <iostream>
+
 namespace gin {
 namespace {
 thread_local EventLoop *local_loop = nullptr;
@@ -28,7 +30,11 @@ void ConveyorStorage::setParent(ConveyorStorage *p) {
 	if (/*!parent && */ p && !isArmed() && queued() > 0) {
 		assert(!parent);
 		armNext();
+		std::cout << "foo" << std::endl;
 	}
+
+	std::cout << "Parent: " << p << " " << isArmed() << " " << queued()
+			  << std::endl;
 	parent = p;
 }
 
@@ -152,10 +158,7 @@ EventLoop::EventLoop() {}
 EventLoop::EventLoop(Own<EventPort> &&event_port)
 	: event_port{std::move(event_port)} {}
 
-EventLoop::~EventLoop() {
-	assert(local_loop != this);
-	daemon_sink = nullptr;
-}
+EventLoop::~EventLoop() { assert(local_loop != this); }
 
 void EventLoop::enterScope() {
 	assert(!local_loop);
