@@ -76,11 +76,11 @@ public:
 	virtual ~ErrorOrValue() = default;
 
 	template <typename T> ErrorOr<T> &as() {
-		return reinterpret_cast<ErrorOr<T> &>(*this);
+		return dynamic_cast<ErrorOr<T> &>(*this);
 	}
 
 	template <typename T> const ErrorOr<T> &as() const {
-		return reinterpret_cast<const ErrorOr<T> &>(*this);
+		return dynamic_cast<const ErrorOr<T> &>(*this);
 	}
 };
 

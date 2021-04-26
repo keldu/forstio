@@ -29,7 +29,7 @@ template <typename T> void ImmediateConveyorNode<T>::fire() {
 	if (parent) {
 		parent->childFired();
 	}
-	if(queued() > 0){
+	if (queued() > 0) {
 		armLast();
 	}
 }
@@ -53,7 +53,7 @@ Conveyor<T>::Conveyor(FixVoid<T> value) : ConveyorBase(nullptr, nullptr) {
 		return;
 	}
 
-	storage = reinterpret_cast<ConveyorStorage *>(immediate.get());
+	storage = static_cast<ConveyorStorage *>(immediate.get());
 	node = std::move(immediate);
 }
 
@@ -66,7 +66,7 @@ Conveyor<T>::Conveyor(Error &&error) : ConveyorBase(nullptr, nullptr) {
 		return;
 	}
 
-	storage = reinterpret_cast<ConveyorStorage *>(immediate.get());
+	storage = static_cast<ConveyorStorage *>(immediate.get());
 	node = std::move(immediate);
 }
 
