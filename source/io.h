@@ -66,7 +66,7 @@ public:
 	 * Listen on this address
 	 */
 	virtual Own<Server> listen() = 0;
-	virtual Own<IoStream> connect() = 0;
+	virtual Conveyor<Own<IoStream>> connect() = 0;
 
 	virtual std::string toString() const = 0;
 };
@@ -75,8 +75,8 @@ class AsyncIoProvider {
 public:
 	virtual ~AsyncIoProvider() = default;
 
-	virtual Own<NetworkAddress> parseAddress(const std::string &,
-											 uint16_t port_hint = 0) = 0;
+	virtual Conveyor<Own<NetworkAddress>>
+	parseAddress(const std::string &, uint16_t port_hint = 0) = 0;
 
 	virtual Own<InputStream> wrapInputFd(int fd) = 0;
 };

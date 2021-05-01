@@ -405,7 +405,7 @@ public:
 		  port_hint{port_hint}, addresses{std::move(addr)} {}
 
 	Own<Server> listen() override;
-	Own<IoStream> connect() override;
+	Conveyor<Own<IoStream>> connect() override;
 
 	std::string toString() const override;
 };
@@ -418,8 +418,8 @@ private:
 public:
 	UnixAsyncIoProvider(UnixEventPort &port_ref, Own<EventPort> &&port);
 
-	Own<NetworkAddress> parseAddress(const std::string &,
-									 uint16_t port_hint = 0) override;
+	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &,
+											   uint16_t port_hint = 0) override;
 
 	Own<InputStream> wrapInputFd(int fd) override;
 
