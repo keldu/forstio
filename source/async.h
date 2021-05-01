@@ -105,6 +105,7 @@ private:
 	Own<ConveyorNode> node;
 
 public:
+	SinkConveyor();
 	SinkConveyor(Own<ConveyorNode> &&node);
 
 	SinkConveyor(SinkConveyor &&) = default;

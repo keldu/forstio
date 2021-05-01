@@ -143,6 +143,8 @@ void Event::disarm() {
 
 bool Event::isArmed() const { return prev != nullptr; }
 
+SinkConveyor::SinkConveyor() : node{nullptr} {}
+
 SinkConveyor::SinkConveyor(Own<ConveyorNode> &&node_p)
 	: node{std::move(node_p)} {}
 
