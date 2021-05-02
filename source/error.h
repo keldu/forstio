@@ -86,13 +86,13 @@ public:
 
 template <typename T> class ErrorOr : public ErrorOrValue {
 private:
-	std::variant<T, Error> value_or_error;
+	std::variant<FixVoid<T>, Error> value_or_error;
 
 public:
 	ErrorOr() = default;
-	ErrorOr(const T &value) : value_or_error{value} {}
+	ErrorOr(const FixVoid<T> &value) : value_or_error{value} {}
 
-	ErrorOr(T &&value) : value_or_error{std::move(value)} {}
+	ErrorOr(FixVoid<T> &&value) : value_or_error{std::move(value)} {}
 
 	ErrorOr(const Error &error) : value_or_error{error} {}
 	ErrorOr(Error &&error) : value_or_error{std::move(error)} {}
@@ -107,9 +107,11 @@ public:
 
 	const Error &error() const { return std::get<Error>(value_or_error); }
 
-	T &value() { return std::get<T>(value_or_error); }
+	FixVoid<T> &value() { return std::get<FixVoid<T>>(value_or_error); }
 
-	const T &value() const { return std::get<T>(value_or_error); }
+	const FixVoid<T> &value() const {
+		return std::get<FixVoid<T>>(value_or_error);
+	}
 };
 
 } // namespace gin
