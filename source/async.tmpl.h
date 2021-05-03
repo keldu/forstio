@@ -34,13 +34,6 @@ template <typename T> void ImmediateConveyorNode<T>::fire() {
 	}
 }
 
-template <typename T> T reduceErrorOrType(T *);
-
-template <typename T> T reduceErrorOrType(ErrorOr<T> *);
-
-template <typename T>
-using ReduceErrorOr = decltype(reduceErrorOrType((T *)nullptr));
-
 template <typename T>
 Conveyor<T>::Conveyor(FixVoid<T> value) : ConveyorBase(nullptr, nullptr) {
 	// Is there any way to do  this?

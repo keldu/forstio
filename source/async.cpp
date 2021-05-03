@@ -277,6 +277,8 @@ void ConveyorSinks::fail(Error &&error) {
 	/// @todo call error_handler
 }
 
+ConveyorSinks::ConveyorSinks(EventLoop &event_loop) : Event{event_loop} {}
+
 void ConveyorSinks::add(Conveyor<void> &&sink) {
 	auto nas = Conveyor<void>::fromConveyor(std::move(sink));
 

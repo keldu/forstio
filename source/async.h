@@ -88,11 +88,18 @@ template <typename T> Conveyor<T> chainedConveyorType(T *);
 
 template <typename T> Conveyor<T> chainedConveyorType(Conveyor<T> *);
 
+template <typename T> T reduceErrorOrType(T *);
+
+template <typename T> T reduceErrorOrType(ErrorOr<T> *);
+
+template <typename T>
+using ReduceErrorOr = decltype(reduceErrorOrType((T *)nullptr));
+
 template <typename T>
 using ChainedConveyors = decltype(chainedConveyorType((T *)nullptr));
 
 template <typename Func, typename T>
-using ConveyorResult = ChainedConveyors<ReturnType<Func, T>>;
+using ConveyorResult = ChainedConveyors<ReduceErrorOr<ReturnType<Func, T>>>;
 
 struct PropagateError {
 public:
@@ -274,6 +281,7 @@ private:
 
 public:
 	ConveyorSinks() = default;
+	ConveyorSinks(EventLoop &event_loop);
 
 	void add(Conveyor<void> &&node);
 
