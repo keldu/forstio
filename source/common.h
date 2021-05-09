@@ -15,6 +15,10 @@ namespace gin {
 	classname(const classname &) = delete;                                     \
 	classname &operator=(const classname &) = delete
 
+#define GIN_ASSERT(expression)		\
+	assert(expression)				\
+	if(!expression)
+
 template <typename T> using Maybe = std::optional<T>;
 
 template <typename T> using Own = std::unique_ptr<T>;

@@ -23,7 +23,7 @@ public:
 	}
 
 	inline static Error encode(const T &val, Buffer &buffer) {
-		uint8_t &raw = reinterpret_cast<uint8_t &>(val);
+		const uint8_t &raw = reinterpret_cast<const uint8_t &>(val);
 		return buffer.push(raw, sizeof(T));
 	}
 
