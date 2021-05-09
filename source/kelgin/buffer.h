@@ -14,14 +14,13 @@ namespace gin {
  * Access class to reduce templated BufferSegments bloat
  */
 class Buffer {
-private:
-	friend class RingBuffer;
+protected:
 	~Buffer() = default;
 
 public:
 	virtual size_t readPosition() const = 0;
 	virtual size_t readCompositeLength() const = 0;
-	virtual size_t readSegmentLength() const = 0;
+	virtual size_t readSegmentLength(size_t offset = 0) const = 0;
 	virtual void readAdvance(size_t bytes) = 0;
 
 	virtual uint8_t &read(size_t i = 0) = 0;
@@ -29,37 +28,72 @@ public:
 
 	virtual size_t writePosition() const = 0;
 	virtual size_t writeCompositeLength() const = 0;
-	virtual size_t writeSegmentLength() const = 0;
+	virtual size_t writeSegmentLength(size_t offset = 0) const = 0;
 	virtual void writeAdvance(size_t bytes) = 0;
 
 	virtual uint8_t &write(size_t i = 0) = 0;
 	virtual const uint8_t &write(size_t i = 0) const = 0;
 
 	/*
-	* Sometime buffers need to grow with a little more control
-	* than with push and pop for more efficient calls.
-	* There is nothing you can do if read hasn't been filled, but at
-	* least write can be increased if it is demanded.
-	*/
-	/// @todo uncomment and implement in child classes
-	// virtual Error writeRequireLength(size_t bytes) = 0;
+	 * Sometime buffers need to grow with a little more control
+	 * than with push and pop for more efficient calls.
+	 * There is nothing you can do if read hasn't been filled, but at
+	 * least write can be increased if it is demanded.
+	 */
+	virtual Error writeRequireLength(size_t bytes) = 0;
 
-	virtual Error push(const uint8_t &value) = 0;
-	virtual Error push(const uint8_t &buffer, size_t size) = 0;
-	virtual Error pop(uint8_t &value) = 0;
-	virtual Error pop(uint8_t &buffer, size_t size) = 0;
+	Error push(const uint8_t &value);
+	Error push(const uint8_t &buffer, size_t size);
+	Error pop(uint8_t &value);
+	Error pop(uint8_t &buffer, size_t size);
 
-	virtual std::string toString() const = 0;
-	virtual std::string toHex() const = 0;
+	std::string toString() const;
+	std::string toHex() const;
 };
+
 /*
-* Buffer size meant for default allocation size of the ringbuffer since
-* this class currently doesn't support proper resizing
-*/
+ *	A viewer class for buffers.
+ *	Working on the reference buffer invalidates the buffer view
+ */
+class BufferView : public Buffer {
+private:
+	Buffer &buffer;
+	size_t read_offset;
+	size_t write_offset;
+
+public:
+	BufferView(Buffer &);
+
+	size_t readPosition() const override;
+	size_t readCompositeLength() const override;
+	size_t readSegmentLength(size_t offset = 0) const override;
+	void readAdvance(size_t bytes) override;
+
+	uint8_t &read(size_t i = 0) override;
+	const uint8_t &read(size_t i = 0) const override;
+
+	size_t writePosition() const override;
+	size_t writeCompositeLength() const override;
+	size_t writeSegmentLength(size_t offset = 0) const override;
+	void writeAdvance(size_t bytes) override;
+
+	uint8_t &write(size_t i = 0) override;
+	const uint8_t &write(size_t i = 0) const override;
+
+	Error writeRequireLength(size_t bytes) override;
+
+	size_t readOffset() const;
+	size_t writeOffset() const;
+};
+
+/*
+ * Buffer size meant for default allocation size of the ringbuffer since
+ * this class currently doesn't support proper resizing
+ */
 constexpr size_t RING_BUFFER_MAX_SIZE = 4096;
 /*
-* Buffer wrapping around if read caught up
-*/
+ * Buffer wrapping around if read caught up
+ */
 class RingBuffer final : public Buffer {
 private:
 	std::vector<uint8_t> buffer;
@@ -78,7 +112,7 @@ public:
 
 	size_t readPosition() const override;
 	size_t readCompositeLength() const override;
-	size_t readSegmentLength() const override;
+	size_t readSegmentLength(size_t offset = 0) const override;
 	void readAdvance(size_t bytes) override;
 
 	uint8_t &read(size_t i = 0) override;
@@ -86,19 +120,13 @@ public:
 
 	size_t writePosition() const override;
 	size_t writeCompositeLength() const override;
-	size_t writeSegmentLength() const override;
+	size_t writeSegmentLength(size_t offset = 0) const override;
 	void writeAdvance(size_t bytes) override;
 
 	uint8_t &write(size_t i = 0) override;
 	const uint8_t &write(size_t i = 0) const override;
 
-	Error push(const uint8_t &value) override;
-	Error push(const uint8_t &buffer, size_t size) override;
-	Error pop(uint8_t &value) override;
-	Error pop(uint8_t &buffer, size_t size) override;
-
-	std::string toString() const override;
-	std::string toHex() const override;
+	Error writeRequireLength(size_t bytes) override;
 };
 
 /*
@@ -116,7 +144,7 @@ public:
 
 	size_t readPosition() const override;
 	size_t readCompositeLength() const override;
-	size_t readSegmentLength() const override;
+	size_t readSegmentLength(size_t offset = 0) const override;
 	void readAdvance(size_t bytes) override;
 
 	uint8_t &read(size_t i = 0) override;
@@ -124,16 +152,13 @@ public:
 
 	size_t writePosition() const override;
 	size_t writeCompositeLength() const override;
-	size_t writeSegmentLength() const override;
+	size_t writeSegmentLength(size_t offset = 0) const override;
 	void writeAdvance(size_t bytes) override;
 
 	uint8_t &write(size_t i = 0) override;
 	const uint8_t &write(size_t i = 0) const override;
 
-	Error push(const uint8_t &value) override;
-	Error push(const uint8_t &buffer, size_t size) override;
-	Error pop(uint8_t &value) override;
-	Error pop(uint8_t &buffer, size_t size) override;
+	Error writeRequireLength(size_t bytes) override;
 };
 
 class ChainArrayBuffer : public Buffer {
@@ -148,7 +173,7 @@ public:
 
 	size_t readPosition() const override;
 	size_t readCompositeLength() const override;
-	size_t readSegmentLength() const override;
+	size_t readSegmentLength(size_t offset = 0) const override;
 	void readAdvance(size_t bytes) override;
 
 	uint8_t &read(size_t i = 0) override;
@@ -156,15 +181,12 @@ public:
 
 	size_t writePosition() const override;
 	size_t writeCompositeLength() const override;
-	size_t writeSegmentLength() const override;
+	size_t writeSegmentLength(size_t offset = 0) const override;
 	void writeAdvance(size_t bytes) override;
 
 	uint8_t &write(size_t i = 0) override;
 	const uint8_t &write(size_t i = 0) const override;
 
-	Error push(const uint8_t &value) override;
-	Error push(const uint8_t &buffer, size_t size) override;
-	Error pop(uint8_t &value) override;
-	Error pop(uint8_t &buffer, size_t size) override;
+	Error writeRequireLength(size_t bytes) override;
 };
 } // namespace gin

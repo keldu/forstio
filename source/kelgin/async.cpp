@@ -29,6 +29,7 @@ void ConveyorStorage::setParent(ConveyorStorage *p) {
 		assert(!parent);
 		armNext();
 	}
+
 	parent = p;
 }
 
@@ -37,8 +38,7 @@ ConveyorBase::ConveyorBase(Own<ConveyorNode> &&node_p,
 	: node{std::move(node_p)}, storage{storage_p} {}
 
 Error PropagateError::operator()(const Error &error) const {
-	Error err{error};
-	return err;
+	return error.copyError();
 }
 
 Error PropagateError::operator()(Error &&error) { return std::move(error); }
@@ -142,6 +142,8 @@ void Event::disarm() {
 }
 
 bool Event::isArmed() const { return prev != nullptr; }
+
+SinkConveyor::SinkConveyor() : node{nullptr} {}
 
 SinkConveyor::SinkConveyor(Own<ConveyorNode> &&node_p)
 	: node{std::move(node_p)} {}
@@ -275,15 +277,22 @@ void ConveyorSinks::fail(Error &&error) {
 	/// @todo call error_handler
 }
 
+ConveyorSinks::ConveyorSinks(EventLoop &event_loop) : Event{event_loop} {}
+
 void ConveyorSinks::add(Conveyor<void> &&sink) {
 	auto nas = Conveyor<void>::fromConveyor(std::move(sink));
-	Own<SinkConveyorNode> sink_node =
-		heap<SinkConveyorNode>(std::move(nas.first), *this);
+
+	Own<SinkConveyorNode> sink_node = nullptr;
+	try {
+		sink_node = heap<SinkConveyorNode>(std::move(nas.first), *this);
+	} catch (std::bad_alloc &) {
+		return;
+	}
 	if (nas.second) {
 		nas.second->setParent(sink_node.get());
 	}
 
-	sink_nodes.push_back(std::move(sink_node));
+	sink_nodes.emplace_back(std::move(sink_node));
 }
 
 void ConveyorSinks::fire() {

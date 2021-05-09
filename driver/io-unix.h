@@ -7,6 +7,7 @@
 #include <csignal>
 #include <sys/signalfd.h>
 
+#include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
@@ -61,6 +62,8 @@ private:
 
 	std::unordered_multimap<Signal, Own<ConveyorFeeder<void>>> signal_conveyors;
 
+	int pipefds[2];
+
 	std::vector<int> toUnixSignal(Signal signal) const {
 		switch (signal) {
 		case Signal::User1:
@@ -106,13 +109,12 @@ private:
 
 			if (nfds < 0) {
 				/// @todo error_handling
-				assert(false);
 				return false;
 			}
 
 			for (int i = 0; i < nfds; ++i) {
 				if (events[i].data.u64 == 0) {
-					for (;;) {
+					while (1) {
 						struct ::signalfd_siginfo siginfo;
 						ssize_t n =
 							::read(signal_fd, &siginfo, sizeof(siginfo));
@@ -122,6 +124,17 @@ private:
 						assert(n == sizeof(siginfo));
 
 						notifySignalListener(siginfo.ssi_signo);
+					}
+				} else if (events[i].data.u64 == 1) {
+					uint8_t i;
+					if (pipefds[0] < 0) {
+						continue;
+					}
+					while (1) {
+						ssize_t n = ::recv(pipefds[0], &i, sizeof(i), 0);
+						if (n < 0) {
+							break;
+						}
 					}
 				} else {
 					IFdOwner *owner =
@@ -156,11 +169,22 @@ public:
 		event.events = EPOLLIN;
 		event.data.u64 = 0;
 		::epoll_ctl(epoll_fd, EPOLL_CTL_ADD, signal_fd, &event);
+
+		int rc = ::pipe2(pipefds, O_NONBLOCK | O_CLOEXEC);
+		if (rc < 0) {
+			return;
+		}
+		memset(&event, 0, sizeof(event));
+		event.events = EPOLLIN;
+		event.data.u64 = 1;
+		::epoll_ctl(epoll_fd, EPOLL_CTL_ADD, pipefds[0], &event);
 	}
 
 	~UnixEventPort() {
 		::close(epoll_fd);
 		::close(signal_fd);
+		::close(pipefds[0]);
+		::close(pipefds[1]);
 	}
 
 	Conveyor<void> onSignal(Signal signal) override {
@@ -202,6 +226,16 @@ public:
 		}
 	}
 
+	void wake() override {
+		/// @todo pipe() in the beginning and write something minor into it like
+		/// uint8_t or sth the value itself doesn't matter
+		if (pipefds[1] < 0) {
+			return;
+		}
+		uint8_t i = 0;
+		::send(pipefds[1], &i, sizeof(i), MSG_DONTWAIT);
+	}
+
 	void subscribe(IFdOwner &owner, int fd, uint32_t event_mask) {
 		if (epoll_fd < 0 || fd < 0) {
 			return;
@@ -239,6 +273,9 @@ private:
 	// Interface impl for the helpers above
 	ssize_t dataRead(void *buffer, size_t length) override;
 	ssize_t dataWrite(const void *buffer, size_t length) override;
+
+	void readStep();
+	void writeStep();
 
 public:
 	UnixIoStream(UnixEventPort &event_port, int file_descriptor, int fd_flags,
@@ -357,7 +394,7 @@ public:
 		  addresses{std::move(addr)} {}
 
 	Own<Server> listen() override;
-	Own<IoStream> connect() override;
+	Conveyor<Own<IoStream>> connect() override;
 
 	std::string toString() const override;
 };
@@ -369,26 +406,24 @@ private:
 public:
 	UnixNetwork(UnixEventPort &event_port);
 
-	Own<NetworkAddress> parseAddress(const std::string &,
-									 uint16_t port_hint = 0) override;
+	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &,
+											   uint16_t port_hint = 0) override;
 };
 
 class UnixAsyncIoProvider final : public AsyncIoProvider {
 private:
 	UnixEventPort &event_port;
 	EventLoop event_loop;
-	WaitScope wait_scope;
 
 	UnixNetwork unix_network;
 
 public:
-	UnixAsyncIoProvider(UnixEventPort &port_ref, Own<EventPort> &&port);
+	UnixAsyncIoProvider(UnixEventPort &port_ref, Own<EventPort> port);
+
+	Network &network() override;
 
 	Own<InputStream> wrapInputFd(int fd) override;
 
 	EventLoop &eventLoop();
-	WaitScope &waitScope();
-
-	Network &network() override;
 };
 } // namespace gin

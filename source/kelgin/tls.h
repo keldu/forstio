@@ -1,6 +1,7 @@
 #pragma once
 
 #include <kelgin/common.h>
+#include <kelgin/io.h>
 
 namespace gin {
 class TlsContext {
@@ -17,15 +18,13 @@ private:
 public:
 	TlsContext();
 	~TlsContext();
-
-
 };
 
-class TlsNetwork : public Network {
+class TlsNetwork final : public Network {
 private:
 public:
-	Own<NetworkAddress> parseAddress(const std::string &,
-											 uint16_t port_hint = 0) override;
+	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &,
+											   uint16_t port_hint = 0) override;
 };
 
 } // namespace gin

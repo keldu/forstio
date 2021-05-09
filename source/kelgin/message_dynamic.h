@@ -239,6 +239,12 @@ public:
 			return builder;
 		}
 
+		DynamicMessage::DynamicBuilder push(Own<DynamicMessage> &&msg) {
+			DynamicMessage::DynamicBuilder builder{*msg};
+			message.messages.push_back(std::move(msg));
+			return builder;
+		}
+
 		Reader asReader() const { return Reader{message}; }
 	};
 

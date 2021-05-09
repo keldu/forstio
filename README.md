@@ -37,3 +37,4 @@ Currently no examples except in test.
 * Windows/Mac Support  
 * Buffer flexibility  
 * Multithreaded conveyor communication  
+* Logger implementation  

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-#include "source/message.h"
+#include "source/kelgin/message.h"
 using gin::MessageList;
 using gin::MessageStruct;
 using gin::MessageStructMember;

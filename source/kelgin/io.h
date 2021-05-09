@@ -66,7 +66,7 @@ public:
 	 * Listen on this address
 	 */
 	virtual Own<Server> listen() = 0;
-	virtual Own<IoStream> connect() = 0;
+	virtual Conveyor<Own<IoStream>> connect() = 0;
 
 	virtual std::string toString() const = 0;
 };
@@ -75,8 +75,8 @@ class Network {
 public:
 	virtual ~Network() = default;
 
-	virtual Own<NetworkAddress> parseAddress(const std::string &,
-											 uint16_t port_hint = 0) = 0;
+	virtual Conveyor<Own<NetworkAddress>>
+	parseAddress(const std::string &addr, uint16_t port_hint = 0) = 0;
 };
 
 class AsyncIoProvider {
@@ -88,26 +88,11 @@ public:
 	virtual Network &network() = 0;
 };
 
-/*
-* Future of io context structure ?
-*
-struct AsyncIoContext {
-	EventLoop event_loop;
-	EventPort& event_port;
-	WaitScope wait_scope;
-	Own<AsyncIoProvider> io_provider;
-	Network& network;
-};
-*/
-
 struct AsyncIoContext {
 	Own<AsyncIoProvider> io;
+	EventLoop &event_loop;
 	EventPort &event_port;
-	WaitScope &wait_scope;
 };
 
-/*
- * Setup a default Context with an active waitscope
- */
-AsyncIoContext setupAsyncIo();
+ErrorOr<AsyncIoContext> setupAsyncIo();
 } // namespace gin

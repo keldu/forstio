@@ -29,7 +29,7 @@ def add_kel_source_files(self, sources, filetype, lib_env=None, shared=False, ta
             sources.append( self.StaticObject( target=target_name, source=path ) )
     pass
 
-env=Environment(CPPPATH=['#source','#','#driver'],
+env=Environment(CPPPATH=['#source/kelgin','#source','#','#driver'],
     CXX='c++',
     CPPDEFINES=['GIN_UNIX'],
     CXXFLAGS=['-std=c++17','-g','-Wall','-Wextra'],
@@ -41,7 +41,7 @@ env.headers = []
 env.objects = []
 
 Export('env')
-SConscript('source/SConscript')
+SConscript('source/kelgin/SConscript')
 SConscript('driver/SConscript')
 
 # Library build
