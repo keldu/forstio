@@ -203,7 +203,7 @@ public:
 			return message.elements.at(i);
 		}
 
-		size_t size() const { return elements.size(); }
+		size_t size() const { return message.elements.size(); }
 
 		bool isSetExplicitly() const { return message.set_explicitly; }
 

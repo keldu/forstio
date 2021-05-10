@@ -22,7 +22,12 @@ public:
 
 class TlsNetwork final : public Network {
 private:
+	Network &network;
+	TlsContext context;
+
 public:
+	TlsContext(Network &);
+
 	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &,
 											   uint16_t port_hint = 0) override;
 };

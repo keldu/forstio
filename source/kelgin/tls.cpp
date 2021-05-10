@@ -24,6 +24,10 @@ public:
 TlsContext::TlsContext() : impl{heap<TlsContext::Impl>()} {}
 TlsContext::~TlsContext() {}
 
+class TlsIoStream final : public IoStream, public DataReaderAndWriter {
+public:
+};
+
 class TlsNetworkAddress : public NetworkAddress {
 public:
 	Own<Server> listen() override { return nullptr; }
@@ -33,6 +37,6 @@ public:
 
 Conveyor<Own<NetworkAddress>> TlsNetwork::parseAddress(const std::string &addr,
 													   uint16_t port_hint) {
-	return Conveyor<Own<NetworkAddress>>{nullptr, nullptr};
+	return {nullptr, nullptr};
 }
 } // namespace gin
