@@ -40,6 +40,9 @@ env.sources = []
 env.headers = []
 env.objects = []
 
+env.driver_sources = []
+env.driver_headers = []
+
 Export('env')
 SConscript('source/kelgin/SConscript')
 SConscript('driver/SConscript')
@@ -49,11 +52,11 @@ SConscript('driver/SConscript')
 env_library = env.Clone()
 
 env.objects_shared = []
-env_library.add_source_files(env.objects_shared, env.sources, shared=True)
+env_library.add_source_files(env.objects_shared, env.sources + env.driver_sources, shared=True)
 env.library_shared = env_library.SharedLibrary('#bin/kelgin', [env.objects_shared])
 
 env.objects_static = []
-env_library.add_source_files(env.objects_static, env.sources)
+env_library.add_source_files(env.objects_static, env.sources + env.driver_sources)
 env.library_static = env_library.StaticLibrary('#bin/kelgin', [env.objects_static])
 
 env.Alias('library', [env.library_shared, env.library_static])
@@ -75,7 +78,7 @@ def format_iter(env,files):
         env.format_actions.append(env.AlwaysBuild(env.ClangFormat(target=f+"-clang-format",source=f)))
     pass
 
-format_iter(env,env.sources + env.headers)
+format_iter(env,env.sources + env.driver_sources + env.headers + env.driver_headers)
 
 env.Alias('format', env.format_actions)
 

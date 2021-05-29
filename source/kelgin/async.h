@@ -12,12 +12,8 @@
 
 namespace gin {
 class ConveyorNode {
-protected:
-	Own<ConveyorNode> child;
-
 public:
 	ConveyorNode();
-	ConveyorNode(Own<ConveyorNode> &&child);
 	virtual ~ConveyorNode() = default;
 
 	virtual void getResult(ErrorOrValue &err_or_val) = 0;
@@ -208,9 +204,9 @@ public:
 /*
  * Join Conveyors into a single one
  */
-// template<typename... Args>
-// Conveyor<std::tuple<Args...>> joinConveyors(std::tuple<Conveyor<Args...>>&
-// conveyors);
+template <typename... Args>
+Conveyor<std::tuple<Args...>>
+joinConveyors(std::tuple<Conveyor<Args>...> &conveyors);
 
 template <typename T> class ConveyorFeeder {
 public:
@@ -412,6 +408,9 @@ public:
 
 template <typename T>
 class AdaptConveyorNode final : public ConveyorNode, public ConveyorStorage {
+protected:
+	Own<ConveyorNode> child;
+
 private:
 	AdaptConveyorFeeder<T> *feeder = nullptr;
 
@@ -459,6 +458,9 @@ public:
 
 template <typename T>
 class OneTimeConveyorNode final : public ConveyorNode, public ConveyorStorage {
+protected:
+	Own<ConveyorNode> child;
+
 private:
 	OneTimeConveyorFeeder<T> *feeder = nullptr;
 
@@ -488,9 +490,12 @@ public:
 
 class QueueBufferConveyorNodeBase : public ConveyorNode,
 									public ConveyorStorage {
+protected:
+	Own<ConveyorNode> child;
+
 public:
 	QueueBufferConveyorNodeBase(Own<ConveyorNode> &&dep)
-		: ConveyorNode(std::move(dep)) {}
+		: child(std::move(dep)) {}
 	virtual ~QueueBufferConveyorNodeBase() = default;
 };
 
@@ -545,9 +550,11 @@ public:
 };
 
 class AttachConveyorNodeBase : public ConveyorNode {
+protected:
+	Own<ConveyorNode> child;
+
 public:
-	AttachConveyorNodeBase(Own<ConveyorNode> &&dep)
-		: ConveyorNode(std::move(dep)) {}
+	AttachConveyorNodeBase(Own<ConveyorNode> &&dep) : child(std::move(dep)) {}
 
 	virtual ~AttachConveyorNodeBase() = default;
 
@@ -566,6 +573,9 @@ public:
 };
 
 class ConvertConveyorNodeBase : public ConveyorNode {
+protected:
+	Own<ConveyorNode> child;
+
 public:
 	ConvertConveyorNodeBase(Own<ConveyorNode> &&dep);
 	virtual ~ConvertConveyorNodeBase() = default;
@@ -616,14 +626,15 @@ public:
 
 class SinkConveyorNode final : public ConveyorNode, public ConveyorStorage {
 private:
+	Own<ConveyorNode> child;
 	ConveyorSinks *conveyor_sink;
 
 public:
 	SinkConveyorNode(Own<ConveyorNode> &&node, ConveyorSinks &conv_sink)
-		: ConveyorNode(std::move(node)), conveyor_sink{&conv_sink} {}
+		: child(std::move(node)), conveyor_sink{&conv_sink} {}
 
 	SinkConveyorNode(Own<ConveyorNode> &&node)
-		: ConveyorNode(std::move(node)), conveyor_sink{nullptr} {}
+		: child(std::move(node)), conveyor_sink{nullptr} {}
 
 	// Event only queued if a critical error occured
 	void fire() override {
@@ -700,6 +711,20 @@ public:
 
 	// Event
 	void fire() override;
+};
+
+class JoinConveyorNodeBase : public ConveyorNode, public ConveyorStorage {
+public:
+	virtual ~JoinConveyorNodeBase() = default;
+};
+
+template <typename T> class JoinConveyorNode : public JoinConveyorNodeBase {
+public:
+};
+
+template <typename... Args> class JoinConveyorMerger : public ConveyorStorage {
+private:
+	std::tuple<JoinConveyorNode<Args>...> joined;
 };
 
 } // namespace gin

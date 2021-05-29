@@ -3,6 +3,7 @@
 #include <sstream>
 
 namespace gin {
+namespace unix {
 IFdOwner::IFdOwner(UnixEventPort &event_port, int file_descriptor, int fd_flags,
 				   uint32_t event_mask)
 	: event_port{event_port}, file_descriptor{file_descriptor},
@@ -17,86 +18,21 @@ IFdOwner::~IFdOwner() {
 	}
 }
 
-ssize_t UnixIoStream::dataRead(void *buffer, size_t length) {
-	return ::read(fd(), buffer, length);
+ssize_t unixRead(int fd, void* buffer, size_t length){
+	return ::read(fd, buffer, length);
 }
 
-ssize_t UnixIoStream::dataWrite(const void *buffer, size_t length) {
-	return ::write(fd(), buffer, length);
-}
-/*
-void UnixIoStream::readStep() {
-	if (read_ready) {
-		read_ready->feed();
-	}
-	while (!read_tasks.empty()) {
-		ReadIoTask &task = read_tasks.front();
-
-		ssize_t n = ::read(fd(), task.buffer, task.max_length);
-
-		if (n <= 0) {
-			if (n == 0) {
-				if (on_read_disconnect) {
-					on_read_disconnect->feed();
-				}
-				break;
-			}
-			int error = errno;
-			if (error == EAGAIN || error == EWOULDBLOCK) {
-				break;
-			} else {
-				if (read_done) {
-					read_done->fail(criticalError("Read failed"));
-				}
-				read_tasks.pop();
-			}
-		} else if (static_cast<size_t>(n) >= task.min_length &&
-				   static_cast<size_t>(n) <= task.max_length) {
-			if (read_done) {
-				read_done->feed(static_cast<size_t>(n));
-			}
-			size_t max_len = task.max_length;
-			read_tasks.pop();
-		} else {
-			task.buffer = reinterpret_cast<uint8_t *>(task.buffer) + n;
-			task.min_length -= static_cast<size_t>(n);
-			task.max_length -= static_cast<size_t>(n);
-		}
-	}
+ssize_t unixWrite(int fd, const void* buffer, size_t length){
+	return ::write(fd, buffer, length);
 }
 
-void UnixIoStream::writeStep() {
-	if (write_ready) {
-		write_ready->feed();
-	}
-	while (!write_tasks.empty()) {
-		WriteIoTask &task = write_tasks.front();
-
-		ssize_t n = ::write(fd(), task.buffer, task.length);
-
-		if (n < 0) {
-			int error = errno;
-			if (error == EAGAIN || error == EWOULDBLOCK) {
-				break;
-			} else {
-				if (write_done) {
-					write_done->fail(criticalError("Write failed"));
-				}
-				write_tasks.pop();
-			}
-		} else if (static_cast<size_t>(n) == task.length) {
-			if (write_done) {
-				write_done->feed(static_cast<size_t>(task.length));
-			}
-			write_tasks.pop();
-		} else {
-			task.buffer = reinterpret_cast<const uint8_t *>(task.buffer) +
-						  static_cast<size_t>(n);
-			task.length -= static_cast<size_t>(n);
-		}
-	}
+ssize_t UnixIoStream::readStream(void* buffer, size_t length){
+	return unixRead(fd(), buffer, length);
 }
-*/
+
+ssize_t UnixIoStream::writeStream(const void* buffer, size_t length) {
+	return unixWrite(fd(), buffer, length);
+}
 
 UnixIoStream::UnixIoStream(UnixEventPort &event_port, int file_descriptor,
 						   int fd_flags, uint32_t event_mask)
@@ -104,9 +40,9 @@ UnixIoStream::UnixIoStream(UnixEventPort &event_port, int file_descriptor,
 }
 
 void UnixIoStream::read(void *buffer, size_t min_length, size_t max_length) {
-	bool is_ready = read_helper.read_tasks.empty();
-	read_helper.read_tasks.push(
-		ReadTaskAndStepHelper::ReadIoTask{buffer, min_length, max_length});
+	bool is_ready = !read_helper.read_task.has_value();
+	read_helper.read_task = 
+		ReadTaskAndStepHelper::ReadIoTask{buffer, min_length, max_length};
 	if (is_ready) {
 		read_helper.readStep(*this);
 	}
@@ -131,9 +67,9 @@ Conveyor<void> UnixIoStream::onReadDisconnected() {
 }
 
 void UnixIoStream::write(const void *buffer, size_t length) {
-	bool is_ready = write_helper.write_tasks.empty();
-	write_helper.write_tasks.push(
-		WriteTaskAndStepHelper::WriteIoTask{buffer, length});
+	bool is_ready = !write_helper.write_task.has_value();
+	write_helper.write_task =
+		WriteTaskAndStepHelper::WriteIoTask{buffer, length};
 	if (is_ready) {
 		write_helper.writeStep(*this);
 	}
@@ -153,11 +89,11 @@ Conveyor<void> UnixIoStream::writeReady() {
 
 void UnixIoStream::notify(uint32_t mask) {
 	if (mask & EPOLLOUT) {
-		writeStep();
+		write_helper.writeStep(*this);
 	}
 
 	if (mask & EPOLLIN) {
-		readStep();
+		read_helper.readStep(*this);
 	}
 
 	if (mask & EPOLLRDHUP) {
@@ -286,6 +222,8 @@ std::string UnixNetworkAddress::toString() const {
 	}
 }
 
+UnixNetwork::UnixNetwork(UnixEventPort &event) : event_port{event} {}
+
 Conveyor<Own<NetworkAddress>> UnixNetwork::parseAddress(const std::string &path,
 														uint16_t port_hint) {
 	std::string_view addr_view{path};
@@ -332,5 +270,6 @@ ErrorOr<AsyncIoContext> setupAsyncIo() {
 	} catch (std::bad_alloc &) {
 		return criticalError("Out of memory");
 	}
+}
 }
 } // namespace gin

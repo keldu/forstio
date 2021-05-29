@@ -14,9 +14,7 @@ EventLoop &currentEventLoop() {
 }
 } // namespace
 
-ConveyorNode::ConveyorNode() : child{nullptr} {}
-
-ConveyorNode::ConveyorNode(Own<ConveyorNode> &&node) : child{std::move(node)} {}
+ConveyorNode::ConveyorNode() {}
 
 void ConveyorStorage::setParent(ConveyorStorage *p) {
 	/*
@@ -307,7 +305,7 @@ void ConveyorSinks::fire() {
 }
 
 ConvertConveyorNodeBase::ConvertConveyorNodeBase(Own<ConveyorNode> &&dep)
-	: ConveyorNode{std::move(dep)} {}
+	: child{std::move(dep)} {}
 
 void ConvertConveyorNodeBase::getResult(ErrorOrValue &err_or_val) {
 	getImpl(err_or_val);

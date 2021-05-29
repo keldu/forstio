@@ -26,10 +26,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "io.h"
-#include "io_helpers.h"
+#include "kelgin/io.h"
+#include "./io.h"
 
 namespace gin {
+namespace unix {
 constexpr int MAX_EPOLL_EVENTS = 256;
 
 class UnixEventPort;
@@ -262,20 +263,18 @@ public:
 	}
 };
 
+ssize_t unixRead(int fd, void* buffer, size_t length);
+ssize_t unixWrite(int fd, const void* buffer, size_t length);
+
 class UnixIoStream final : public IoStream,
-						   public IFdOwner,
-						   public DataReaderAndWriter {
+						   public IFdOwner, public StreamReaderAndWriter {
 private:
 	WriteTaskAndStepHelper write_helper;
 	ReadTaskAndStepHelper read_helper;
 
 private:
-	// Interface impl for the helpers above
-	ssize_t dataRead(void *buffer, size_t length) override;
-	ssize_t dataWrite(const void *buffer, size_t length) override;
-
-	void readStep();
-	void writeStep();
+	ssize_t readStream(void* buffer, size_t len) override;
+	ssize_t writeStream(const void* buffer, size_t len) override;
 
 public:
 	UnixIoStream(UnixEventPort &event_port, int file_descriptor, int fd_flags,
@@ -426,4 +425,5 @@ public:
 
 	EventLoop &eventLoop();
 };
+}
 } // namespace gin

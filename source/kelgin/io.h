@@ -6,7 +6,6 @@
 #include <string>
 
 namespace gin {
-
 /*
  * Input stream
  */

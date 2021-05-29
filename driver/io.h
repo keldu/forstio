@@ -1,10 +1,11 @@
 #pragma once
 
 #include <kelgin/async.h>
+#include <kelgin/io.h>
 #include <kelgin/common.h>
 
 #include <cstdint>
-#include <queue>
+#include <optional>
 
 namespace gin {
 /*
@@ -17,11 +18,11 @@ namespace gin {
  * of strange abstraction. This may also be reusable for windows/macOS though.
  */
 
-class DataReader {
+class StreamReader {
+protected:
+	~StreamReader() = default;
 public:
-	virtual ~DataReader() = default;
-
-	virtual ssize_t dataRead(void *buffer, size_t length) = 0;
+	virtual ssize_t readStream(void* buffer, size_t length) = 0;
 };
 
 class ReadTaskAndStepHelper {
@@ -31,21 +32,21 @@ public:
 		size_t min_length;
 		size_t max_length;
 	};
-	std::queue<ReadIoTask> read_tasks;
+	std::optional<ReadIoTask> read_task;
 	Own<ConveyorFeeder<size_t>> read_done = nullptr;
 	Own<ConveyorFeeder<void>> read_ready = nullptr;
 
 	Own<ConveyorFeeder<void>> on_read_disconnect = nullptr;
 
 public:
-	void readStep(DataReader &reader);
+	void readStep(StreamReader &reader);
 };
 
-class DataWriter {
+class StreamWriter {
+protected:
+	~StreamWriter() = default;
 public:
-	virtual ~DataWriter() = default;
-
-	virtual ssize_t dataWrite(const void *buffer, size_t length) = 0;
+	virtual ssize_t writeStream(const void* buffer, size_t length) = 0;
 };
 
 class WriteTaskAndStepHelper {
@@ -54,16 +55,16 @@ public:
 		const void *buffer;
 		size_t length;
 	};
-	std::queue<WriteIoTask> write_tasks;
+	std::optional<WriteIoTask> write_task;
 	Own<ConveyorFeeder<size_t>> write_done = nullptr;
 	Own<ConveyorFeeder<void>> write_ready = nullptr;
 
 public:
-	void writeStep(DataWriter &writer);
+	void writeStep(StreamWriter &writer);
 };
 
-class DataReaderAndWriter : public DataReader, public DataWriter {
-public:
-	virtual ~DataReaderAndWriter() = default;
+class StreamReaderAndWriter : public StreamReader, public StreamWriter {
+protected:
+	~StreamReaderAndWriter() = default;
 };
 } // namespace gin
