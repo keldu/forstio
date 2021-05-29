@@ -26,8 +26,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "kelgin/io.h"
 #include "./io.h"
+#include "kelgin/io.h"
 
 namespace gin {
 namespace unix {
@@ -263,18 +263,19 @@ public:
 	}
 };
 
-ssize_t unixRead(int fd, void* buffer, size_t length);
-ssize_t unixWrite(int fd, const void* buffer, size_t length);
+ssize_t unixRead(int fd, void *buffer, size_t length);
+ssize_t unixWrite(int fd, const void *buffer, size_t length);
 
 class UnixIoStream final : public IoStream,
-						   public IFdOwner, public StreamReaderAndWriter {
+						   public IFdOwner,
+						   public StreamReaderAndWriter {
 private:
 	WriteTaskAndStepHelper write_helper;
 	ReadTaskAndStepHelper read_helper;
 
 private:
-	ssize_t readStream(void* buffer, size_t len) override;
-	ssize_t writeStream(const void* buffer, size_t len) override;
+	ssize_t readStream(void *buffer, size_t len) override;
+	ssize_t writeStream(const void *buffer, size_t len) override;
 
 public:
 	UnixIoStream(UnixEventPort &event_port, int file_descriptor, int fd_flags,
@@ -425,5 +426,5 @@ public:
 
 	EventLoop &eventLoop();
 };
-}
+} // namespace unix
 } // namespace gin

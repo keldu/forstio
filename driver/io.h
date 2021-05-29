@@ -1,8 +1,8 @@
 #pragma once
 
 #include <kelgin/async.h>
-#include <kelgin/io.h>
 #include <kelgin/common.h>
+#include <kelgin/io.h>
 
 #include <cstdint>
 #include <optional>
@@ -21,8 +21,9 @@ namespace gin {
 class StreamReader {
 protected:
 	~StreamReader() = default;
+
 public:
-	virtual ssize_t readStream(void* buffer, size_t length) = 0;
+	virtual ssize_t readStream(void *buffer, size_t length) = 0;
 };
 
 class ReadTaskAndStepHelper {
@@ -45,8 +46,9 @@ public:
 class StreamWriter {
 protected:
 	~StreamWriter() = default;
+
 public:
-	virtual ssize_t writeStream(const void* buffer, size_t length) = 0;
+	virtual ssize_t writeStream(const void *buffer, size_t length) = 0;
 };
 
 class WriteTaskAndStepHelper {

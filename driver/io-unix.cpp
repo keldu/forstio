@@ -18,19 +18,19 @@ IFdOwner::~IFdOwner() {
 	}
 }
 
-ssize_t unixRead(int fd, void* buffer, size_t length){
+ssize_t unixRead(int fd, void *buffer, size_t length) {
 	return ::read(fd, buffer, length);
 }
 
-ssize_t unixWrite(int fd, const void* buffer, size_t length){
+ssize_t unixWrite(int fd, const void *buffer, size_t length) {
 	return ::write(fd, buffer, length);
 }
 
-ssize_t UnixIoStream::readStream(void* buffer, size_t length){
+ssize_t UnixIoStream::readStream(void *buffer, size_t length) {
 	return unixRead(fd(), buffer, length);
 }
 
-ssize_t UnixIoStream::writeStream(const void* buffer, size_t length) {
+ssize_t UnixIoStream::writeStream(const void *buffer, size_t length) {
 	return unixWrite(fd(), buffer, length);
 }
 
@@ -41,7 +41,7 @@ UnixIoStream::UnixIoStream(UnixEventPort &event_port, int file_descriptor,
 
 void UnixIoStream::read(void *buffer, size_t min_length, size_t max_length) {
 	bool is_ready = !read_helper.read_task.has_value();
-	read_helper.read_task = 
+	read_helper.read_task =
 		ReadTaskAndStepHelper::ReadIoTask{buffer, min_length, max_length};
 	if (is_ready) {
 		read_helper.readStep(*this);
@@ -271,5 +271,5 @@ ErrorOr<AsyncIoContext> setupAsyncIo() {
 		return criticalError("Out of memory");
 	}
 }
-}
+} // namespace unix
 } // namespace gin
