@@ -1,13 +1,13 @@
 #include "error.h"
 
 namespace gin {
-Error::Error() : error_{0} {}
+Error::Error() : error_{static_cast<Error::Type>(0)} {}
 
 Error::Error(const std::string_view &msg, int8_t code)
-	: error_message{msg}, error_{code} {}
+	: error_message{msg}, error_{static_cast<Error::Type>(code)} {}
 
 Error::Error(std::string &&msg, int8_t code)
-	: error_message{std::move(msg)}, error_{code} {}
+	: error_message{std::move(msg)}, error_{static_cast<Error::Type>(code)} {}
 
 Error::Error(Error &&error)
 	: error_message{std::move(error.error_message)}, error_{std::move(
@@ -30,11 +30,11 @@ const std::string_view Error::message() const {
 		error_message);
 }
 
-bool Error::failed() const { return error_ != 0; }
+bool Error::failed() const { return static_cast<int8_t>(error_) != 0; }
 
-bool Error::isCritical() const { return error_ < 0; }
+bool Error::isCritical() const { return static_cast<int8_t>(error_) < 0; }
 
-bool Error::isRecoverable() const { return error_ > 0; }
+bool Error::isRecoverable() const { return static_cast<int8_t>(error_) > 0; }
 
 Error Error::copyError() const {
 	Error error;
@@ -46,6 +46,10 @@ Error Error::copyError() const {
 			std::string_view{"Error while copying Error string. Out of memory"};
 	}
 	return error;
+}
+
+Error::Type Error::code() const {
+	return static_cast
 }
 
 Error criticalError(const std::string_view &generic) {

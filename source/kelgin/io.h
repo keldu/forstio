@@ -13,7 +13,7 @@ class InputStream {
 public:
 	virtual ~InputStream() = default;
 
-	virtual ssize_t read(void *buffer, size_t length) = 0;
+	virtual ErrorOr<size_t> read(void *buffer, size_t length) = 0;
 
 	virtual Conveyor<void> readReady() = 0;
 
@@ -27,7 +27,7 @@ class OutputStream {
 public:
 	virtual ~OutputStream() = default;
 
-	virtual ssize_t write(const void *buffer, size_t length) = 0;
+	virtual ErrorOr<size_t> write(const void *buffer, size_t length) = 0;
 
 	virtual Conveyor<void> writeReady() = 0;
 };
@@ -39,6 +39,41 @@ class IoStream : public InputStream, public OutputStream {
 public:
 	virtual ~IoStream() = default;
 };
+
+/*
+class AsyncInputStream {
+public:
+	virtual ~AsyncInputStream() = default;
+
+	virtual void read(void* buffer, size_t min_length, size_t max_length) = 0;
+
+	virtual Conveyor<size_t> readDone() = 0;
+};
+
+class AsyncOutputStream {
+public:
+	virtual ~AsyncOutputStream() = default;
+
+	virtual void write(const void* buffer, size_t length) = 0;
+
+	virtual Conveyor<size_t> writeDone() = 0;
+};
+
+class AsyncIoStream : public AsyncInputStream, public AsyncOutputStream {
+private:
+	Own<IoStream> stream;
+public:
+	AsyncIoStream(Own<IoStream> str);
+
+	void read(void* buffer, size_t min_length, size_t max_length) override;
+
+	Conveyor<size_t> readDone() override;
+
+	void write(const void* buffer, size_t length) override;
+
+	Conveyor<size_t> writeDone() override;
+};
+*/
 
 class Server {
 public:

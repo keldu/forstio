@@ -276,13 +276,13 @@ public:
 	UnixIoStream(UnixEventPort &event_port, int file_descriptor, int fd_flags,
 				 uint32_t event_mask);
 
-	ssize_t read(void *buffer, size_t length) override;
+	ErrorOr<size_t> read(void *buffer, size_t length) override;
 
 	Conveyor<void> readReady() override;
 
 	Conveyor<void> onReadDisconnected() override;
 
-	ssize_t write(const void *buffer, size_t length) override;
+	ErrorOr<size_t> write(const void *buffer, size_t length) override;
 
 	Conveyor<void> writeReady() override;
 

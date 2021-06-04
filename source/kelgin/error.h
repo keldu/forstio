@@ -13,9 +13,13 @@ namespace gin {
  * constructor if additional distinctions are necessary.
  */
 class Error {
+public:
+	enum class Type : int8_t {
+		Disconnected = -99
+	};
 private:
 	std::variant<std::string_view, std::string> error_message;
-	int8_t error_;
+	Type error_;
 
 public:
 	Error();
@@ -34,6 +38,8 @@ public:
 	bool isRecoverable() const;
 
 	Error copyError() const;
+
+	Type code() const;
 };
 
 template <typename Formatter>
