@@ -19,19 +19,11 @@ IFdOwner::~IFdOwner() {
 }
 
 ssize_t unixRead(int fd, void *buffer, size_t length) {
-	return ::read(fd, buffer, length);
+	return ::recv(fd, buffer, length, 0);
 }
 
 ssize_t unixWrite(int fd, const void *buffer, size_t length) {
-	return ::write(fd, buffer, length);
-}
-
-ssize_t UnixIoStream::readStream(void *buffer, size_t length) {
-	return unixRead(fd(), buffer, length);
-}
-
-ssize_t UnixIoStream::writeStream(const void *buffer, size_t length) {
-	return unixWrite(fd(), buffer, length);
+	return ::send(fd, buffer, length, 0);
 }
 
 UnixIoStream::UnixIoStream(UnixEventPort &event_port, int file_descriptor,
@@ -39,66 +31,48 @@ UnixIoStream::UnixIoStream(UnixEventPort &event_port, int file_descriptor,
 	: IFdOwner{event_port, file_descriptor, fd_flags, event_mask | EPOLLRDHUP} {
 }
 
-void UnixIoStream::read(void *buffer, size_t min_length, size_t max_length) {
-	bool is_ready = !read_helper.read_task.has_value();
-	read_helper.read_task =
-		ReadTaskAndStepHelper::ReadIoTask{buffer, min_length, max_length};
-	if (is_ready) {
-		read_helper.readStep(*this);
-	}
-}
-
-Conveyor<size_t> UnixIoStream::readDone() {
-	auto caf = newConveyorAndFeeder<size_t>();
-	read_helper.read_done = std::move(caf.feeder);
-	return std::move(caf.conveyor);
+ssize_t UnixIoStream::read(void *buffer, size_t length) {
+	return unixRead(fd(), buffer, length);
 }
 
 Conveyor<void> UnixIoStream::readReady() {
 	auto caf = newConveyorAndFeeder<void>();
-	read_helper.read_ready = std::move(caf.feeder);
+	read_ready = std::move(caf.feeder);
 	return std::move(caf.conveyor);
 }
 
 Conveyor<void> UnixIoStream::onReadDisconnected() {
 	auto caf = newConveyorAndFeeder<void>();
-	read_helper.on_read_disconnect = std::move(caf.feeder);
+	on_read_disconnect = std::move(caf.feeder);
 	return std::move(caf.conveyor);
 }
 
-void UnixIoStream::write(const void *buffer, size_t length) {
-	bool is_ready = !write_helper.write_task.has_value();
-	write_helper.write_task =
-		WriteTaskAndStepHelper::WriteIoTask{buffer, length};
-	if (is_ready) {
-		write_helper.writeStep(*this);
-	}
-}
-
-Conveyor<size_t> UnixIoStream::writeDone() {
-	auto caf = newConveyorAndFeeder<size_t>();
-	write_helper.write_done = std::move(caf.feeder);
-	return std::move(caf.conveyor);
+ssize_t UnixIoStream::write(const void *buffer, size_t length) {
+	return unixWrite(fd(), buffer, length);
 }
 
 Conveyor<void> UnixIoStream::writeReady() {
 	auto caf = newConveyorAndFeeder<void>();
-	write_helper.write_ready = std::move(caf.feeder);
+	write_ready = std::move(caf.feeder);
 	return std::move(caf.conveyor);
 }
 
 void UnixIoStream::notify(uint32_t mask) {
 	if (mask & EPOLLOUT) {
-		write_helper.writeStep(*this);
+		if (write_ready) {
+			write_ready->feed();
+		}
 	}
 
 	if (mask & EPOLLIN) {
-		read_helper.readStep(*this);
+		if (read_ready) {
+			read_ready->feed();
+		}
 	}
 
 	if (mask & EPOLLRDHUP) {
-		if (read_helper.on_read_disconnect) {
-			read_helper.on_read_disconnect->feed();
+		if (on_read_disconnect) {
+			on_read_disconnect->feed();
 		}
 	}
 }
@@ -241,28 +215,27 @@ Conveyor<Own<NetworkAddress>> UnixNetwork::parseAddress(const std::string &path,
 		event_port, path, port_hint, std::move(addresses))};
 }
 
-UnixAsyncIoProvider::UnixAsyncIoProvider(UnixEventPort &port_ref,
-										 Own<EventPort> port)
+UnixIoProvider::UnixIoProvider(UnixEventPort &port_ref, Own<EventPort> port)
 	: event_port{port_ref}, event_loop{std::move(port)}, unix_network{
 															 port_ref} {}
 
-Own<InputStream> UnixAsyncIoProvider::wrapInputFd(int fd) {
+Own<InputStream> UnixIoProvider::wrapInputFd(int fd) {
 	return heap<UnixIoStream>(event_port, fd, 0, EPOLLIN);
 }
 
-Network &UnixAsyncIoProvider::network() {
+Network &UnixIoProvider::network() {
 	return static_cast<Network &>(unix_network);
 }
 
-EventLoop &UnixAsyncIoProvider::eventLoop() { return event_loop; }
+EventLoop &UnixIoProvider::eventLoop() { return event_loop; }
 
 ErrorOr<AsyncIoContext> setupAsyncIo() {
 	try {
 		Own<UnixEventPort> prt = heap<UnixEventPort>();
 		UnixEventPort &prt_ref = *prt;
 
-		Own<UnixAsyncIoProvider> io_provider =
-			heap<UnixAsyncIoProvider>(prt_ref, std::move(prt));
+		Own<UnixIoProvider> io_provider =
+			heap<UnixIoProvider>(prt_ref, std::move(prt));
 
 		EventLoop &loop_ref = io_provider->eventLoop();
 

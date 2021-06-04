@@ -2,7 +2,6 @@
 
 #include <kelgin/async.h>
 #include <kelgin/common.h>
-#include <kelgin/io.h>
 
 #include <cstdint>
 #include <optional>
@@ -17,14 +16,7 @@ namespace gin {
  * and gnutls doesn't let me write or read into buffers I have to have this kind
  * of strange abstraction. This may also be reusable for windows/macOS though.
  */
-
-class StreamReader {
-protected:
-	~StreamReader() = default;
-
-public:
-	virtual ssize_t readStream(void *buffer, size_t length) = 0;
-};
+class InputStream;
 
 class ReadTaskAndStepHelper {
 public:
@@ -35,21 +27,14 @@ public:
 	};
 	std::optional<ReadIoTask> read_task;
 	Own<ConveyorFeeder<size_t>> read_done = nullptr;
-	Own<ConveyorFeeder<void>> read_ready = nullptr;
 
 	Own<ConveyorFeeder<void>> on_read_disconnect = nullptr;
 
 public:
-	void readStep(StreamReader &reader);
+	void readStep(InputStream &reader);
 };
 
-class StreamWriter {
-protected:
-	~StreamWriter() = default;
-
-public:
-	virtual ssize_t writeStream(const void *buffer, size_t length) = 0;
-};
+class OutputStream;
 
 class WriteTaskAndStepHelper {
 public:
@@ -59,14 +44,8 @@ public:
 	};
 	std::optional<WriteIoTask> write_task;
 	Own<ConveyorFeeder<size_t>> write_done = nullptr;
-	Own<ConveyorFeeder<void>> write_ready = nullptr;
 
 public:
-	void writeStep(StreamWriter &writer);
-};
-
-class StreamReaderAndWriter : public StreamReader, public StreamWriter {
-protected:
-	~StreamReaderAndWriter() = default;
+	void writeStep(OutputStream &writer);
 };
 } // namespace gin

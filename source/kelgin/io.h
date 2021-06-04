@@ -13,8 +13,8 @@ class InputStream {
 public:
 	virtual ~InputStream() = default;
 
-	virtual void read(void *buffer, size_t min_length, size_t max_length) = 0;
-	virtual Conveyor<size_t> readDone() = 0;
+	virtual ssize_t read(void *buffer, size_t length) = 0;
+
 	virtual Conveyor<void> readReady() = 0;
 
 	virtual Conveyor<void> onReadDisconnected() = 0;
@@ -27,8 +27,8 @@ class OutputStream {
 public:
 	virtual ~OutputStream() = default;
 
-	virtual void write(const void *buffer, size_t length) = 0;
-	virtual Conveyor<size_t> writeDone() = 0;
+	virtual ssize_t write(const void *buffer, size_t length) = 0;
+
 	virtual Conveyor<void> writeReady() = 0;
 };
 
@@ -38,16 +38,6 @@ public:
 class IoStream : public InputStream, public OutputStream {
 public:
 	virtual ~IoStream() = default;
-};
-
-class DatagramSender {
-public:
-	virtual ~DatagramSender() = default;
-};
-
-class DatagramReceiver {
-public:
-	virtual ~DatagramReceiver() = default;
 };
 
 class Server {
@@ -78,9 +68,9 @@ public:
 	parseAddress(const std::string &addr, uint16_t port_hint = 0) = 0;
 };
 
-class AsyncIoProvider {
+class IoProvider {
 public:
-	virtual ~AsyncIoProvider() = default;
+	virtual ~IoProvider() = default;
 
 	virtual Own<InputStream> wrapInputFd(int fd) = 0;
 
@@ -88,7 +78,7 @@ public:
 };
 
 struct AsyncIoContext {
-	Own<AsyncIoProvider> io;
+	Own<IoProvider> io;
 	EventLoop &event_loop;
 	EventPort &event_port;
 };

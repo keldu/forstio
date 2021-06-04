@@ -8,11 +8,26 @@
 namespace gin {
 class Tls {
 public:
+	class Impl;
+	Own<Impl> impl;
+	
+	Tls();
+	~Tls();
+
 	class Options {
 	public:
 	};
 };
 
-std::optional<Own<Network>> setupTlsNetwork(Network& network);
+class TlsNetworkAddress final : public NetworkAddress {
+public:
+};
+
+class TlsNetwork final : public Network {
+public:
+	TlsNetwork(Network& network);
+};
+
+std::optional<Own<TlsNetwork>> setupTlsNetwork(Network& network);
 
 } // namespace gin

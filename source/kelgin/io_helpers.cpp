@@ -1,14 +1,13 @@
+#include "io_helpers.h"
+
 #include "io.h"
 
 namespace gin {
-void ReadTaskAndStepHelper::readStep(StreamReader &reader) {
-	if (read_ready) {
-		read_ready->feed();
-	}
+void ReadTaskAndStepHelper::readStep(InputStream &reader) {
 	if (read_task.has_value()) {
 		ReadIoTask &task = *read_task;
 
-		ssize_t n = reader.readStream(task.buffer, task.max_length);
+		ssize_t n = reader.read(task.buffer, task.max_length);
 
 		if (n <= 0) {
 			if (n == 0) {
@@ -41,14 +40,11 @@ void ReadTaskAndStepHelper::readStep(StreamReader &reader) {
 	}
 }
 
-void WriteTaskAndStepHelper::writeStep(StreamWriter &writer) {
-	if (write_ready) {
-		write_ready->feed();
-	}
+void WriteTaskAndStepHelper::writeStep(OutputStream &writer) {
 	if (write_task.has_value()) {
 		WriteIoTask &task = *write_task;
 
-		ssize_t n = writer.writeStream(task.buffer, task.length);
+		ssize_t n = writer.write(task.buffer, task.length);
 
 		if (n < 0) {
 			int error = errno;

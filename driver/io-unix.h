@@ -266,30 +266,37 @@ public:
 ssize_t unixRead(int fd, void *buffer, size_t length);
 ssize_t unixWrite(int fd, const void *buffer, size_t length);
 
-class UnixIoStream final : public IoStream,
-						   public IFdOwner,
-						   public StreamReaderAndWriter {
+class UnixIoStream final : public IoStream, public IFdOwner {
 private:
-	WriteTaskAndStepHelper write_helper;
-	ReadTaskAndStepHelper read_helper;
-
-private:
-	ssize_t readStream(void *buffer, size_t len) override;
-	ssize_t writeStream(const void *buffer, size_t len) override;
+	Own<ConveyorFeeder<void>> read_ready = nullptr;
+	Own<ConveyorFeeder<void>> on_read_disconnect = nullptr;
+	Own<ConveyorFeeder<void>> write_ready = nullptr;
 
 public:
 	UnixIoStream(UnixEventPort &event_port, int file_descriptor, int fd_flags,
 				 uint32_t event_mask);
 
-	void read(void *buffer, size_t min_length, size_t max_length) override;
-	Conveyor<size_t> readDone() override;
+	ssize_t read(void *buffer, size_t length) override;
+
 	Conveyor<void> readReady() override;
 
 	Conveyor<void> onReadDisconnected() override;
 
-	void write(const void *buffer, size_t length) override;
-	Conveyor<size_t> writeDone() override;
+	ssize_t write(const void *buffer, size_t length) override;
+
 	Conveyor<void> writeReady() override;
+
+	/*
+		void read(void *buffer, size_t min_length, size_t max_length) override;
+		Conveyor<size_t> readDone() override;
+		Conveyor<void> readReady() override;
+
+		Conveyor<void> onReadDisconnected() override;
+
+		void write(const void *buffer, size_t length) override;
+		Conveyor<size_t> writeDone() override;
+		Conveyor<void> writeReady() override;
+	*/
 
 	void notify(uint32_t mask) override;
 };
@@ -406,11 +413,11 @@ private:
 public:
 	UnixNetwork(UnixEventPort &event_port);
 
-	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &,
+	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &address,
 											   uint16_t port_hint = 0) override;
 };
 
-class UnixAsyncIoProvider final : public AsyncIoProvider {
+class UnixIoProvider final : public IoProvider {
 private:
 	UnixEventPort &event_port;
 	EventLoop event_loop;
@@ -418,7 +425,7 @@ private:
 	UnixNetwork unix_network;
 
 public:
-	UnixAsyncIoProvider(UnixEventPort &port_ref, Own<EventPort> port);
+	UnixIoProvider(UnixEventPort &port_ref, Own<EventPort> port);
 
 	Network &network() override;
 
