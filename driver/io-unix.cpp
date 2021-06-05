@@ -31,8 +31,15 @@ UnixIoStream::UnixIoStream(UnixEventPort &event_port, int file_descriptor,
 	: IFdOwner{event_port, file_descriptor, fd_flags, event_mask | EPOLLRDHUP} {
 }
 
-ssize_t UnixIoStream::read(void *buffer, size_t length) {
-	return unixRead(fd(), buffer, length);
+ErrorOr<size_t> UnixIoStream::read(void *buffer, size_t length) {
+	ssize_t read_bytes =  unixRead(fd(), buffer, length);
+	if( read_bytes > 0 ){
+		return static_cast<size_t>(read_bytes);
+	}else if(read_bytes == 0){
+		return criticalError("Disconnected", static_cast<int8_t>(Error::Type::Disconnected));
+	}
+
+	return recoverableError("Currently busy");
 }
 
 Conveyor<void> UnixIoStream::readReady() {
@@ -47,8 +54,19 @@ Conveyor<void> UnixIoStream::onReadDisconnected() {
 	return std::move(caf.conveyor);
 }
 
-ssize_t UnixIoStream::write(const void *buffer, size_t length) {
-	return unixWrite(fd(), buffer, length);
+ErrorOr<size_t> UnixIoStream::write(const void *buffer, size_t length) {
+	ssize_t write_bytes = unixWrite(fd(), buffer, length);
+	if( write_bytes > 0){
+		return static_cast<size_t>(write_bytes);
+	}
+
+	int error = errno;
+
+	if( error == EAGAIN || error == EWOULDBLOCK ){
+		return recoverableError("Currently busy");
+	}
+
+	return criticalError("Disconnected", static_cast<int8_t>(Error::Type::Disconnected));
 }
 
 Conveyor<void> UnixIoStream::writeReady() {
