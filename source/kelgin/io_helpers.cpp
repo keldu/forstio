@@ -28,7 +28,7 @@ void ReadTaskAndStepHelper::readStep(InputStream &reader) {
 				}
 				read_task = std::nullopt;
 			} else {
-				task.buffer = reinterpret_cast<void *>(task.buffer) + n;
+				task.buffer = static_cast<uint8_t *>(task.buffer) + n;
 				task.min_length -= static_cast<size_t>(n);
 				task.max_length -= static_cast<size_t>(n);
 				task.already_read += n;
@@ -58,8 +58,7 @@ void WriteTaskAndStepHelper::writeStep(OutputStream &writer) {
 				}
 				write_task = std::nullopt;
 			} else {
-				task.buffer = reinterpret_cast<const void *>(task.buffer) +
-							  static_cast<size_t>(n);
+				task.buffer = static_cast<const uint8_t *>(task.buffer) + n;
 				task.length -= n;
 				task.already_written += n;
 			}
