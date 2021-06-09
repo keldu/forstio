@@ -247,7 +247,10 @@ Network &UnixIoProvider::network() {
 
 EventLoop &UnixIoProvider::eventLoop() { return event_loop; }
 
+} // namespace unix
+
 ErrorOr<AsyncIoContext> setupAsyncIo() {
+	using namespace unix;
 	try {
 		Own<UnixEventPort> prt = heap<UnixEventPort>();
 		UnixEventPort &prt_ref = *prt;
@@ -262,5 +265,4 @@ ErrorOr<AsyncIoContext> setupAsyncIo() {
 		return criticalError("Out of memory");
 	}
 }
-} // namespace unix
 } // namespace gin
