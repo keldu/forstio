@@ -1,7 +1,7 @@
 #pragma once
 
-#include <kelgin/async.h>
-#include <kelgin/common.h>
+#include "async.h"
+#include "common.h"
 
 #include <cstdint>
 #include <optional>
@@ -24,6 +24,7 @@ public:
 		void *buffer;
 		size_t min_length;
 		size_t max_length;
+		size_t already_read = 0;
 	};
 	std::optional<ReadIoTask> read_task;
 	Own<ConveyorFeeder<size_t>> read_done = nullptr;
@@ -41,6 +42,7 @@ public:
 	struct WriteIoTask {
 		const void *buffer;
 		size_t length;
+		size_t already_written = 0;
 	};
 	std::optional<WriteIoTask> write_task;
 	Own<ConveyorFeeder<size_t>> write_done = nullptr;

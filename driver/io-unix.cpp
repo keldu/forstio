@@ -32,11 +32,11 @@ UnixIoStream::UnixIoStream(UnixEventPort &event_port, int file_descriptor,
 }
 
 ErrorOr<size_t> UnixIoStream::read(void *buffer, size_t length) {
-	ssize_t read_bytes =  unixRead(fd(), buffer, length);
-	if( read_bytes > 0 ){
+	ssize_t read_bytes = unixRead(fd(), buffer, length);
+	if (read_bytes > 0) {
 		return static_cast<size_t>(read_bytes);
-	}else if(read_bytes == 0){
-		return criticalError("Disconnected", static_cast<int8_t>(Error::Type::Disconnected));
+	} else if (read_bytes == 0) {
+		return criticalError("Disconnected", Error::Code::Disconnected);
 	}
 
 	return recoverableError("Currently busy");
@@ -56,17 +56,17 @@ Conveyor<void> UnixIoStream::onReadDisconnected() {
 
 ErrorOr<size_t> UnixIoStream::write(const void *buffer, size_t length) {
 	ssize_t write_bytes = unixWrite(fd(), buffer, length);
-	if( write_bytes > 0){
+	if (write_bytes > 0) {
 		return static_cast<size_t>(write_bytes);
 	}
 
 	int error = errno;
 
-	if( error == EAGAIN || error == EWOULDBLOCK ){
+	if (error == EAGAIN || error == EWOULDBLOCK) {
 		return recoverableError("Currently busy");
 	}
 
-	return criticalError("Disconnected", static_cast<int8_t>(Error::Type::Disconnected));
+	return criticalError("Disconnected", Error::Code::Disconnected);
 }
 
 Conveyor<void> UnixIoStream::writeReady() {

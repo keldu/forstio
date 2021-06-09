@@ -14,17 +14,21 @@ namespace gin {
  */
 class Error {
 public:
-	enum class Type : int8_t {
-		Disconnected = -99
+	enum class Code : int16_t {
+		GenericCritical = -1,
+		GenericRecoverable = 1,
+		Disconnected = -99,
+		Exhausted = 99
 	};
+
 private:
 	std::variant<std::string_view, std::string> error_message;
-	Type error_;
+	Code error_;
 
 public:
 	Error();
-	Error(const std::string_view &msg, int8_t code);
-	Error(std::string &&msg, int8_t code);
+	Error(const std::string_view &msg, Error::Code code);
+	Error(std::string &&msg, Error::Code code);
 	Error(Error &&error);
 
 	GIN_FORBID_COPY(Error);
@@ -39,11 +43,11 @@ public:
 
 	Error copyError() const;
 
-	Type code() const;
+	Code code() const;
 };
 
 template <typename Formatter>
-Error makeError(const Formatter &formatter, int8_t code,
+Error makeError(const Formatter &formatter, Error::Code code,
 				const std::string_view &generic) {
 	try {
 		std::string error_msg = formatter();
@@ -53,20 +57,23 @@ Error makeError(const Formatter &formatter, int8_t code,
 	}
 }
 
-Error criticalError(const std::string_view &generic);
+Error criticalError(const std::string_view &generic,
+					Error::Code c = Error::Code::GenericCritical);
 
 template <typename Formatter>
-Error criticalError(const Formatter &formatter,
-					const std::string_view &generic) {
-	return makeError(formatter, -1, generic);
+Error criticalError(const Formatter &formatter, const std::string_view &generic,
+					Error::Code c = Error::Code::GenericCritical) {
+	return makeError(formatter, c, generic);
 }
 
-Error recoverableError(const std::string_view &generic);
+Error recoverableError(const std::string_view &generic,
+					   Error::Code c = Error::Code::GenericRecoverable);
 
 template <typename Formatter>
 Error recoverableError(const Formatter &formatter,
-					   const std::string_view &generic) {
-	return makeError(formatter, -1, generic);
+					   const std::string_view &generic,
+					   Error::Code c = Error::Code::GenericRecoverable) {
+	return makeError(formatter, c, generic);
 }
 
 Error noError();

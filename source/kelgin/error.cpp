@@ -1,13 +1,13 @@
 #include "error.h"
 
 namespace gin {
-Error::Error() : error_{static_cast<Error::Type>(0)} {}
+Error::Error() : error_{static_cast<Error::Code>(0)} {}
 
-Error::Error(const std::string_view &msg, int8_t code)
-	: error_message{msg}, error_{static_cast<Error::Type>(code)} {}
+Error::Error(const std::string_view &msg, Error::Code code)
+	: error_message{msg}, error_{static_cast<Error::Code>(code)} {}
 
-Error::Error(std::string &&msg, int8_t code)
-	: error_message{std::move(msg)}, error_{static_cast<Error::Type>(code)} {}
+Error::Error(std::string &&msg, Error::Code code)
+	: error_message{std::move(msg)}, error_{static_cast<Error::Code>(code)} {}
 
 Error::Error(Error &&error)
 	: error_message{std::move(error.error_message)}, error_{std::move(
@@ -30,11 +30,17 @@ const std::string_view Error::message() const {
 		error_message);
 }
 
-bool Error::failed() const { return static_cast<int8_t>(error_) != 0; }
+bool Error::failed() const {
+	return static_cast<std::underlying_type_t<Error::Code>>(error_) != 0;
+}
 
-bool Error::isCritical() const { return static_cast<int8_t>(error_) < 0; }
+bool Error::isCritical() const {
+	return static_cast<std::underlying_type_t<Error::Code>>(error_) < 0;
+}
 
-bool Error::isRecoverable() const { return static_cast<int8_t>(error_) > 0; }
+bool Error::isRecoverable() const {
+	return static_cast<std::underlying_type_t<Error::Code>>(error_) > 0;
+}
 
 Error Error::copyError() const {
 	Error error;
@@ -48,16 +54,14 @@ Error Error::copyError() const {
 	return error;
 }
 
-Error::Type Error::code() const {
-	return static_cast
+Error::Code Error::code() const { return static_cast<Error::Code>(error_); }
+
+Error criticalError(const std::string_view &generic, Error::Code c) {
+	return Error{generic, c};
 }
 
-Error criticalError(const std::string_view &generic) {
-	return Error{generic, -1};
-}
-
-Error recoverableError(const std::string_view &generic) {
-	return Error{generic, 1};
+Error recoverableError(const std::string_view &generic, Error::Code c) {
+	return Error{generic, c};
 }
 
 Error noError() { return Error{}; }

@@ -2,6 +2,7 @@
 
 #include "async.h"
 #include "common.h"
+#include "io_helpers.h"
 
 #include <string>
 
@@ -40,12 +41,11 @@ public:
 	virtual ~IoStream() = default;
 };
 
-/*
 class AsyncInputStream {
 public:
 	virtual ~AsyncInputStream() = default;
 
-	virtual void read(void* buffer, size_t min_length, size_t max_length) = 0;
+	virtual void read(void *buffer, size_t min_length, size_t max_length) = 0;
 
 	virtual Conveyor<size_t> readDone() = 0;
 };
@@ -54,7 +54,7 @@ class AsyncOutputStream {
 public:
 	virtual ~AsyncOutputStream() = default;
 
-	virtual void write(const void* buffer, size_t length) = 0;
+	virtual void write(const void *buffer, size_t length) = 0;
 
 	virtual Conveyor<size_t> writeDone() = 0;
 };
@@ -62,18 +62,25 @@ public:
 class AsyncIoStream : public AsyncInputStream, public AsyncOutputStream {
 private:
 	Own<IoStream> stream;
+
+	SinkConveyor read_ready;
+	SinkConveyor write_ready;
+	SinkConveyor read_disconnected;
+
+	ReadTaskAndStepHelper read_stepper;
+	WriteTaskAndStepHelper write_stepper;
+
 public:
 	AsyncIoStream(Own<IoStream> str);
 
-	void read(void* buffer, size_t min_length, size_t max_length) override;
+	void read(void *buffer, size_t min_length, size_t max_length) override;
 
 	Conveyor<size_t> readDone() override;
 
-	void write(const void* buffer, size_t length) override;
+	void write(const void *buffer, size_t length) override;
 
 	Conveyor<size_t> writeDone() override;
 };
-*/
 
 class Server {
 public:
