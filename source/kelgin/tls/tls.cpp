@@ -140,7 +140,7 @@ Conveyor<Own<IoStream>> TlsNetworkAddress::connect() {
 			return criticalError("Couldn't create Tls connection");
 		}
 
-		return tls_stream;
+		return Own<IoStream>{std::move(tls_stream)};
 	});
 }
 
@@ -197,7 +197,7 @@ Conveyor<Own<NetworkAddress>> TlsNetwork::parseAddress(const std::string &addr,
 		.then(
 			[this, addr, port](Own<NetworkAddress> net) -> Own<NetworkAddress> {
 				assert(net);
-				return heap<TlsNetworkAddress>(std::move(net), tls);
+				return heap<TlsNetworkAddress>(std::move(net), addr, tls);
 			});
 }
 

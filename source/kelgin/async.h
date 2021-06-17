@@ -706,7 +706,7 @@ public:
 		} else {
 			err_or_val.as<FixVoid<T>>() = std::move(value);
 		}
-		if(queued() > 0){
+		if (queued() > 0) {
 			++retrieved;
 		}
 	}
@@ -722,10 +722,8 @@ public:
 
 };
 
-template <typename T> class JoinConveyorNode final : public JoinConveyorNodeBase {
-private:
-	T data;
-public:
+template <typename T> class JoinConveyorNode final : public JoinConveyorNodeBase
+{ private: T data; public:
 };
 
 class JoinConveyorMergeNodeBase : public ConveyorNode, public ConveyorStorage {
@@ -733,11 +731,9 @@ public:
 
 };
 
-template <typename... Args> class JoinConveyorMergeNode final : public JoinConveyorMergeNodeBase {
-private:
-	std::tuple<JoinConveyorNode<Args>...> joined;
-public:
-	void getResult(ErrorOrValue &err_or_val) noexcept override {
+template <typename... Args> class JoinConveyorMergeNode final : public
+JoinConveyorMergeNodeBase { private: std::tuple<JoinConveyorNode<Args>...>
+joined; public: void getResult(ErrorOrValue &err_or_val) noexcept override {
 
 	}
 
@@ -751,7 +747,7 @@ public:
 
 template <typename T> class UniteConveyorNode : public UniteConveyorNodeBase {
 public:
-	virtual ~UniteConveyorNode() = default;	
+	virtual ~UniteConveyorNode() = default;
 };
 
 */
