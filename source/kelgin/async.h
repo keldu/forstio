@@ -714,7 +714,7 @@ public:
 	// Event
 	void fire() override;
 };
-
+/*
 class JoinConveyorNodeBase : public ConveyorStorage {
 public:
 	virtual ~JoinConveyorNodeBase() = default;
@@ -728,12 +728,12 @@ private:
 public:
 };
 
-class JoinConveyorMergerNodeBase : public ConveyorNode, public ConveyorStorage {
+class JoinConveyorMergeNodeBase : public ConveyorNode, public ConveyorStorage {
 public:
 
 };
 
-template <typename... Args> class JoinConveyorMergerNode final : public JoinConveyorMergerBase {
+template <typename... Args> class JoinConveyorMergeNode final : public JoinConveyorMergeNodeBase {
 private:
 	std::tuple<JoinConveyorNode<Args>...> joined;
 public:
@@ -754,8 +754,7 @@ public:
 	virtual ~UniteConveyorNode() = default;	
 };
 
-template <typename T> class 
-
+*/
 } // namespace gin
 
 #include "async.tmpl.h"
