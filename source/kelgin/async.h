@@ -701,31 +701,60 @@ public:
 
 	// ConveyorNode
 	void getResult(ErrorOrValue &err_or_val) noexcept override {
-		if (retrieved) {
+		if (retrieved > 0) {
 			err_or_val.as<FixVoid<T>>() = criticalError("Already taken value");
 		} else {
 			err_or_val.as<FixVoid<T>>() = std::move(value);
 		}
-		++retrieved;
+		if(queued() > 0){
+			++retrieved;
+		}
 	}
 
 	// Event
 	void fire() override;
 };
 
-class JoinConveyorNodeBase : public ConveyorNode, public ConveyorStorage {
+class JoinConveyorNodeBase : public ConveyorStorage {
 public:
 	virtual ~JoinConveyorNodeBase() = default;
+
+
 };
 
-template <typename T> class JoinConveyorNode : public JoinConveyorNodeBase {
+template <typename T> class JoinConveyorNode final : public JoinConveyorNodeBase {
+private:
+	T data;
 public:
 };
 
-template <typename... Args> class JoinConveyorMerger : public ConveyorStorage {
+class JoinConveyorMergerNodeBase : public ConveyorNode, public ConveyorStorage {
+public:
+
+};
+
+template <typename... Args> class JoinConveyorMergerNode final : public JoinConveyorMergerBase {
 private:
 	std::tuple<JoinConveyorNode<Args>...> joined;
+public:
+	void getResult(ErrorOrValue &err_or_val) noexcept override {
+
+	}
+
+	void fire() override;
 };
+
+class UniteConveyorNodeBase : public ConveyorNode, public ConveyorStorage {
+public:
+	virtual ~UniteConveyorNodeBase() = default;
+};
+
+template <typename T> class UniteConveyorNode : public UniteConveyorNodeBase {
+public:
+	virtual ~UniteConveyorNode() = default;	
+};
+
+template <typename T> class 
 
 } // namespace gin
 

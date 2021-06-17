@@ -23,7 +23,6 @@ void ReadTaskAndStepHelper::readStep(InputStream &reader) {
 			if (static_cast<size_t>(n) >= task.min_length &&
 				static_cast<size_t>(n) <= task.max_length) {
 				if (read_done) {
-					// Accumulated bytes are not pushed
 					read_done->feed(n + task.already_read);
 				}
 				read_task = std::nullopt;

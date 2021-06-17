@@ -36,9 +36,12 @@ env=Environment(CPPPATH=['#source/kelgin','#source','#','#driver'],
     LIBS=['gnutls'])
 env.__class__.add_source_files = add_kel_source_files
 
+env.objects = []
 env.sources = []
 env.headers = []
-env.objects = []
+
+env.tls_sources = []
+env.tls_headers = []
 
 env.driver_sources = []
 env.driver_headers = []
@@ -52,11 +55,11 @@ SConscript('driver/SConscript')
 env_library = env.Clone()
 
 env.objects_shared = []
-env_library.add_source_files(env.objects_shared, env.sources + env.driver_sources, shared=True)
+env_library.add_source_files(env.objects_shared, env.sources + env.driver_sources + env.tls_sources, shared=True)
 env.library_shared = env_library.SharedLibrary('#bin/kelgin', [env.objects_shared])
 
 env.objects_static = []
-env_library.add_source_files(env.objects_static, env.sources + env.driver_sources)
+env_library.add_source_files(env.objects_static, env.sources + env.driver_sources + env.tls_sources)
 env.library_static = env_library.StaticLibrary('#bin/kelgin', [env.objects_static])
 
 env.Alias('library', [env.library_shared, env.library_static])
@@ -86,5 +89,7 @@ env.Alias('all', ['format', 'library_shared', 'library_static', 'test'])
 
 env.Install('/usr/local/lib/', [env.library_shared, env.library_static])
 env.Install('/usr/local/include/kelgin/', [env.headers])
+env.Install('/usr/local/include/kelgin/tls/', [env.tls_headers])
+
 env.Install('/usr/local/include/kelgin/test/', [env.test_headers])
 env.Alias('install', '/usr/local/')

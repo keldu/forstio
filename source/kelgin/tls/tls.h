@@ -1,61 +1,69 @@
 #pragma once
 
-#include <kelgin/common.h>
-#include <kelgin/io.h>
+#include "../common.h"
+#include "../io.h"
 
 #include <optional>
+#include <variant>
 
 namespace gin {
 class Tls {
-public:
+private:
 	class Impl;
 	Own<Impl> impl;
-	
+
+public:
 	Tls();
 	~Tls();
 
 	class Options {
 	public:
 	};
-};
 
-class TlsIoStream final : public IoStream {
-private:
-	Own<IoStream> stream;
-public:
-	TlsIoStream(Own<IoStream> str);
-
-	size_t read(void* buffer, size_t length) override;
-
-	Conveyor<void> readReady() override;
-
-	Conveyor<void> onReadDisconnected() override;
-
-	size_t write(const void* buffer, size_t length) override;
-
-	Conveyor<void> writeReady() override;
+	Impl &getImpl();
 };
 
 class TlsServer final : public Server {
+private:
+	Own<Server> internal;
 
+public:
+	TlsServer(Own<Server> srv);
+
+	Conveyor<Own<IoStream>> accept() override;
 };
 
 class TlsNetworkAddress final : public NetworkAddress {
+private:
+	Own<NetworkAddress> internal;
+	std::string host_name;
+	Tls &tls;
+
 public:
+	TlsNetworkAddress(Own<NetworkAddress> net_addr, const std::string& host_name_, Tls &tls_);
+
 	Own<Server> listen() override;
 
-	Own<IoStream> connect() override;
+	Conveyor<Own<IoStream>> connect() override;
 
-	std::string toString() override;
+	std::string toString() const override;
+
+	const std::string &address() const override;
+	uint16_t port() const override;
 };
 
 class TlsNetwork final : public Network {
-public:
-	TlsNetwork(Network& network);
+private:
+	Tls tls;
+	Network &internal;
 
-	Own<NetworkAddress> parseAddress(const std::string& addr, uint16_t port = 0) override;
+public:
+	TlsNetwork(Network &network);
+
+	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &addr,
+											   uint16_t port = 0) override;
 };
 
-std::optional<Own<TlsNetwork>> setupTlsNetwork(Network& network);
+std::optional<Own<TlsNetwork>> setupTlsNetwork(Network &network);
 
 } // namespace gin

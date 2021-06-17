@@ -5,29 +5,203 @@
 
 #include "io_helpers.h"
 
+#include <cassert>
+
+#include <iostream>
+
 namespace gin {
 
 class Tls::Impl {
 public:
-	Impl(){
+	gnutls_certificate_credentials_t xcred;
+
+public:
+	Impl() {
 		gnutls_global_init();
 		gnutls_certificate_allocate_credentials(&xcred);
 		gnutls_certificate_set_x509_system_trust(xcred);
 	}
 
-	~Impl(){
+	~Impl() {
 		gnutls_certificate_free_credentials(xcred);
 		gnutls_global_deinit();
 	}
 };
 
-Tls::Tls():
-	impl{heap<Tls::Impl>()}
-{}
+static ssize_t kelgin_tls_push_func(gnutls_transport_ptr_t p, const void *data,
+						 size_t size);
+static ssize_t kelgin_tls_pull_func(gnutls_transport_ptr_t p, void *data, size_t size);
 
-Tls::~Tls(){}
+Tls::Tls() : impl{heap<Tls::Impl>()} {}
 
-class TlsNetworkImpl final : public TlsNetwork {
+Tls::~Tls() {}
+
+Tls::Impl &Tls::getImpl() { return *impl; }
+
+class TlsIoStream final : public IoStream {
+private:
+	Own<IoStream> internal;
+	gnutls_session_t session_handle;
+
 public:
+	TlsIoStream(Own<IoStream> internal_) : internal{std::move(internal_)} {}
+
+	~TlsIoStream() { gnutls_bye(session_handle, GNUTLS_SHUT_RDWR); }
+
+	ErrorOr<size_t> read(void *buffer, size_t length) override {
+		ssize_t size = gnutls_record_recv(session_handle, buffer, length);
+		if (size < 0) {
+			if(gnutls_error_is_fatal(size) == 0){
+				return recoverableError([size](){return std::string{"Read recoverable Error "}+std::string{gnutls_strerror(size)};}, "Error read r");
+			}else{
+				return criticalError([size](){return std::string{"Read critical Error "}+std::string{gnutls_strerror(size)};}, "Error read c");
+			}
+		}else if(size == 0){
+			return criticalError("Disconnected");
+		}
+
+		return static_cast<size_t>(length);
+	}
+
+	Conveyor<void> readReady() override { return internal->readReady(); }
+
+	Conveyor<void> onReadDisconnected() override {
+		return internal->onReadDisconnected();
+	}
+
+	ErrorOr<size_t> write(const void *buffer, size_t length) override {
+		ssize_t size = gnutls_record_send(session_handle, buffer, length);
+		if(size < 0){
+			if(gnutls_error_is_fatal(size) == 0){
+				return recoverableError([size](){return std::string{"Write recoverable Error "}+std::string{gnutls_strerror(size)} + " " + std::to_string(size);}, "Error write r");
+			}else{
+				return criticalError([size](){return std::string{"Write critical Error "}+std::string{gnutls_strerror(size)} + " " + std::to_string(size);}, "Error write c");
+			}
+		}
+
+		return static_cast<size_t>(size);
+	}
+
+	Conveyor<void> writeReady() override { return internal->writeReady(); }
+
+	gnutls_session_t &session() { return session_handle; }
 };
+
+TlsServer::TlsServer(Own<Server> srv) : internal{std::move(srv)} {}
+
+Conveyor<Own<IoStream>> TlsServer::accept() {
+	GIN_ASSERT(internal) { return Conveyor<Own<IoStream>>{nullptr, nullptr}; }
+	return internal->accept().then([](Own<IoStream> stream) -> Own<IoStream> {
+		return heap<TlsIoStream>(std::move(stream));
+	});
+}
+
+TlsNetworkAddress::TlsNetworkAddress(Own<NetworkAddress> net_addr, const std::string& host_name_, Tls &tls_)
+	: internal{std::move(net_addr)}, host_name{host_name_}, tls{tls_} {}
+
+Own<Server> TlsNetworkAddress::listen() {
+	GIN_ASSERT(internal) { return nullptr; }
+	return heap<TlsServer>(internal->listen());
+}
+
+Conveyor<Own<IoStream>> TlsNetworkAddress::connect() {
+	GIN_ASSERT(internal) { return Conveyor<Own<IoStream>>{nullptr, nullptr}; }
+	return internal->connect().then([this](
+										Own<IoStream> stream) -> ErrorOr<Own<IoStream>> {
+		IoStream* inner_stream = stream.get();
+		auto tls_stream = heap<TlsIoStream>(std::move(stream));
+
+		auto &session = tls_stream->session();
+
+		gnutls_init(&session, GNUTLS_CLIENT);
+
+		const std::string &addr = this->address();
+
+		gnutls_server_name_set(session, GNUTLS_NAME_DNS, addr.c_str(),
+							   addr.size());
+
+		gnutls_set_default_priority(session);
+		gnutls_credentials_set(session, GNUTLS_CRD_CERTIFICATE,
+							   tls.getImpl().xcred);
+		gnutls_session_set_verify_cert(session, addr.c_str(), 0);
+
+		gnutls_transport_set_ptr(session, reinterpret_cast<gnutls_transport_ptr_t>(inner_stream));
+		gnutls_transport_set_push_function(session, kelgin_tls_push_func);
+		gnutls_transport_set_pull_function(session, kelgin_tls_pull_func);
+
+		// gnutls_handshake_set_timeout(session, GNUTLS_DEFAULT_HANDSHAKE_TIMEOUT);
+
+		int ret;
+		do {
+			ret = gnutls_handshake(session);
+		} while (ret < 0 && gnutls_error_is_fatal(ret) == 0);
+
+		if(ret < 0){
+			return criticalError("Couldn't create Tls connection");
+		}
+
+		return tls_stream;
+	});
+}
+
+static ssize_t kelgin_tls_push_func(gnutls_transport_ptr_t p, const void *data,
+						 size_t size) {
+	IoStream *stream = reinterpret_cast<IoStream *>(p);
+	if (!stream) {
+		return -1;
+	}
+
+	ErrorOr<size_t> length = stream->write(data, size);
+	if (length.isError() || !length.isValue()) {
+		if(length.isError()){
+			std::cerr<<"*** Error: "<<length.error().message()<<std::endl;
+		}
+		return -1;
+	}
+
+	return static_cast<ssize_t>(length.value());
+}
+
+static ssize_t kelgin_tls_pull_func(gnutls_transport_ptr_t p, void *data, size_t size) {
+	IoStream *stream = reinterpret_cast<IoStream *>(p);
+	if (!stream) {
+		return -1;
+	}
+
+	ErrorOr<size_t> length = stream->read(data, size);
+	if (length.isError() || !length.isValue()) {
+		if(length.isError()){
+			std::cerr<<"*** Error: "<<length.error().message()<<std::endl;
+		}
+		return -1;
+	}
+
+	return static_cast<ssize_t>(length.value());
+}
+
+const std::string &TlsNetworkAddress::address() const {
+	assert(internal);
+	return internal->address();
+}
+uint16_t TlsNetworkAddress::port() const { 
+	assert(internal);
+	return internal->port(); }
+
+std::string TlsNetworkAddress::toString() const { return internal->toString(); }
+
+TlsNetwork::TlsNetwork(Network &network) : internal{network} {}
+
+Conveyor<Own<NetworkAddress>> TlsNetwork::parseAddress(const std::string &addr,
+													   uint16_t port) {
+	return internal.parseAddress(addr, port)
+		.then(
+			[this, addr, port](Own<NetworkAddress> net) -> Own<NetworkAddress> {
+				assert(net);
+				return heap<TlsNetworkAddress>(std::move(net), tls);
+			});
+}
+
+std::optional<Own<TlsNetwork>> setupTlsNetwork(Network &network) {
+	return std::nullopt;
+}
 } // namespace gin

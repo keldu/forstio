@@ -11,3 +11,6 @@ dir_path = Dir('.').abspath
 
 env.sources += sorted(glob.glob(dir_path + "/*.cpp"))
 env.headers += sorted(glob.glob(dir_path + "/*.h"))
+
+env.tls_sources += sorted(glob.glob(dir_path + "/tls/*.cpp"))
+env.tls_headers += sorted(glob.glob(dir_path + "/tls/*.h"))

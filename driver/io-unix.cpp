@@ -213,6 +213,9 @@ std::string UnixNetworkAddress::toString() const {
 		return {};
 	}
 }
+const std::string &UnixNetworkAddress::address() const { return path; }
+
+uint16_t UnixNetworkAddress::port() const { return port_hint; }
 
 UnixNetwork::UnixNetwork(UnixEventPort &event) : event_port{event} {}
 

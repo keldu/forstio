@@ -404,6 +404,10 @@ public:
 	Conveyor<Own<IoStream>> connect() override;
 
 	std::string toString() const override;
+
+	const std::string &address() const override;
+
+	uint16_t port() const override;
 };
 
 class UnixNetwork final : public Network {
