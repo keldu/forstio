@@ -82,20 +82,20 @@ template <typename T> class Conveyor;
 
 template <typename T> Conveyor<T> chainedConveyorType(T *);
 
-template <typename T> Conveyor<T> chainedConveyorType(Conveyor<T> *);
+// template <typename T> Conveyor<T> chainedConveyorType(Conveyor<T> *);
 
-template <typename T> T reduceErrorOrType(T *);
+template <typename T> T removeErrorOrType(T *);
 
-template <typename T> T reduceErrorOrType(ErrorOr<T> *);
+template <typename T> T removeErrorOrType(ErrorOr<T> *);
 
 template <typename T>
-using ReduceErrorOr = decltype(reduceErrorOrType((T *)nullptr));
+using RemoveErrorOr = decltype(removeErrorOrType((T *)nullptr));
 
 template <typename T>
 using ChainedConveyors = decltype(chainedConveyorType((T *)nullptr));
 
 template <typename Func, typename T>
-using ConveyorResult = ChainedConveyors<ReduceErrorOr<ReturnType<Func, T>>>;
+using ConveyorResult = ChainedConveyors<RemoveErrorOr<ReturnType<Func, T>>>;
 
 struct PropagateError {
 public:
@@ -591,6 +591,9 @@ private:
 	Func func;
 	ErrorFunc error_func;
 
+	static_assert(std::is_same<DepT, RemoveErrorOr<DepT>>::value,
+				  "Should never be of type ErrorOr");
+
 public:
 	ConvertConveyorNode(Own<ConveyorNode> &&dep, Func &&func,
 						ErrorFunc &&error_func)
@@ -599,11 +602,12 @@ public:
 
 	void getImpl(ErrorOrValue &err_or_val) noexcept override {
 		ErrorOr<DepT> dep_eov;
-		ErrorOr<T> &eov = err_or_val.as<T>();
+		ErrorOr<RemoveErrorOr<T>> &eov = err_or_val.as<RemoveErrorOr<T>>();
 		if (child) {
 			child->getResult(dep_eov);
 			if (dep_eov.isValue()) {
 				try {
+
 					eov = FixVoidCaller<T, DepT>::apply(
 						func, std::move(dep_eov.value()));
 				} catch (const std::bad_alloc &) {
@@ -714,28 +718,32 @@ public:
 	// Event
 	void fire() override;
 };
+
 /*
 class JoinConveyorNodeBase : public ConveyorStorage {
 public:
 	virtual ~JoinConveyorNodeBase() = default;
-
-
 };
 
-template <typename T> class JoinConveyorNode final : public JoinConveyorNodeBase
-{ private: T data; public:
+template <typename T>
+class JoinConveyorNode final : public JoinConveyorNodeBase {
+private:
+	T data;
+
+public:
 };
 
 class JoinConveyorMergeNodeBase : public ConveyorNode, public ConveyorStorage {
 public:
-
 };
 
-template <typename... Args> class JoinConveyorMergeNode final : public
-JoinConveyorMergeNodeBase { private: std::tuple<JoinConveyorNode<Args>...>
-joined; public: void getResult(ErrorOrValue &err_or_val) noexcept override {
+template <typename... Args>
+class JoinConveyorMergerNode final : public JoinConveyorMergeNodeBase {
+private:
+	std::tuple<JoinConveyorNode<Args>...> joined;
 
-	}
+public:
+	void getResult(ErrorOrValue &err_or_val) noexcept override {}
 
 	void fire() override;
 };
@@ -750,7 +758,9 @@ public:
 	virtual ~UniteConveyorNode() = default;
 };
 
+template <typename T> class
 */
+
 } // namespace gin
 
 #include "async.tmpl.h"

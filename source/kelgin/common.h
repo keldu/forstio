@@ -44,6 +44,9 @@ template <typename Func> struct ReturnTypeHelper<Func, void> {
 	typedef decltype(instance<Func>()()) Type;
 };
 
+template <typename Func, typename T>
+using ReturnType = typename ReturnTypeHelper<Func, T>::Type;
+
 struct Void {};
 
 template <typename T> struct VoidFix { typedef T Type; };
@@ -53,8 +56,5 @@ template <typename T> using FixVoid = typename VoidFix<T>::Type;
 template <typename T> struct VoidUnfix { typedef T Type; };
 template <> struct VoidUnfix<Void> { typedef void Type; };
 template <typename T> using UnfixVoid = typename VoidUnfix<T>::Type;
-
-template <typename Func, typename T>
-using ReturnType = typename ReturnTypeHelper<Func, T>::Type;
 
 } // namespace gin

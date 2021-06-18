@@ -71,11 +71,11 @@ template <typename T>
 template <typename Func, typename ErrorFunc>
 ConveyorResult<Func, T> Conveyor<T>::then(Func &&func, ErrorFunc &&error_func) {
 	Own<ConveyorNode> conversion_node =
-		heap<ConvertConveyorNode<FixVoid<ReduceErrorOr<ReturnType<Func, T>>>,
-								 FixVoid<T>, Func, ErrorFunc>>(
-			std::move(node), std::move(func), std::move(error_func));
+		heap<ConvertConveyorNode<FixVoid<ReturnType<Func, T>>, FixVoid<T>, Func,
+								 ErrorFunc>>(std::move(node), std::move(func),
+											 std::move(error_func));
 
-	return Conveyor<ReduceErrorOr<ReturnType<Func, T>>>::toConveyor(
+	return Conveyor<RemoveErrorOr<ReturnType<Func, T>>>::toConveyor(
 		std::move(conversion_node), storage);
 }
 
