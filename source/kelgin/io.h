@@ -48,6 +48,7 @@ public:
 	virtual void read(void *buffer, size_t min_length, size_t max_length) = 0;
 
 	virtual Conveyor<size_t> readDone() = 0;
+	virtual Conveyor<void> onReadDisconnected() = 0;
 };
 
 class AsyncOutputStream {
@@ -76,6 +77,8 @@ public:
 	void read(void *buffer, size_t min_length, size_t max_length) override;
 
 	Conveyor<size_t> readDone() override;
+
+	Conveyor<void> onReadDisconnected() override;
 
 	void write(const void *buffer, size_t length) override;
 

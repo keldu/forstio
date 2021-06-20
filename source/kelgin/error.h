@@ -99,7 +99,7 @@ public:
 
 template <typename T> class ErrorOr : public ErrorOrValue {
 private:
-	std::variant<FixVoid<T>, Error> value_or_error;
+	std::variant<Error, FixVoid<T>> value_or_error;
 
 public:
 	ErrorOr() = default;
@@ -125,6 +125,11 @@ public:
 	const FixVoid<T> &value() const {
 		return std::get<FixVoid<T>>(value_or_error);
 	}
+};
+
+template <typename T> class ErrorOr<ErrorOr<T>> {
+private:
+	ErrorOr() = delete;
 };
 
 } // namespace gin
