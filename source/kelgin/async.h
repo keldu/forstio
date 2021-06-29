@@ -266,27 +266,27 @@ class SinkConveyorNode;
 
 class ConveyorSinks final : public Event {
 private:
-/*
-	class Helper final : public Event {
-	private:
-		void destroySinkConveyorNode(ConveyorNode& sink);
-		void fail(Error&& error);
+	/*
+		class Helper final : public Event {
+		private:
+			void destroySinkConveyorNode(ConveyorNode& sink);
+			void fail(Error&& error);
 
-		std::vector<Own<ConveyorNode>> sink_nodes;
-		std::queue<ConveyorNode*> delete_nodes;
-		std::function<void(Error&& error)> error_handler;
+			std::vector<Own<ConveyorNode>> sink_nodes;
+			std::queue<ConveyorNode*> delete_nodes;
+			std::function<void(Error&& error)> error_handler;
 
-	public:
-		ConveyorSinks() = default;
-		ConveyorSinks(EventLoop& event_loop);
+		public:
+			ConveyorSinks() = default;
+			ConveyorSinks(EventLoop& event_loop);
 
-		void add(Conveyor<void> node);
+			void add(Conveyor<void> node);
 
-		void fire() override {}
-	};
+			void fire() override {}
+		};
 
-	gin::Own<Helper> helper;
-*/
+		gin::Own<Helper> helper;
+	*/
 	friend class SinkConveyorNode;
 
 	void destroySinkConveyorNode(ConveyorNode &sink_node);

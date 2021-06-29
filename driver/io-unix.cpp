@@ -1,5 +1,7 @@
 #include "driver/io-unix.h"
 
+#include <iostream>
+
 #include <sstream>
 
 namespace gin {
@@ -148,7 +150,7 @@ Own<Server> UnixNetworkAddress::listen() {
 	::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
 	bool failed = addresses.front().bind(fd);
-	if(failed){
+	if (failed) {
 		return nullptr;
 	}
 
@@ -171,6 +173,7 @@ Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 	Own<UnixIoStream> io_stream =
 		heap<UnixIoStream>(event_port, fd, 0, EPOLLIN | EPOLLOUT);
 
+	bool success = false;
 	for (auto iter = addresses.begin(); iter != addresses.end(); ++iter) {
 		int status = ::connect(fd, iter->getRaw(), iter->getRawLength());
 		if (status < 0) {
@@ -191,16 +194,24 @@ Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 						return std::move(ios);
 					});
 				*/
+				success = true;
 				break;
 			} else if (error != EINTR) {
 				/// @todo Push error message from
 				return Conveyor<Own<IoStream>>{
-					criticalError("Some error happened.")};
+					criticalError("Couldn't connect")};
 			}
 		} else {
+			success = true;
 			break;
 		}
 	}
+
+	if (!success) {
+		return criticalError("Couldn't connect");
+	}
+
+	std::cout << "connected" << std::endl;
 
 	return Conveyor<Own<IoStream>>{std::move(io_stream)};
 }
