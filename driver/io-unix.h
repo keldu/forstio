@@ -344,12 +344,13 @@ public:
 		return result;
 	}
 
-	void bind(int fd) const {
+	bool bind(int fd) const {
 		if (wildcard) {
 			int value = 0;
 			::setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &value, sizeof(value));
 		}
-		::bind(fd, &address.generic, address_length);
+		int error = ::bind(fd, &address.generic, address_length);
+		return error > 0;
 	}
 
 	const struct ::sockaddr *getRaw() const { return &address.generic; }

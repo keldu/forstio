@@ -201,6 +201,8 @@ public:
 	fromConveyor(Conveyor<T> &&conveyor);
 };
 
+template <typename Func> ConveyorResult<Func, void> execLater(Func &&func);
+
 /*
  * Join Conveyors into a single one
  */
@@ -264,6 +266,27 @@ class SinkConveyorNode;
 
 class ConveyorSinks final : public Event {
 private:
+/*
+	class Helper final : public Event {
+	private:
+		void destroySinkConveyorNode(ConveyorNode& sink);
+		void fail(Error&& error);
+
+		std::vector<Own<ConveyorNode>> sink_nodes;
+		std::queue<ConveyorNode*> delete_nodes;
+		std::function<void(Error&& error)> error_handler;
+
+	public:
+		ConveyorSinks() = default;
+		ConveyorSinks(EventLoop& event_loop);
+
+		void add(Conveyor<void> node);
+
+		void fire() override {}
+	};
+
+	gin::Own<Helper> helper;
+*/
 	friend class SinkConveyorNode;
 
 	void destroySinkConveyorNode(ConveyorNode &sink_node);
@@ -276,6 +299,8 @@ private:
 	std::function<void(Error &&error)> error_handler;
 
 public:
+	// ConveyorSinks();
+	// ConveyorSinks(EventLoop& event_loop);
 	ConveyorSinks() = default;
 	ConveyorSinks(EventLoop &event_loop);
 
@@ -414,7 +439,7 @@ protected:
 private:
 	AdaptConveyorFeeder<T> *feeder = nullptr;
 
-	std::queue<ErrorOr<T>> storage;
+	std::queue<ErrorOr<UnfixVoid<T>>> storage;
 
 public:
 	~AdaptConveyorNode();
@@ -601,8 +626,9 @@ public:
 		  error_func{std::move(error_func)} {}
 
 	void getImpl(ErrorOrValue &err_or_val) noexcept override {
-		ErrorOr<DepT> dep_eov;
-		ErrorOr<RemoveErrorOr<T>> &eov = err_or_val.as<RemoveErrorOr<T>>();
+		ErrorOr<UnfixVoid<DepT>> dep_eov;
+		ErrorOr<UnfixVoid<RemoveErrorOr<T>>> &eov =
+			err_or_val.as<UnfixVoid<RemoveErrorOr<T>>>();
 		if (child) {
 			child->getResult(dep_eov);
 			if (dep_eov.isValue()) {
@@ -665,7 +691,7 @@ public:
 	// ConveyorStorage
 	void childFired() override {
 		if (child) {
-			ErrorOr<Void> dep_eov;
+			ErrorOr<void> dep_eov;
 			child->getResult(dep_eov);
 			if (dep_eov.isError()) {
 				if (dep_eov.error().isCritical()) {
@@ -706,7 +732,8 @@ public:
 	// ConveyorNode
 	void getResult(ErrorOrValue &err_or_val) noexcept override {
 		if (retrieved > 0) {
-			err_or_val.as<FixVoid<T>>() = criticalError("Already taken value");
+			err_or_val.as<FixVoid<T>>() =
+				makeError("Already taken value", Error::Code::Exhausted);
 		} else {
 			err_or_val.as<FixVoid<T>>() = std::move(value);
 		}

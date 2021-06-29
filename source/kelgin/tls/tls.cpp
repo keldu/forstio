@@ -92,6 +92,9 @@ TlsServer::TlsServer(Own<Server> srv) : internal{std::move(srv)} {}
 Conveyor<Own<IoStream>> TlsServer::accept() {
 	GIN_ASSERT(internal) { return Conveyor<Own<IoStream>>{nullptr, nullptr}; }
 	return internal->accept().then([](Own<IoStream> stream) -> Own<IoStream> {
+		/// @todo handshake
+
+
 		return heap<TlsIoStream>(std::move(stream));
 	});
 }

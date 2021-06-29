@@ -56,12 +56,16 @@ Error Error::copyError() const {
 
 Error::Code Error::code() const { return static_cast<Error::Code>(error_); }
 
+Error makeError(const std::string_view &generic, Error::Code code) {
+	return Error{generic, code};
+}
+
 Error criticalError(const std::string_view &generic, Error::Code c) {
-	return Error{generic, c};
+	return makeError(generic, c);
 }
 
 Error recoverableError(const std::string_view &generic, Error::Code c) {
-	return Error{generic, c};
+	return makeError(generic, c);
 }
 
 Error noError() { return Error{}; }

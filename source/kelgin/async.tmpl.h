@@ -4,6 +4,11 @@
 // Template inlining
 namespace gin {
 
+template <typename Func> ConveyorResult<Func, void> execLater(Func &&func) {
+	Conveyor<void> conveyor{FixVoid<void>{}};
+	return conveyor.then(std::move(func));
+}
+
 template <typename T>
 ImmediateConveyorNode<T>::ImmediateConveyorNode(FixVoid<T> &&val)
 	: value{std::move(val)}, retrieved{0} {}

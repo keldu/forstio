@@ -147,7 +147,11 @@ Own<Server> UnixNetworkAddress::listen() {
 
 	::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
-	addresses.front().bind(fd);
+	bool failed = addresses.front().bind(fd);
+	if(failed){
+		return nullptr;
+	}
+
 	::listen(fd, SOMAXCONN);
 
 	return heap<UnixServer>(event_port, fd, 0);

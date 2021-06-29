@@ -18,7 +18,7 @@ public:
 		GenericCritical = -1,
 		GenericRecoverable = 1,
 		Disconnected = -99,
-		Exhausted = 99
+		Exhausted = -98
 	};
 
 private:
@@ -45,6 +45,8 @@ public:
 
 	Code code() const;
 };
+
+Error makeError(const std::string_view &generic, Error::Code c);
 
 template <typename Formatter>
 Error makeError(const Formatter &formatter, Error::Code code,
@@ -88,18 +90,20 @@ class ErrorOrValue {
 public:
 	virtual ~ErrorOrValue() = default;
 
-	template <typename T> ErrorOr<T> &as() {
-		return dynamic_cast<ErrorOr<T> &>(*this);
+	template <typename T> ErrorOr<UnfixVoid<T>> &as() {
+		return dynamic_cast<ErrorOr<UnfixVoid<T>> &>(*this);
 	}
 
-	template <typename T> const ErrorOr<T> &as() const {
-		return dynamic_cast<const ErrorOr<T> &>(*this);
+	template <typename T> const ErrorOr<UnfixVoid<T>> &as() const {
+		return dynamic_cast<const ErrorOr<UnfixVoid<T>> &>(*this);
 	}
 };
 
-template <typename T> class ErrorOr : public ErrorOrValue {
+template <typename T> class ErrorOr final : public ErrorOrValue {
 private:
 	std::variant<Error, FixVoid<T>> value_or_error;
+
+	static_assert(!std::is_same_v<T, Void>, "Don't use internal private types");
 
 public:
 	ErrorOr() = default;
@@ -110,7 +114,9 @@ public:
 	ErrorOr(const Error &error) : value_or_error{error} {}
 	ErrorOr(Error &&error) : value_or_error{std::move(error)} {}
 
-	bool isValue() const { return std::holds_alternative<T>(value_or_error); }
+	bool isValue() const {
+		return std::holds_alternative<FixVoid<T>>(value_or_error);
+	}
 
 	bool isError() const {
 		return std::holds_alternative<Error>(value_or_error);
