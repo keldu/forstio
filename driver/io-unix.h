@@ -350,7 +350,7 @@ public:
 			::setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &value, sizeof(value));
 		}
 		int error = ::bind(fd, &address.generic, address_length);
-		return error > 0;
+		return error < 0;
 	}
 
 	const struct ::sockaddr *getRaw() const { return &address.generic; }

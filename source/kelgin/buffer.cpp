@@ -250,6 +250,7 @@ size_t RingBuffer::readSegmentLength(size_t offset) const {
 
 void RingBuffer::readAdvance(size_t bytes) {
 	size_t read_composite = readCompositeLength();
+
 	assert(bytes <= read_composite);
 	bytes = std::min(bytes, read_composite);
 	size_t advanced = read_position + bytes;

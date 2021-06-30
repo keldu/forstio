@@ -1,7 +1,5 @@
 #include "driver/io-unix.h"
 
-#include <iostream>
-
 #include <sstream>
 
 namespace gin {
@@ -210,8 +208,6 @@ Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 	if (!success) {
 		return criticalError("Couldn't connect");
 	}
-
-	std::cout << "connected" << std::endl;
 
 	return Conveyor<Own<IoStream>>{std::move(io_stream)};
 }
