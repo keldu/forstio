@@ -6,7 +6,7 @@
 
 namespace gin {
 void ReadTaskAndStepHelper::readStep(InputStream &reader) {
-	if (read_task.has_value()) {
+	while (read_task.has_value()) {
 		ReadIoTask &task = *read_task;
 
 		ErrorOr<size_t> n_err = reader.read(task.buffer, task.max_length);
@@ -18,6 +18,8 @@ void ReadTaskAndStepHelper::readStep(InputStream &reader) {
 				}
 				read_task = std::nullopt;
 			}
+
+			break;
 		} else if (n_err.isValue()) {
 			size_t n = n_err.value();
 			if (static_cast<size_t>(n) >= task.min_length &&
@@ -43,7 +45,7 @@ void ReadTaskAndStepHelper::readStep(InputStream &reader) {
 }
 
 void WriteTaskAndStepHelper::writeStep(OutputStream &writer) {
-	if (write_task.has_value()) {
+	while (write_task.has_value()) {
 		WriteIoTask &task = *write_task;
 
 		ErrorOr<size_t> n_err = writer.write(task.buffer, task.length);
@@ -69,6 +71,7 @@ void WriteTaskAndStepHelper::writeStep(OutputStream &writer) {
 				}
 				write_task = std::nullopt;
 			}
+			break;
 		} else {
 			if (write_done) {
 				write_done->fail(criticalError("Write failed"));
