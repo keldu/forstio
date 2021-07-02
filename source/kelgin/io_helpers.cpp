@@ -51,6 +51,7 @@ void WriteTaskAndStepHelper::writeStep(OutputStream &writer) {
 		ErrorOr<size_t> n_err = writer.write(task.buffer, task.length);
 
 		if (n_err.isValue()) {
+
 			size_t n = n_err.value();
 			assert(n <= task.length);
 			if (n == task.length) {
