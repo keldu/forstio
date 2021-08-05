@@ -11,24 +11,24 @@ namespace gin {
 #define GIN_CONCAT(x, y) GIN_CONCAT_(x, y)
 #define GIN_UNIQUE_NAME(prefix) GIN_CONCAT(prefix, __LINE__)
 
-#define GIN_FORBID_COPY(classname)                                              \
-	classname(const classname &) = delete;                                      \
+#define GIN_FORBID_COPY(classname)                                             \
+	classname(const classname &) = delete;                                     \
 	classname &operator=(const classname &) = delete
 
-#define GIN_FORBID_MOVE(classname)                                              \
-	classname(classname &&) = delete;                                           \
+#define GIN_FORBID_MOVE(classname)                                             \
+	classname(classname &&) = delete;                                          \
 	classname &operator=(classname &&) = delete
 
-#define GIN_DEFAULT_COPY(classname)                                             \
-	classname(const classname &) = default;                                     \
+#define GIN_DEFAULT_COPY(classname)                                            \
+	classname(const classname &) = default;                                    \
 	classname &operator=(const classname &) = default
 
-#define GIN_DEFAULT_MOVE(classname)                                             \
-	classname(classname &&) = default;                                          \
+#define GIN_DEFAULT_MOVE(classname)                                            \
+	classname(classname &&) = default;                                         \
 	classname &operator=(classname &&) = default
 
-#define GIN_ASSERT(expression)                                                  \
-	assert(expression);                                                         \
+#define GIN_ASSERT(expression)                                                 \
+	assert(expression);                                                        \
 	if (!expression)
 
 template <typename T> using Maybe = std::optional<T>;
