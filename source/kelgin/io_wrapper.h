@@ -5,7 +5,7 @@
 
 namespace gin {
 
-template <typename Codec, typename Incoming, typename Outgoing>
+template<typename Codec, typename Incoming, typename Outgoing>
 class StreamingIoPeer {
 private:
 	Codec codec;
@@ -13,7 +13,6 @@ private:
 	Own<AsyncIoStream> io_stream;
 
 	Own<ConveyorFeeder<Incoming>> incoming_feeder = nullptr;
-
 public:
 	StreamingIoPeer(Own<AsyncIoStream> stream);
 
@@ -22,4 +21,6 @@ public:
 	Conveyor<Incoming> startReadPump();
 };
 
-} // namespace gin
+
+
+}
