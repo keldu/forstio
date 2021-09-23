@@ -69,8 +69,8 @@ Conveyor<T>::Conveyor(Error &&error) : ConveyorBase(nullptr, nullptr) {
 }
 
 template <typename T>
-Conveyor<T>::Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p)
-	: ConveyorBase(std::move(node_p), storage_p) {}
+Conveyor<T>::Conveyor(Own<ConveyorNode> node_p, ConveyorStorage *storage_p)
+	: ConveyorBase{std::move(node_p), storage_p} {}
 
 template <typename T>
 template <typename Func, typename ErrorFunc>
@@ -99,6 +99,15 @@ Conveyor<T> Conveyor<T>::attach(Args &&...args) {
 	Own<AttachConveyorNode<Args...>> attach_node =
 		heap<AttachConveyorNode<Args...>>(std::move(node), std::move(args...));
 	return Conveyor<T>{std::move(attach_node), storage};
+}
+
+template <typename T>
+std::pair<Conveyor<T>, MergeConveyor<T>> Conveyor<T>::merge() {
+	Own<MergeConveyorNode<T>> node = heap<MergeConveyorNode<T>>();
+
+	MergeConveyor<T> node_ref = node.get();
+
+	return std::make_pair(Conveyor<T>{std::move(node), storage}, *node_ref);
 }
 
 template <>
@@ -168,6 +177,17 @@ template <typename T> ConveyorAndFeeder<T> newConveyorAndFeeder() {
 	return ConveyorAndFeeder<T>{
 		std::move(feeder),
 		Conveyor<T>::toConveyor(std::move(node), storage_ptr)};
+}
+
+template <typename T>
+MergeConveyor<T>::MergeConveyor(Our<MergeConveyorNodeData<T>> d)
+	: data{std::move(d)}, error_or_value{std::nullopt} {}
+
+template <typename T> MergeConveyor<T>::~MergeConveyor() {}
+
+template <typename T> void MergeConveyor<T>::attach(Conveyor<T> conveyor) {
+	/// @unimplemented
+	assert(false);
 }
 
 template <typename T> AdaptConveyorFeeder<T>::~AdaptConveyorFeeder() {

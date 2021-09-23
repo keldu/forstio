@@ -40,7 +40,7 @@ template <typename T> using Our = std::shared_ptr<T>;
 template <typename T> using Lent = std::weak_ptr<T>;
 
 template <typename T, class... Args> Own<T> heap(Args &&...args) {
-	return Own<T>(new (std::nothrow) T(std::forward<Args>(args)...));
+	return Own<T>(new T(std::forward<Args>(args)...));
 }
 
 template <typename T, class... Args> Our<T> share(Args &&...args) {

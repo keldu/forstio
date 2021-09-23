@@ -16,7 +16,11 @@ EventLoop &currentEventLoop() {
 
 ConveyorNode::ConveyorNode() {}
 
-void ConveyorStorage::setParent(ConveyorStorage *p) {
+ConveyorStorage::ConveyorStorage() : child{nullptr} {}
+
+ConveyorStorage::ConveyorStorage(ConveyorStorage &c) : child{&c} {}
+
+void ConveyorEventStorage::setParent(ConveyorStorage *p) {
 	/*
 	 * parent check isn't needed, but is used
 	 * for the assert, because the storage should
@@ -29,6 +33,13 @@ void ConveyorStorage::setParent(ConveyorStorage *p) {
 	}
 
 	parent = p;
+}
+
+void ConveyorEventStorage::setChild(ConveyorStorage *c) {
+	if (c) {
+	}
+
+	child = c;
 }
 
 ConveyorBase::ConveyorBase(Own<ConveyorNode> &&node_p,
