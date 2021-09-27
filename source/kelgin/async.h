@@ -50,7 +50,7 @@ public:
 class ConveyorStorage {
 protected:
 	ConveyorStorage *parent = nullptr;
-	ConveyorStorage *child = nullptr;
+	ConveyorStorage *child_storage = nullptr;
 
 public:
 	ConveyorStorage();
@@ -60,6 +60,7 @@ public:
 	virtual size_t space() const = 0;
 	virtual size_t queued() const = 0;
 	virtual void childHasFired() = 0;
+	virtual void parentHasFired() = 0;
 
 	virtual void setParent(ConveyorStorage *parent) = 0;
 };
@@ -464,9 +465,6 @@ public:
 template <typename T>
 class AdaptConveyorNode final : public ConveyorNode,
 								public ConveyorEventStorage {
-protected:
-	Own<ConveyorNode> child;
-
 private:
 	AdaptConveyorFeeder<T> *feeder = nullptr;
 
@@ -487,7 +485,8 @@ public:
 	size_t space() const override;
 	size_t queued() const override;
 
-	void childHasFired() override {}
+	void childHasFired() override;
+	void parentHasFired() override;
 
 	// Event
 	void fire() override;
@@ -540,7 +539,8 @@ public:
 	size_t space() const override;
 	size_t queued() const override;
 
-	void childFired() override {}
+	void childHasFired() override {}
+	void parentHasFired() override;
 
 	// Event
 	void fire() override;
@@ -567,35 +567,15 @@ public:
 	QueueBufferConveyorNode(Own<ConveyorNode> &&dep, size_t max_size)
 		: QueueBufferConveyorNodeBase(std::move(dep)), max_store{max_size} {}
 	// Event
-	void fire() override {
-		if (child) {
-			if (!storage.empty()) {
-				if (storage.front().isError()) {
-					if (storage.front().error().isCritical()) {
-						child = nullptr;
-					}
-				}
-			}
-		}
-		if (parent) {
-			parent->childFired();
-			if (!storage.empty()) {
-				armLater();
-			}
-		}
-	}
+	void fire() override;
 	// ConveyorNode
-	void getResult(ErrorOrValue &eov) override {
-		ErrorOr<T> &err_or_val = eov.as<T>();
-		err_or_val = std::move(storage.front());
-		storage.pop();
-	}
+	void getResult(ErrorOrValue &eov) override;
 
 	// ConveyorStorage
 	size_t space() const override { return max_store - storage.size(); }
 	size_t queued() const override { return storage.size(); }
 
-	void childFired() override {
+	void childHasFired() override {
 		if (child && storage.size() < max_store) {
 			ErrorOr<T> eov;
 			child->getResult(eov);
@@ -605,6 +585,8 @@ public:
 			}
 		}
 	}
+
+	void parentHasFired() override;
 };
 
 class AttachConveyorNodeBase : public ConveyorNode {
@@ -723,7 +705,7 @@ public:
 	}
 
 	// ConveyorStorage
-	void childFired() override {
+	void childHasFired() override {
 		if (child) {
 			ErrorOr<void> dep_eov;
 			child->getResult(dep_eov);
@@ -739,6 +721,11 @@ public:
 			}
 		}
 	}
+
+	/*
+	 * No parent needs to be fired since we always have space
+	 */
+	void parentHasFired() override {}
 };
 
 class ImmediateConveyorNodeBase : public ConveyorNode,
@@ -762,7 +749,8 @@ public:
 	size_t space() const override;
 	size_t queued() const override;
 
-	void childFired() override;
+	void childHasFired() override;
+	void parentHasFired() override;
 
 	// ConveyorNode
 	void getResult(ErrorOrValue &err_or_val) noexcept override {
@@ -812,19 +800,19 @@ private:
 		size_t queued() const override {
 			GIN_ASSERT(merger) { return 0; }
 
-			if (merger->error_or_value.has_value()) {
-				return 1;
-			}
+			GIN_ASSERT(!merger->error_or_value.has_value()) { return 1; }
 
 			return 0;
 		}
-		void childFired() override {
+		void childHasFired() override {
 			GIN_ASSERT(!merger->error_or_value.has_value()) { return; }
 			ErrorOr<FixVoid<T>> eov;
 			child->getResult(eov);
 
 			merger->error_or_value = std::move(eov);
 		}
+
+		void parentHasFired() override {}
 
 		void setParent(ConveyorStorage *par) override {
 			GIN_ASSERT(merger && merger->error_or_value.has_value()) { return; }

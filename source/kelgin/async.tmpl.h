@@ -10,36 +10,6 @@ template <typename Func> ConveyorResult<Func, void> execLater(Func &&func) {
 }
 
 template <typename T>
-ImmediateConveyorNode<T>::ImmediateConveyorNode(FixVoid<T> &&val)
-	: value{std::move(val)}, retrieved{0} {}
-
-template <typename T>
-ImmediateConveyorNode<T>::ImmediateConveyorNode(Error &&error)
-	: value{std::move(error)}, retrieved{0} {}
-
-template <typename T> size_t ImmediateConveyorNode<T>::space() const {
-	return 0;
-}
-
-template <typename T> size_t ImmediateConveyorNode<T>::queued() const {
-	return retrieved > 1 ? 0 : 1;
-}
-
-template <typename T> void ImmediateConveyorNode<T>::childFired() {
-	// Impossible case
-	assert(false);
-}
-
-template <typename T> void ImmediateConveyorNode<T>::fire() {
-	if (parent) {
-		parent->childFired();
-	}
-	if (queued() > 0) {
-		armLast();
-	}
-}
-
-template <typename T>
 Conveyor<T>::Conveyor(FixVoid<T> value) : ConveyorBase(nullptr, nullptr) {
 	// Is there any way to do  this?
 	// @todo new ConveyorBase constructor for Immediate values
@@ -179,9 +149,94 @@ template <typename T> ConveyorAndFeeder<T> newConveyorAndFeeder() {
 		Conveyor<T>::toConveyor(std::move(node), storage_ptr)};
 }
 
+// QueueBuffer
+template <typename T> void QueueBufferConveyorNode<T>::fire() {
+	if (child) {
+		if (!storage.empty()) {
+			if (storage.front().isError()) {
+				if (storage.front().error().isCritical()) {
+					child = nullptr;
+					child_storage = nullptr;
+				}
+			}
+		}
+	}
+
+	bool has_space_before_fire = space() > 0;
+
+	if (parent) {
+		parent->childHasFired();
+		if (!storage.empty() && parent->space() > 0) {
+			armLater();
+		}
+	}
+
+	if (child_storage && !has_space_before_fire) {
+		child_storage->parentHasFired();
+	}
+}
+
+template <typename T>
+void QueueBufferConveyorNode<T>::getResult(ErrorOrValue &eov) {
+	ErrorOr<T> &err_or_val = eov.as<T>();
+	err_or_val = std::move(storage.front());
+	storage.pop();
+}
+
+template <typename T> void QueueBufferConveyorNode<T>::parentHasFired() {
+	GIN_ASSERT(parent) { return; }
+
+	if (parent->space() == 0) {
+		return;
+	}
+
+	if (queued() > 0) {
+		armLater();
+	}
+}
+
+template <typename T>
+ImmediateConveyorNode<T>::ImmediateConveyorNode(FixVoid<T> &&val)
+	: value{std::move(val)}, retrieved{0} {}
+
+template <typename T>
+ImmediateConveyorNode<T>::ImmediateConveyorNode(Error &&error)
+	: value{std::move(error)}, retrieved{0} {}
+
+template <typename T> size_t ImmediateConveyorNode<T>::space() const {
+	return 0;
+}
+
+template <typename T> size_t ImmediateConveyorNode<T>::queued() const {
+	return retrieved > 1 ? 0 : 1;
+}
+
+template <typename T> void ImmediateConveyorNode<T>::childHasFired() {
+	// Impossible case
+	assert(false);
+}
+
+template <typename T> void ImmediateConveyorNode<T>::parentHasFired() {
+	GIN_ASSERT(parent) { return; }
+	assert(parent->space() > 0);
+
+	if (queued() > 0) {
+		armNext();
+	}
+}
+
+template <typename T> void ImmediateConveyorNode<T>::fire() {
+	if (parent) {
+		parent->childHasFired();
+		if (queued() > 0 && parent->space() > 0) {
+			armLast();
+		}
+	}
+}
+
 template <typename T>
 MergeConveyor<T>::MergeConveyor(Our<MergeConveyorNodeData<T>> d)
-	: data{std::move(d)}, error_or_value{std::nullopt} {}
+	: data{std::move(d)} {}
 
 template <typename T> MergeConveyor<T>::~MergeConveyor() {}
 
@@ -270,9 +325,22 @@ void AdaptConveyorNode<T>::getResult(ErrorOrValue &err_or_val) {
 	}
 }
 
+template <typename T> void AdaptConveyorNode<T>::childHasFired() {
+	// Adapt node has no children
+	assert(false);
+}
+
+template <typename T> void AdaptConveyorNode<T>::parentHasFired() {
+	GIN_ASSERT(parent) { return; }
+
+	if (parent->space() == 0) {
+		return;
+	}
+}
+
 template <typename T> void AdaptConveyorNode<T>::fire() {
 	if (parent) {
-		parent->childFired();
+		parent->childHasFired();
 
 		if (storage.size() > 0) {
 			armLater();
@@ -362,7 +430,7 @@ void OneTimeConveyorNode<T>::getResult(ErrorOrValue &err_or_val) {
 
 template <typename T> void OneTimeConveyorNode<T>::fire() {
 	if (parent) {
-		parent->childFired();
+		parent->childHasFired();
 	}
 }
 

@@ -16,9 +16,9 @@ EventLoop &currentEventLoop() {
 
 ConveyorNode::ConveyorNode() {}
 
-ConveyorStorage::ConveyorStorage() : child{nullptr} {}
+ConveyorStorage::ConveyorStorage() : child_storage{nullptr} {}
 
-ConveyorStorage::ConveyorStorage(ConveyorStorage &c) : child{&c} {}
+ConveyorStorage::ConveyorStorage(ConveyorStorage &c) : child_storage{&c} {}
 
 void ConveyorEventStorage::setParent(ConveyorStorage *p) {
 	/*
@@ -35,12 +35,10 @@ void ConveyorEventStorage::setParent(ConveyorStorage *p) {
 	parent = p;
 }
 
-void ConveyorEventStorage::setChild(ConveyorStorage *c) {
-	if (c) {
-	}
+ConveyorEventStorage::ConveyorEventStorage() : ConveyorStorage{} {}
 
-	child = c;
-}
+ConveyorEventStorage::ConveyorEventStorage(ConveyorStorage &c)
+	: ConveyorStorage{c} {}
 
 ConveyorBase::ConveyorBase(Own<ConveyorNode> &&node_p,
 						   ConveyorStorage *storage_p)
