@@ -53,8 +53,7 @@ protected:
 	ConveyorStorage *child_storage = nullptr;
 
 public:
-	ConveyorStorage();
-	ConveyorStorage(ConveyorStorage &child);
+	ConveyorStorage(ConveyorStorage *child);
 	virtual ~ConveyorStorage() = default;
 
 	virtual size_t space() const = 0;
@@ -67,8 +66,7 @@ public:
 
 class ConveyorEventStorage : public ConveyorStorage, public Event {
 public:
-	ConveyorEventStorage();
-	ConveyorEventStorage(ConveyorStorage &child);
+	ConveyorEventStorage(ConveyorStorage *child);
 	virtual ~ConveyorEventStorage() = default;
 
 	void setParent(ConveyorStorage *parent) override;
@@ -552,8 +550,9 @@ protected:
 	Own<ConveyorNode> child;
 
 public:
-	QueueBufferConveyorNodeBase(Own<ConveyorNode> &&dep)
-		: child(std::move(dep)) {}
+	QueueBufferConveyorNodeBase(ConveyorStorage *child_store,
+								Own<ConveyorNode> dep)
+		: ConveyorEventStorage{child_store}, child(std::move(dep)) {}
 	virtual ~QueueBufferConveyorNodeBase() = default;
 };
 
@@ -564,8 +563,10 @@ private:
 	size_t max_store;
 
 public:
-	QueueBufferConveyorNode(Own<ConveyorNode> &&dep, size_t max_size)
-		: QueueBufferConveyorNodeBase(std::move(dep)), max_store{max_size} {}
+	QueueBufferConveyorNode(ConveyorStorage *child_store, Own<ConveyorNode> dep,
+							size_t max_size)
+		: QueueBufferConveyorNodeBase{child_store, std::move(dep)},
+		  max_store{max_size} {}
 	// Event
 	void fire() override;
 	// ConveyorNode
@@ -732,6 +733,8 @@ class ImmediateConveyorNodeBase : public ConveyorNode,
 								  public ConveyorEventStorage {
 private:
 public:
+	ImmediateConveyorNodeBase();
+
 	virtual ~ImmediateConveyorNodeBase() = default;
 };
 
@@ -785,8 +788,9 @@ private:
 		MergeConveyorNode *merger;
 
 	public:
-		Appendage(Own<ConveyorNode> n, MergeConveyorNode &m)
-			: child{std::move(n)}, merger{&m} {}
+		Appendage(ConveyorStorage *child_str, Own<ConveyorNode> n,
+				  MergeConveyorNode &m)
+			: ConveyorStorage{child_store}, child{std::move(n)}, merger{&m} {}
 
 		size_t space() const override {
 			GIN_ASSERT(merger) { return 0; }

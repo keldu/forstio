@@ -56,7 +56,8 @@ ConveyorResult<Func, T> Conveyor<T>::then(Func &&func, ErrorFunc &&error_func) {
 
 template <typename T> Conveyor<T> Conveyor<T>::buffer(size_t size) {
 	Own<QueueBufferConveyorNode<FixVoid<T>>> storage_node =
-		heap<QueueBufferConveyorNode<FixVoid<T>>>(std::move(node), size);
+		heap<QueueBufferConveyorNode<FixVoid<T>>>(storage, std::move(node),
+												  size);
 	ConveyorStorage *storage_ptr =
 		static_cast<ConveyorStorage *>(storage_node.get());
 	storage->setParent(storage_ptr);

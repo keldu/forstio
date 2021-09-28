@@ -16,9 +16,7 @@ EventLoop &currentEventLoop() {
 
 ConveyorNode::ConveyorNode() {}
 
-ConveyorStorage::ConveyorStorage() : child_storage{nullptr} {}
-
-ConveyorStorage::ConveyorStorage(ConveyorStorage &c) : child_storage{&c} {}
+ConveyorStorage::ConveyorStorage(ConveyorStorage *c) : child_storage{c} {}
 
 void ConveyorEventStorage::setParent(ConveyorStorage *p) {
 	/*
@@ -35,9 +33,7 @@ void ConveyorEventStorage::setParent(ConveyorStorage *p) {
 	parent = p;
 }
 
-ConveyorEventStorage::ConveyorEventStorage() : ConveyorStorage{} {}
-
-ConveyorEventStorage::ConveyorEventStorage(ConveyorStorage &c)
+ConveyorEventStorage::ConveyorEventStorage(ConveyorStorage *c)
 	: ConveyorStorage{c} {}
 
 ConveyorBase::ConveyorBase(Own<ConveyorNode> &&node_p,
@@ -271,6 +267,9 @@ void WaitScope::wait(const std::chrono::steady_clock::time_point &time_point) {
 }
 
 void WaitScope::poll() { loop.poll(); }
+
+ImmediateConveyorNodeBase::ImmediateConveyorNodeBase()
+	: ConveyorEventStorage{nullptr} {}
 
 void ConveyorSinks::destroySinkConveyorNode(ConveyorNode &node) {
 	if (!isArmed()) {
