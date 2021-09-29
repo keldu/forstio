@@ -796,40 +796,15 @@ private:
 				  MergeConveyorNode &m)
 			: ConveyorStorage{child_store}, child{std::move(n)}, merger{&m} {}
 
-		size_t space() const override {
-			GIN_ASSERT(merger) { return 0; }
+		size_t space() const override;
 
-			if (merger->error_or_value.has_value()) {
-				return 0;
-			}
+		size_t queued() const override;
 
-			return 1;
-		}
-		size_t queued() const override {
-			GIN_ASSERT(merger) { return 0; }
-
-			GIN_ASSERT(!merger->error_or_value.has_value()) { return 1; }
-
-			return 0;
-		}
-		void childHasFired() override {
-			GIN_ASSERT(!merger->error_or_value.has_value()) { return; }
-			ErrorOr<FixVoid<T>> eov;
-			child->getResult(eov);
-
-			merger->error_or_value = std::move(eov);
-		}
+		void childHasFired() override;
 
 		void parentHasFired() override {}
 
-		void setParent(ConveyorStorage *par) override {
-			GIN_ASSERT(merger && merger->error_or_value.has_value()) { return; }
-			if (par && !merger->isArmed()) {
-				merger->armNext();
-			}
-
-			parent = par;
-		}
+		void setParent(ConveyorStorage *par) override;
 	};
 
 	friend class MergeConveyorNodeData<T>;
@@ -844,6 +819,8 @@ public:
 	~MergeConveyorNode();
 
 	void getResult(ErrorOrValue &err_or_val) override;
+
+	void fire() override;
 };
 
 template <typename T> class MergeConveyorNodeData {

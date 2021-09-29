@@ -198,4 +198,13 @@ GIN_TEST("Async detach"){
 
 	GIN_EXPECT(num == 10, std::string{"Bad value: Expected 10, but got "} + std::to_string(num));
 }
+
+GIN_TEST("Async Merge"){
+	using namespace gin;
+
+	EventLoop event_loop;
+	WaitScope wait_scope{event_loop};
+
+	auto cam = Conveyor<int>{10}.merge();
+}
 }

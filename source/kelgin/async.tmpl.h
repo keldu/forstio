@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common.h"
+
 #include <cassert>
 // Template inlining
 namespace gin {
@@ -74,9 +76,11 @@ Conveyor<T> Conveyor<T>::attach(Args &&...args) {
 
 template <typename T>
 std::pair<Conveyor<T>, MergeConveyor<T>> Conveyor<T>::merge() {
-	Own<MergeConveyorNode<T>> node = heap<MergeConveyorNode<T>>();
+	Our<MergeConveyorNodeData<T>> data = share<MergeConveyorNodeData<T>>();
 
-	MergeConveyor<T> node_ref = node.get();
+	Own<MergeConveyorNode<T>> node = heap<MergeConveyorNode<T>>(data);
+
+	MergeConveyor<T> node_ref{data};
 
 	return std::make_pair(Conveyor<T>{std::move(node), storage}, *node_ref);
 }
@@ -245,6 +249,52 @@ template <typename T> MergeConveyor<T>::~MergeConveyor() {}
 template <typename T> void MergeConveyor<T>::attach(Conveyor<T> conveyor) {
 	/// @unimplemented
 	assert(false);
+}
+
+template <typename T>
+MergeConveyorNode<T>::MergeConveyorNode(Our<MergeConveyorNodeData<T>> d)
+	: data{d} {}
+
+template <typename T> MergeConveyorNode<T>::~MergeConveyorNode() {}
+
+template <typename T> size_t MergeConveyorNode<T>::Appendage::space() const {
+	GIN_ASSERT(merger) { return 0; }
+
+	if (merger->error_or_value.has_value()) {
+		return 0;
+	}
+
+	return 1;
+}
+
+template <typename T> void MergeConveyorNode<T>::fire() {
+	/// @unimplemented
+}
+
+template <typename T> size_t MergeConveyorNode<T>::Appendage::queued() const {
+	GIN_ASSERT(merger) { return 0; }
+
+	GIN_ASSERT(!merger->error_or_value.has_value()) { return 1; }
+
+	return 0;
+}
+
+template <typename T> void MergeConveyorNode<T>::Appendage::childHasFired() {
+	GIN_ASSERT(!merger->error_or_value.has_value()) { return; }
+	ErrorOr<FixVoid<T>> eov;
+	child->getResult(eov);
+
+	merger->error_or_value = std::move(eov);
+}
+
+template <typename T>
+void MergeConveyorNode<T>::Appendage::setParent(ConveyorStorage *par) {
+	GIN_ASSERT(merger && merger->error_or_value.has_value()) { return; }
+	if (par && !merger->isArmed()) {
+		merger->armNext();
+	}
+
+	parent = par;
 }
 
 template <typename T> AdaptConveyorFeeder<T>::~AdaptConveyorFeeder() {
