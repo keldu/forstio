@@ -469,6 +469,7 @@ private:
 	std::queue<ErrorOr<UnfixVoid<T>>> storage;
 
 public:
+	AdaptConveyorNode();
 	~AdaptConveyorNode();
 
 	void setFeeder(AdaptConveyorFeeder<T> *feeder);
@@ -677,11 +678,14 @@ private:
 	ConveyorSinks *conveyor_sink;
 
 public:
-	SinkConveyorNode(Own<ConveyorNode> &&node, ConveyorSinks &conv_sink)
-		: child(std::move(node)), conveyor_sink{&conv_sink} {}
+	SinkConveyorNode(ConveyorStorage *child_store, Own<ConveyorNode> node,
+					 ConveyorSinks &conv_sink)
+		: ConveyorEventStorage{child_store}, child{std::move(node)},
+		  conveyor_sink{&conv_sink} {}
 
-	SinkConveyorNode(Own<ConveyorNode> &&node)
-		: child(std::move(node)), conveyor_sink{nullptr} {}
+	SinkConveyorNode(ConveyorStorage *child_store, Own<ConveyorNode> node)
+		: ConveyorEventStorage{child_store}, child{std::move(node)},
+		  conveyor_sink{nullptr} {}
 
 	// Event only queued if a critical error occured
 	void fire() override {
@@ -788,7 +792,7 @@ private:
 		MergeConveyorNode *merger;
 
 	public:
-		Appendage(ConveyorStorage *child_str, Own<ConveyorNode> n,
+		Appendage(ConveyorStorage *child_store, Own<ConveyorNode> n,
 				  MergeConveyorNode &m)
 			: ConveyorStorage{child_store}, child{std::move(n)}, merger{&m} {}
 

@@ -84,7 +84,8 @@ std::pair<Conveyor<T>, MergeConveyor<T>> Conveyor<T>::merge() {
 template <>
 template <typename ErrorFunc>
 SinkConveyor Conveyor<void>::sink(ErrorFunc &&error_func) {
-	Own<SinkConveyorNode> sink_node = heap<SinkConveyorNode>(std::move(node));
+	Own<SinkConveyorNode> sink_node =
+		heap<SinkConveyorNode>(storage, std::move(node));
 	ConveyorStorage *storage_ptr =
 		static_cast<ConveyorStorage *>(sink_node.get());
 	if (storage) {
@@ -283,6 +284,9 @@ template <typename T> size_t AdaptConveyorFeeder<T>::space() const {
 	}
 	return 0;
 }
+
+template <typename T>
+AdaptConveyorNode<T>::AdaptConveyorNode() : ConveyorEventStorage{nullptr} {}
 
 template <typename T> AdaptConveyorNode<T>::~AdaptConveyorNode() {
 	if (feeder) {

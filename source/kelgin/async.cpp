@@ -290,7 +290,8 @@ void ConveyorSinks::add(Conveyor<void> &&sink) {
 
 	Own<SinkConveyorNode> sink_node = nullptr;
 	try {
-		sink_node = heap<SinkConveyorNode>(std::move(nas.first), *this);
+		sink_node =
+			heap<SinkConveyorNode>(nas.second, std::move(nas.first), *this);
 	} catch (std::bad_alloc &) {
 		return;
 	}
