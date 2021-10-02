@@ -62,6 +62,7 @@ public:
 	virtual void parentHasFired() = 0;
 
 	virtual void setParent(ConveyorStorage *parent) = 0;
+	void unlinkChild();
 };
 
 class ConveyorEventStorage : public ConveyorStorage, public Event {
@@ -795,10 +796,13 @@ private:
 		Own<ConveyorNode> child;
 		MergeConveyorNode *merger;
 
+		Maybe<ErrorOr<FixVoid<T>>> error_or_value;
+
 	public:
 		Appendage(ConveyorStorage *child_store, Own<ConveyorNode> n,
 				  MergeConveyorNode &m)
-			: ConveyorStorage{child_store}, child{std::move(n)}, merger{&m} {}
+			: ConveyorStorage{child_store}, child{std::move(n)}, merger{&m},
+			  error_or_value{std::nullopt} {}
 
 		bool childStorageHasElementQueued() const {
 			if (child_storage) {
@@ -822,10 +826,6 @@ private:
 	friend class Appendage;
 
 	Our<MergeConveyorNodeData<T>> data;
-
-	Maybe<ErrorOr<FixVoid<T>>> error_or_value;
-
-	bool already_queued = false;
 
 public:
 	MergeConveyorNode(Our<MergeConveyorNodeData<T>> data);

@@ -19,10 +19,12 @@ ConveyorNode::ConveyorNode() {}
 ConveyorStorage::ConveyorStorage(ConveyorStorage *c) : child_storage{c} {}
 
 ConveyorStorage::~ConveyorStorage() {
-	if (child_storage) {
-		// child_storage->setParent(nullptr);
+	if (parent) {
+		parent->unlinkChild();
 	}
 }
+
+void ConveyorStorage::unlinkChild() { child_storage = nullptr; }
 
 void ConveyorEventStorage::setParent(ConveyorStorage *p) {
 	/*

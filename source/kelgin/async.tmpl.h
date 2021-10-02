@@ -278,6 +278,12 @@ template <typename T> void MergeConveyorNode<T>::getResult(ErrorOrValue &eov) {
 	} else {
 		error_or_value = criticalError("No value in MergeConveyorNode");
 	}
+
+	GIN_ASSERT(data){
+		return;
+	}
+	
+	/// @todo search appendages for result
 }
 
 template <typename T> void MergeConveyorNode<T>::fire() {
@@ -319,7 +325,7 @@ template <typename T> void MergeConveyorNode<T>::parentHasFired() {
 template <typename T> size_t MergeConveyorNode<T>::Appendage::space() const {
 	GIN_ASSERT(merger) { return 0; }
 
-	if (merger->error_or_value.has_value()) {
+	if (error_or_value.has_value()) {
 		return 0;
 	}
 
@@ -329,7 +335,7 @@ template <typename T> size_t MergeConveyorNode<T>::Appendage::space() const {
 template <typename T> size_t MergeConveyorNode<T>::Appendage::queued() const {
 	GIN_ASSERT(merger) { return 0; }
 
-	if (merger->error_or_value.has_value()) {
+	if (error_or_value.has_value()) {
 		return 1;
 	}
 
@@ -337,11 +343,15 @@ template <typename T> size_t MergeConveyorNode<T>::Appendage::queued() const {
 }
 
 template <typename T> void MergeConveyorNode<T>::Appendage::childHasFired() {
-	GIN_ASSERT(!merger->error_or_value.has_value()) { return; }
+	GIN_ASSERT(!error_or_value.has_value()) { return; }
 	ErrorOr<FixVoid<T>> eov;
 	child->getResult(eov);
 
-	merger->error_or_value = std::move(eov);
+	error_or_value = std::move(eov);
+
+	if (!merger->isArmed()) {
+		merger->armLater();
+	}
 }
 
 template <typename T> void MergeConveyorNode<T>::Appendage::parentHasFired() {
