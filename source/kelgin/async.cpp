@@ -18,6 +18,12 @@ ConveyorNode::ConveyorNode() {}
 
 ConveyorStorage::ConveyorStorage(ConveyorStorage *c) : child_storage{c} {}
 
+ConveyorStorage::~ConveyorStorage() {
+	if (child_storage) {
+		// child_storage->setParent(nullptr);
+	}
+}
+
 void ConveyorEventStorage::setParent(ConveyorStorage *p) {
 	/*
 	 * parent check isn't needed, but is used
@@ -27,7 +33,9 @@ void ConveyorEventStorage::setParent(ConveyorStorage *p) {
 	 */
 	if (/*!parent && */ p && !isArmed() && queued() > 0) {
 		assert(!parent);
-		armNext();
+		if (p->space() > 0) {
+			armNext();
+		}
 	}
 
 	parent = p;
@@ -269,6 +277,9 @@ void WaitScope::wait(const std::chrono::steady_clock::time_point &time_point) {
 void WaitScope::poll() { loop.poll(); }
 
 ImmediateConveyorNodeBase::ImmediateConveyorNodeBase()
+	: ConveyorEventStorage{nullptr} {}
+
+MergeConveyorNodeBase::MergeConveyorNodeBase()
 	: ConveyorEventStorage{nullptr} {}
 
 void ConveyorSinks::destroySinkConveyorNode(ConveyorNode &node) {

@@ -62,6 +62,8 @@ template <typename T> Conveyor<T> Conveyor<T>::buffer(size_t size) {
 												  size);
 	ConveyorStorage *storage_ptr =
 		static_cast<ConveyorStorage *>(storage_node.get());
+	GIN_ASSERT(storage) { return Conveyor<T>{nullptr, nullptr}; }
+
 	storage->setParent(storage_ptr);
 	return Conveyor<T>{std::move(storage_node), storage_ptr};
 }
@@ -78,11 +80,14 @@ template <typename T>
 std::pair<Conveyor<T>, MergeConveyor<T>> Conveyor<T>::merge() {
 	Our<MergeConveyorNodeData<T>> data = share<MergeConveyorNodeData<T>>();
 
-	Own<MergeConveyorNode<T>> node = heap<MergeConveyorNode<T>>(data);
+	Own<MergeConveyorNode<T>> merge_node = heap<MergeConveyorNode<T>>(data);
+
+	data->attach(Conveyor<T>::toConveyor(std::move(node), storage));
 
 	MergeConveyor<T> node_ref{data};
 
-	return std::make_pair(Conveyor<T>{std::move(node), storage}, *node_ref);
+	return std::make_pair(Conveyor<T>{std::move(merge_node), storage},
+						  std::move(node_ref));
 }
 
 template <>
@@ -92,9 +97,10 @@ SinkConveyor Conveyor<void>::sink(ErrorFunc &&error_func) {
 		heap<SinkConveyorNode>(storage, std::move(node));
 	ConveyorStorage *storage_ptr =
 		static_cast<ConveyorStorage *>(sink_node.get());
-	if (storage) {
-		storage->setParent(storage_ptr);
-	}
+
+	GIN_ASSERT(storage) { return SinkConveyor{}; }
+	storage->setParent(storage_ptr);
+
 	return SinkConveyor{std::move(sink_node)};
 }
 
@@ -113,14 +119,14 @@ void Conveyor<void>::detach(ErrorFunc &&func) {
 }
 
 template <typename T>
-Conveyor<T> Conveyor<T>::toConveyor(Own<ConveyorNode> &&node,
+Conveyor<T> Conveyor<T>::toConveyor(Own<ConveyorNode> node,
 									ConveyorStorage *storage) {
 	return Conveyor<T>{std::move(node), storage};
 }
 
 template <typename T>
 std::pair<Own<ConveyorNode>, ConveyorStorage *>
-Conveyor<T>::fromConveyor(Conveyor<T> &&conveyor) {
+Conveyor<T>::fromConveyor(Conveyor<T> conveyor) {
 	return std::make_pair(std::move(conveyor.node), conveyor.storage);
 }
 
@@ -241,21 +247,74 @@ template <typename T> void ImmediateConveyorNode<T>::fire() {
 }
 
 template <typename T>
-MergeConveyor<T>::MergeConveyor(Our<MergeConveyorNodeData<T>> d)
+MergeConveyor<T>::MergeConveyor(Lent<MergeConveyorNodeData<T>> d)
 	: data{std::move(d)} {}
 
 template <typename T> MergeConveyor<T>::~MergeConveyor() {}
 
 template <typename T> void MergeConveyor<T>::attach(Conveyor<T> conveyor) {
-	/// @unimplemented
-	assert(false);
+	auto sp = data.lock();
+	GIN_ASSERT(sp) { return; }
+
+	sp->attach(std::move(conveyor));
 }
 
 template <typename T>
 MergeConveyorNode<T>::MergeConveyorNode(Our<MergeConveyorNodeData<T>> d)
-	: data{d} {}
+	: data{d} {
+	GIN_ASSERT(data) { return; }
+
+	data->merger = this;
+}
 
 template <typename T> MergeConveyorNode<T>::~MergeConveyorNode() {}
+
+template <typename T> void MergeConveyorNode<T>::getResult(ErrorOrValue &eov) {
+	ErrorOr<T> &err_or_val = eov.as<T>();
+
+	if (error_or_value.has_value()) {
+		err_or_val = std::move(error_or_value.value());
+		error_or_value = std::nullopt;
+	} else {
+		error_or_value = criticalError("No value in MergeConveyorNode");
+	}
+}
+
+template <typename T> void MergeConveyorNode<T>::fire() {
+	GIN_ASSERT(queued() > 0) { return; }
+
+	if (parent) {
+		parent->childHasFired();
+	}
+
+	if (queued() > 0 && parent->space() > 0) {
+		armLater();
+	} else {
+		/// @unimplemented search for arm which has remaining elements
+	}
+}
+
+template <typename T> size_t MergeConveyorNode<T>::space() const {
+	return error_or_value.has_value() ? 0 : 1;
+}
+
+template <typename T> size_t MergeConveyorNode<T>::queued() const {
+	return error_or_value.has_value() ? 1 : 0;
+}
+
+template <typename T> void MergeConveyorNode<T>::childHasFired() {
+	/// This can never happen
+	assert(false);
+}
+
+template <typename T> void MergeConveyorNode<T>::parentHasFired() {
+	GIN_ASSERT(parent) { return; }
+	if (queued() > 0) {
+		if (parent->space() > 0) {
+			armLater();
+		}
+	}
+}
 
 template <typename T> size_t MergeConveyorNode<T>::Appendage::space() const {
 	GIN_ASSERT(merger) { return 0; }
@@ -267,14 +326,12 @@ template <typename T> size_t MergeConveyorNode<T>::Appendage::space() const {
 	return 1;
 }
 
-template <typename T> void MergeConveyorNode<T>::fire() {
-	/// @unimplemented
-}
-
 template <typename T> size_t MergeConveyorNode<T>::Appendage::queued() const {
 	GIN_ASSERT(merger) { return 0; }
 
-	GIN_ASSERT(!merger->error_or_value.has_value()) { return 1; }
+	if (merger->error_or_value.has_value()) {
+		return 1;
+	}
 
 	return 0;
 }
@@ -287,14 +344,58 @@ template <typename T> void MergeConveyorNode<T>::Appendage::childHasFired() {
 	merger->error_or_value = std::move(eov);
 }
 
+template <typename T> void MergeConveyorNode<T>::Appendage::parentHasFired() {
+	if (child_storage) {
+		child_storage->parentHasFired();
+	}
+}
+
 template <typename T>
 void MergeConveyorNode<T>::Appendage::setParent(ConveyorStorage *par) {
-	GIN_ASSERT(merger && merger->error_or_value.has_value()) { return; }
-	if (par && !merger->isArmed()) {
-		merger->armNext();
-	}
+	GIN_ASSERT(merger) { return; }
+
+	GIN_ASSERT(child) { return; }
 
 	parent = par;
+}
+
+template <typename T>
+void MergeConveyorNodeData<T>::attach(Conveyor<T> conveyor) {
+	auto nas = Conveyor<T>::fromConveyor(std::move(conveyor));
+
+	auto merge_node_appendage = heap<typename MergeConveyorNode<T>::Appendage>(
+		nas.second, std::move(nas.first), *merger);
+
+	if (nas.second) {
+		nas.second->setParent(merge_node_appendage.get());
+	}
+
+	appendages.push_back(std::move(merge_node_appendage));
+}
+
+template <typename T> void MergeConveyorNodeData<T>::notifyNextAppendage() {
+	next_appendage = std::min(next_appendage, appendages.size());
+
+	for (size_t i = next_appendage; i < appendages.size(); ++i) {
+		if (appendages[i]->childStorageHasElementQueued()) {
+			appendages[i]->parentHasFired();
+			next_appendage = i + 1;
+			return;
+		}
+	}
+
+	for (size_t i = 0; i < next_appendage; ++i) {
+		if (appendages[i]->childStorageHasElementQueued()) {
+			appendages[i]->parentHasFired();
+			next_appendage = i + 1;
+			return;
+		}
+	}
+}
+
+template <typename T> void MergeConveyorNodeData<T>::governingNodeDestroyed() {
+	appendages.clear();
+	merger = nullptr;
 }
 
 template <typename T> AdaptConveyorFeeder<T>::~AdaptConveyorFeeder() {

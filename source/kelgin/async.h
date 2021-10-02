@@ -54,7 +54,7 @@ protected:
 
 public:
 	ConveyorStorage(ConveyorStorage *child);
-	virtual ~ConveyorStorage() = default;
+	virtual ~ConveyorStorage();
 
 	virtual size_t space() const = 0;
 	virtual size_t queued() const = 0;
@@ -130,10 +130,10 @@ template <typename T> class MergeConveyorNodeData;
 
 template <typename T> class MergeConveyor {
 private:
-	Our<MergeConveyorNodeData<T>> data;
+	Lent<MergeConveyorNodeData<T>> data;
 
 public:
-	MergeConveyor(Our<MergeConveyorNodeData<T>> d);
+	MergeConveyor(Lent<MergeConveyorNodeData<T>> d);
 	~MergeConveyor();
 
 	void attach(Conveyor<T> conveyor);
@@ -166,21 +166,23 @@ public:
 	 * This method converts values or errors from children
 	 */
 	template <typename Func, typename ErrorFunc = PropagateError>
-	ConveyorResult<Func, T> then(Func &&func,
-								 ErrorFunc &&error_func = PropagateError());
+	[[nodiscard]] ConveyorResult<Func, T>
+	then(Func &&func, ErrorFunc &&error_func = PropagateError());
 
 	/**
 	 * This method adds a buffer node in the conveyor chains which acts as a
 	 * scheduler interrupt point and collects elements up to the supplied limit.
 	 */
-	Conveyor<T> buffer(size_t limit = std::numeric_limits<size_t>::max());
+	[[nodiscard]] Conveyor<T>
+	buffer(size_t limit = std::numeric_limits<size_t>::max());
 
 	/**
 	 * This method just takes ownership of any supplied types,
 	 * which are destroyed when the chain gets destroyed.
 	 * Useful for resource lifetime control.
 	 */
-	template <typename... Args> Conveyor<T> attach(Args &&...args);
+	template <typename... Args>
+	[[nodiscard]] Conveyor<T> attach(Args &&...args);
 
 	/** @todo implement
 	 * This method limits the total amount of passed elements
@@ -188,7 +190,7 @@ public:
 	 * If you meant to fork it and destroy paths you shouldn't place
 	 * an interrupt point between the fork and this limiter
 	 */
-	Conveyor<T> limit(size_t val = 1);
+	[[nodiscard]] Conveyor<T> limit(size_t val = 1);
 
 	/**
 	 * Moves the conveyor chain into a thread local storage point which drops
@@ -201,14 +203,14 @@ public:
 	/**
 	 *
 	 */
-	std::pair<Conveyor<T>, MergeConveyor<T>> merge();
+	[[nodiscard]] std::pair<Conveyor<T>, MergeConveyor<T>> merge();
 
 	/**
 	 * Creates a local sink which drops elements, but lifetime control remains
 	 * in your hand.
 	 */
 	template <typename ErrorFunc = PropagateError>
-	SinkConveyor sink(ErrorFunc &&error_func = PropagateError());
+	[[nodiscard]] SinkConveyor sink(ErrorFunc &&error_func = PropagateError());
 
 	/**
 	 * If no sink() or detach() is used you have to take elements out of the
@@ -222,12 +224,12 @@ public:
 	void poll();
 
 	// helper
-	static Conveyor<T> toConveyor(Own<ConveyorNode> &&node,
+	static Conveyor<T> toConveyor(Own<ConveyorNode> node,
 								  ConveyorStorage *is_storage = nullptr);
 
 	// helper
 	static std::pair<Own<ConveyorNode>, ConveyorStorage *>
-	fromConveyor(Conveyor<T> &&conveyor);
+	fromConveyor(Conveyor<T> conveyor);
 };
 
 template <typename Func> ConveyorResult<Func, void> execLater(Func &&func);
@@ -779,15 +781,17 @@ public:
 /*
  * Collects every incoming value and throws it in one lane
  */
-class MergeConveyorNodeBase : public ConveyorNode, public Event {
+class MergeConveyorNodeBase : public ConveyorNode, public ConveyorEventStorage {
 public:
+	MergeConveyorNodeBase();
+
 	virtual ~MergeConveyorNodeBase() = default;
 };
 
 template <typename T> class MergeConveyorNode : public MergeConveyorNodeBase {
 private:
 	class Appendage final : public ConveyorStorage {
-	private:
+	public:
 		Own<ConveyorNode> child;
 		MergeConveyorNode *merger;
 
@@ -796,13 +800,20 @@ private:
 				  MergeConveyorNode &m)
 			: ConveyorStorage{child_store}, child{std::move(n)}, merger{&m} {}
 
+		bool childStorageHasElementQueued() const {
+			if (child_storage) {
+				return child_storage->queued() > 0;
+			}
+			return false;
+		}
+
 		size_t space() const override;
 
 		size_t queued() const override;
 
 		void childHasFired() override;
 
-		void parentHasFired() override {}
+		void parentHasFired() override;
 
 		void setParent(ConveyorStorage *par) override;
 	};
@@ -814,20 +825,39 @@ private:
 
 	Maybe<ErrorOr<FixVoid<T>>> error_or_value;
 
+	bool already_queued = false;
+
 public:
 	MergeConveyorNode(Our<MergeConveyorNodeData<T>> data);
 	~MergeConveyorNode();
 
+	// Event
 	void getResult(ErrorOrValue &err_or_val) override;
 
 	void fire() override;
+
+	// ConveyorStorage
+
+	size_t space() const override;
+	size_t queued() const override;
+	void childHasFired() override;
+	void parentHasFired() override;
 };
 
 template <typename T> class MergeConveyorNodeData {
-private:
-	std::vector<typename MergeConveyorNode<T>::Appendage> appendages;
+public:
+	std::vector<Own<typename MergeConveyorNode<T>::Appendage>> appendages;
 
+	size_t next_appendage = 0;
+
+	MergeConveyorNode<T> *merger = nullptr;
+
+public:
 	void attach(Conveyor<T> conv);
+
+	void notifyNextAppendage();
+
+	void governingNodeDestroyed();
 };
 
 /*

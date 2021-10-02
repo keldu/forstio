@@ -29,7 +29,7 @@ namespace gin {
 
 #define GIN_ASSERT(expression)                                                 \
 	assert(expression);                                                        \
-	if (!expression)
+	if (!(expression))
 
 template <typename T> using Maybe = std::optional<T>;
 

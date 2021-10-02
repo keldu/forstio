@@ -206,5 +206,23 @@ GIN_TEST("Async Merge"){
 	WaitScope wait_scope{event_loop};
 
 	auto cam = Conveyor<int>{10}.merge();
+
+	cam.second.attach(Conveyor<int>{11});
+
+	size_t elements_passed = 0;
+	bool wrong_value = false;
+
+	auto sink = cam.first.then([&elements_passed, &wrong_value](int foo){
+		if(foo == 10 || foo == 11){
+			++elements_passed;
+		}else{
+			wrong_value = true;
+		}
+	}).sink();
+
+	wait_scope.poll();
+
+	GIN_EXPECT(!wrong_value, "Expected values 10 or 11");
+	GIN_EXPECT(elements_passed == 2, std::string{"Expected 2 passed elements, got only "} + std::to_string(elements_passed));
 }
 }
