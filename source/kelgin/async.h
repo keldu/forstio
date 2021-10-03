@@ -811,6 +811,8 @@ private:
 			return false;
 		}
 
+		void getAppendageResult(ErrorOrValue &eov);
+
 		size_t space() const override;
 
 		size_t queued() const override;
@@ -826,6 +828,7 @@ private:
 	friend class Appendage;
 
 	Our<MergeConveyorNodeData<T>> data;
+	size_t next_appendage = 0;
 
 public:
 	MergeConveyorNode(Our<MergeConveyorNodeData<T>> data);
@@ -847,8 +850,6 @@ public:
 template <typename T> class MergeConveyorNodeData {
 public:
 	std::vector<Own<typename MergeConveyorNode<T>::Appendage>> appendages;
-
-	size_t next_appendage = 0;
 
 	MergeConveyorNode<T> *merger = nullptr;
 
