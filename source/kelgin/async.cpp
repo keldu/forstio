@@ -36,7 +36,7 @@ void ConveyorEventStorage::setParent(ConveyorStorage *p) {
 	if (/*!parent && */ p && !isArmed() && queued() > 0) {
 		assert(!parent);
 		if (p->space() > 0) {
-			armNext();
+			armLater();
 		}
 	}
 
@@ -333,7 +333,7 @@ void ConvertConveyorNodeBase::getResult(ErrorOrValue &err_or_val) {
 	getImpl(err_or_val);
 }
 
-void AttachConveyorNodeBase::getResult(ErrorOrValue &err_or_val) {
+void AttachConveyorNodeBase::getResult(ErrorOrValue &err_or_val) noexcept {
 	if (child) {
 		child->getResult(err_or_val);
 	}

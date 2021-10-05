@@ -4,6 +4,9 @@
 
 #include <cassert>
 // Template inlining
+
+#include <iostream>
+
 namespace gin {
 
 template <typename Func> ConveyorResult<Func, void> execLater(Func &&func) {
@@ -86,7 +89,10 @@ std::pair<Conveyor<T>, MergeConveyor<T>> Conveyor<T>::merge() {
 
 	MergeConveyor<T> node_ref{data};
 
-	return std::make_pair(Conveyor<T>{std::move(merge_node), storage},
+	ConveyorStorage *merge_storage =
+		static_cast<ConveyorStorage *>(merge_node.get());
+
+	return std::make_pair(Conveyor<T>{std::move(merge_node), merge_storage},
 						  std::move(node_ref));
 }
 
@@ -189,10 +195,36 @@ template <typename T> void QueueBufferConveyorNode<T>::fire() {
 }
 
 template <typename T>
-void QueueBufferConveyorNode<T>::getResult(ErrorOrValue &eov) {
+void QueueBufferConveyorNode<T>::getResult(ErrorOrValue &eov) noexcept {
 	ErrorOr<T> &err_or_val = eov.as<T>();
 	err_or_val = std::move(storage.front());
 	storage.pop();
+}
+
+template <typename T> size_t QueueBufferConveyorNode<T>::space() const {
+	return max_store - storage.size();
+}
+
+template <typename T> size_t QueueBufferConveyorNode<T>::queued() const {
+	return storage.size();
+}
+
+template <typename T> void QueueBufferConveyorNode<T>::childHasFired() {
+	if (child && storage.size() < max_store) {
+		ErrorOr<T> eov;
+		child->getResult(eov);
+
+		if (eov.isError()) {
+			if (eov.error().isCritical()) {
+				child_storage = nullptr;
+			}
+		}
+
+		storage.push(std::move(eov));
+		if (!isArmed()) {
+			armLater();
+		}
+	}
 }
 
 template <typename T> void QueueBufferConveyorNode<T>::parentHasFired() {
@@ -238,6 +270,7 @@ template <typename T> void ImmediateConveyorNode<T>::parentHasFired() {
 }
 
 template <typename T> void ImmediateConveyorNode<T>::fire() {
+
 	if (parent) {
 		parent->childHasFired();
 		if (queued() > 0 && parent->space() > 0) {
@@ -280,10 +313,23 @@ template <typename T> void MergeConveyorNode<T>::getResult(ErrorOrValue &eov) {
 	next_appendage = std::min(appendages.size(), next_appendage);
 
 	for (size_t i = next_appendage; i < appendages.size(); ++i) {
-		if (appendages[i]->queued()) {
-			err_or_val = std::move(appendages
+		if (appendages[i]->queued() > 0) {
+			err_or_val = std::move(appendages[i]->error_or_value.value());
+			appendages[i]->error_or_value = std::nullopt;
+			next_appendage = i + 1;
+			return;
 		}
 	}
+	for (size_t i = 0; i < next_appendage; ++i) {
+		if (appendages[i]->queued() > 0) {
+			err_or_val = std::move(appendages[i]->error_or_value.value());
+			appendages[i]->error_or_value = std::nullopt;
+			next_appendage = i + 1;
+			return;
+		}
+	}
+
+	err_or_val = criticalError("No value in Merge Appendages");
 }
 
 template <typename T> void MergeConveyorNode<T>::fire() {
@@ -291,21 +337,25 @@ template <typename T> void MergeConveyorNode<T>::fire() {
 
 	if (parent) {
 		parent->childHasFired();
-	}
 
-	if (queued() > 0 && parent->space() > 0) {
-		armLater();
-	} else {
-		/// @unimplemented search for arm which has remaining elements
+		if (queued() > 0 && parent->space() > 0) {
+			armLater();
+		}
 	}
 }
 
-template <typename T> size_t MergeConveyorNode<T>::space() const {
-	return error_or_value.has_value() ? 0 : 1;
-}
+template <typename T> size_t MergeConveyorNode<T>::space() const { return 0; }
 
 template <typename T> size_t MergeConveyorNode<T>::queued() const {
-	return error_or_value.has_value() ? 1 : 0;
+	GIN_ASSERT(data) { return 0; }
+
+	size_t queue_count = 0;
+
+	for (auto &iter : data->appendages) {
+		queue_count += iter->queued();
+	}
+
+	return queue_count;
 }
 
 template <typename T> void MergeConveyorNode<T>::childHasFired() {
@@ -344,14 +394,14 @@ template <typename T> size_t MergeConveyorNode<T>::Appendage::queued() const {
 
 template <typename T>
 void MergeConveyorNode<T>::Appendage::getAppendageResult(ErrorOrValue &eov) {
-	ErrorOr<FixVoid<T>> &eov = eov.as<FixVoid<T>>();
+	ErrorOr<FixVoid<T>> &err_or_val = eov.as<FixVoid<T>>();
 
 	GIN_ASSERT(queued() > 0) {
-		eov = criticalError("No element queued in Merge Appendage Node");
+		err_or_val = criticalError("No element queued in Merge Appendage Node");
 		return;
 	}
 
-	eov = std::move(error_or_value.value());
+	err_or_val = std::move(error_or_value.value());
 	error_or_value = std::nullopt;
 }
 
@@ -394,26 +444,6 @@ void MergeConveyorNodeData<T>::attach(Conveyor<T> conveyor) {
 	}
 
 	appendages.push_back(std::move(merge_node_appendage));
-}
-
-template <typename T> void MergeConveyorNodeData<T>::notifyNextAppendage() {
-	next_appendage = std::min(next_appendage, appendages.size());
-
-	for (size_t i = next_appendage; i < appendages.size(); ++i) {
-		if (appendages[i]->childStorageHasElementQueued()) {
-			appendages[i]->parentHasFired();
-			next_appendage = i + 1;
-			return;
-		}
-	}
-
-	for (size_t i = 0; i < next_appendage; ++i) {
-		if (appendages[i]->childStorageHasElementQueued()) {
-			appendages[i]->parentHasFired();
-			next_appendage = i + 1;
-			return;
-		}
-	}
 }
 
 template <typename T> void MergeConveyorNodeData<T>::governingNodeDestroyed() {

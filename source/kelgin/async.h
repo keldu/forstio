@@ -574,23 +574,13 @@ public:
 	// Event
 	void fire() override;
 	// ConveyorNode
-	void getResult(ErrorOrValue &eov) override;
+	void getResult(ErrorOrValue &eov) noexcept override;
 
 	// ConveyorStorage
-	size_t space() const override { return max_store - storage.size(); }
-	size_t queued() const override { return storage.size(); }
+	size_t space() const override;
+	size_t queued() const override;
 
-	void childHasFired() override {
-		if (child && storage.size() < max_store) {
-			ErrorOr<T> eov;
-			child->getResult(eov);
-			storage.push(std::move(eov));
-			if (!isArmed()) {
-				armLater();
-			}
-		}
-	}
-
+	void childHasFired() override;
 	void parentHasFired() override;
 };
 
@@ -603,7 +593,7 @@ public:
 
 	virtual ~AttachConveyorNodeBase() = default;
 
-	void getResult(ErrorOrValue &err_or_val) override;
+	void getResult(ErrorOrValue &err_or_val) noexcept override;
 };
 
 template <typename... Args>
@@ -855,8 +845,6 @@ public:
 
 public:
 	void attach(Conveyor<T> conv);
-
-	void notifyNextAppendage();
 
 	void governingNodeDestroyed();
 };
