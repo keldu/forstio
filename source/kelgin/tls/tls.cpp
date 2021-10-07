@@ -100,6 +100,9 @@ Conveyor<Own<IoStream>> TlsServer::accept() {
 }
 
 namespace {
+/*
+* Small helper for setting up the nonblocking connection handshake
+*/
 struct TlsClientStreamHelper {
 public:
 	Own<ConveyorFeeder<Own<IoStream>>> feeder;
@@ -139,10 +142,11 @@ public:
 			int ret;
 			do {
 				ret = gnutls_handshake(session);
-			} while (ret == GNUTLS_E_AGAIN && gnutls_error_is_fatal(ret) == 0);
+			} while ( (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) && gnutls_error_is_fatal(ret) == 0);
 
-			if(gnutls_error_is_fatal(ret) != 0){
+			if(gnutls_error_is_fatal(ret)){
 				feeder->fail(criticalError("Couldn't create Tls connection"));
+				stream = nullptr;
 			}else if(ret == GNUTLS_E_SUCCESS){
 				feeder->feed(std::move(stream));
 			}
@@ -215,7 +219,7 @@ static ssize_t kelgin_tls_push_func(gnutls_transport_ptr_t p, const void *data,
 	ErrorOr<size_t> length = stream->write(data, size);
 	if (length.isError() || !length.isValue()) {
 		if(length.isError()){
-			std::cerr<<"*** Error: "<<length.error().message()<<std::endl;
+			std::cerr<<"*** Write error: "<<length.error().message()<<std::endl;
 		}
 		return -1;
 	}
@@ -232,7 +236,7 @@ static ssize_t kelgin_tls_pull_func(gnutls_transport_ptr_t p, void *data, size_t
 	ErrorOr<size_t> length = stream->read(data, size);
 	if (length.isError() || !length.isValue()) {
 		if(length.isError()){
-			std::cerr<<"*** Error: "<<length.error().message()<<std::endl;
+			std::cerr<<"*** Read error: "<<length.error().message()<<std::endl;
 		}
 		return -1;
 	}
