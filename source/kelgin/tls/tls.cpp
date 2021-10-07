@@ -218,9 +218,6 @@ static ssize_t kelgin_tls_push_func(gnutls_transport_ptr_t p, const void *data,
 
 	ErrorOr<size_t> length = stream->write(data, size);
 	if (length.isError() || !length.isValue()) {
-		if(length.isError()){
-			std::cerr<<"*** Write error: "<<length.error().message()<<std::endl;
-		}
 		return -1;
 	}
 
@@ -235,9 +232,6 @@ static ssize_t kelgin_tls_pull_func(gnutls_transport_ptr_t p, void *data, size_t
 
 	ErrorOr<size_t> length = stream->read(data, size);
 	if (length.isError() || !length.isValue()) {
-		if(length.isError()){
-			std::cerr<<"*** Read error: "<<length.error().message()<<std::endl;
-		}
 		return -1;
 	}
 
