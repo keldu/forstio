@@ -4,8 +4,8 @@
 #include <string>
 
 #include "buffer.h"
-#include "source/message.h"
-#include "source/json.h"
+#include "source/kelgin/message.h"
+#include "source/kelgin/json.h"
 
 #include "./data/json.h"
 

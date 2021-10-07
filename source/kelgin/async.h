@@ -12,12 +12,8 @@
 
 namespace gin {
 class ConveyorNode {
-protected:
-	Own<ConveyorNode> child;
-
 public:
 	ConveyorNode();
-	ConveyorNode(Own<ConveyorNode> &&child);
 	virtual ~ConveyorNode() = default;
 
 	virtual void getResult(ErrorOrValue &err_or_val) = 0;
@@ -25,7 +21,7 @@ public:
 
 class EventLoop;
 /*
- * Event class inspired directly by capn'proto.
+ * Event class similar to capn'proto.
  * https://github.com/capnproto/capnproto
  */
 class Event {
@@ -51,18 +47,30 @@ public:
 	bool isArmed() const;
 };
 
-class ConveyorStorage : public Event {
+class ConveyorStorage {
 protected:
 	ConveyorStorage *parent = nullptr;
+	ConveyorStorage *child_storage = nullptr;
 
 public:
-	virtual ~ConveyorStorage() = default;
+	ConveyorStorage(ConveyorStorage *child);
+	virtual ~ConveyorStorage();
 
 	virtual size_t space() const = 0;
 	virtual size_t queued() const = 0;
-	virtual void childFired() = 0;
+	virtual void childHasFired() = 0;
+	virtual void parentHasFired() = 0;
 
-	void setParent(ConveyorStorage *parent);
+	virtual void setParent(ConveyorStorage *parent) = 0;
+	void unlinkChild();
+};
+
+class ConveyorEventStorage : public ConveyorStorage, public Event {
+public:
+	ConveyorEventStorage(ConveyorStorage *child);
+	virtual ~ConveyorEventStorage() = default;
+
+	void setParent(ConveyorStorage *parent) override;
 };
 
 class ConveyorBase {
@@ -86,13 +94,20 @@ template <typename T> class Conveyor;
 
 template <typename T> Conveyor<T> chainedConveyorType(T *);
 
-template <typename T> Conveyor<T> chainedConveyorType(Conveyor<T> *);
+// template <typename T> Conveyor<T> chainedConveyorType(Conveyor<T> *);
+
+template <typename T> T removeErrorOrType(T *);
+
+template <typename T> T removeErrorOrType(ErrorOr<T> *);
+
+template <typename T>
+using RemoveErrorOr = decltype(removeErrorOrType((T *)nullptr));
 
 template <typename T>
 using ChainedConveyors = decltype(chainedConveyorType((T *)nullptr));
 
 template <typename Func, typename T>
-using ConveyorResult = ChainedConveyors<ReturnType<Func, T>>;
+using ConveyorResult = ChainedConveyors<RemoveErrorOr<ReturnType<Func, T>>>;
 
 struct PropagateError {
 public:
@@ -105,16 +120,30 @@ private:
 	Own<ConveyorNode> node;
 
 public:
+	SinkConveyor();
 	SinkConveyor(Own<ConveyorNode> &&node);
 
 	SinkConveyor(SinkConveyor &&) = default;
 	SinkConveyor &operator=(SinkConveyor &&) = default;
 };
 
+template <typename T> class MergeConveyorNodeData;
+
+template <typename T> class MergeConveyor {
+private:
+	Lent<MergeConveyorNodeData<T>> data;
+
+public:
+	MergeConveyor(Lent<MergeConveyorNodeData<T>> d);
+	~MergeConveyor();
+
+	void attach(Conveyor<T> conveyor);
+};
+
 /**
  * Main interface for async operations.
  */
-template <typename T> class Conveyor : public ConveyorBase {
+template <typename T> class Conveyor final : public ConveyorBase {
 public:
 	/**
 	 * Construct an immediately fulfilled node
@@ -129,7 +158,7 @@ public:
 	/**
 	 * Construct a conveyor with a child node and the next storage point
 	 */
-	Conveyor(Own<ConveyorNode> &&node_p, ConveyorStorage *storage_p);
+	Conveyor(Own<ConveyorNode> node_p, ConveyorStorage *storage_p);
 
 	Conveyor(Conveyor<T> &&) = default;
 	Conveyor<T> &operator=(Conveyor<T> &&) = default;
@@ -138,21 +167,23 @@ public:
 	 * This method converts values or errors from children
 	 */
 	template <typename Func, typename ErrorFunc = PropagateError>
-	ConveyorResult<Func, T> then(Func &&func,
-								 ErrorFunc &&error_func = PropagateError());
+	[[nodiscard]] ConveyorResult<Func, T>
+	then(Func &&func, ErrorFunc &&error_func = PropagateError());
 
 	/**
 	 * This method adds a buffer node in the conveyor chains which acts as a
 	 * scheduler interrupt point and collects elements up to the supplied limit.
 	 */
-	Conveyor<T> buffer(size_t limit = std::numeric_limits<size_t>::max());
+	[[nodiscard]] Conveyor<T>
+	buffer(size_t limit = std::numeric_limits<size_t>::max());
 
 	/**
 	 * This method just takes ownership of any supplied types,
 	 * which are destroyed when the chain gets destroyed.
 	 * Useful for resource lifetime control.
 	 */
-	template <typename... Args> Conveyor<T> attach(Args &&...args);
+	template <typename... Args>
+	[[nodiscard]] Conveyor<T> attach(Args &&...args);
 
 	/** @todo implement
 	 * This method limits the total amount of passed elements
@@ -160,7 +191,12 @@ public:
 	 * If you meant to fork it and destroy paths you shouldn't place
 	 * an interrupt point between the fork and this limiter
 	 */
-	Conveyor<T> limit(size_t val = 1);
+	[[nodiscard]] Conveyor<T> limit(size_t val = 1);
+
+	/**
+	 *
+	 */
+	[[nodiscard]] std::pair<Conveyor<T>, MergeConveyor<T>> merge();
 
 	/**
 	 * Moves the conveyor chain into a thread local storage point which drops
@@ -169,13 +205,12 @@ public:
 	 */
 	template <typename ErrorFunc = PropagateError>
 	void detach(ErrorFunc &&err_func = PropagateError());
-
 	/**
 	 * Creates a local sink which drops elements, but lifetime control remains
 	 * in your hand.
 	 */
 	template <typename ErrorFunc = PropagateError>
-	SinkConveyor sink(ErrorFunc &&error_func = PropagateError());
+	[[nodiscard]] SinkConveyor sink(ErrorFunc &&error_func = PropagateError());
 
 	/**
 	 * If no sink() or detach() is used you have to take elements out of the
@@ -189,20 +224,22 @@ public:
 	void poll();
 
 	// helper
-	static Conveyor<T> toConveyor(Own<ConveyorNode> &&node,
+	static Conveyor<T> toConveyor(Own<ConveyorNode> node,
 								  ConveyorStorage *is_storage = nullptr);
 
 	// helper
 	static std::pair<Own<ConveyorNode>, ConveyorStorage *>
-	fromConveyor(Conveyor<T> &&conveyor);
+	fromConveyor(Conveyor<T> conveyor);
 };
+
+template <typename Func> ConveyorResult<Func, void> execLater(Func &&func);
 
 /*
  * Join Conveyors into a single one
  */
-// template<typename... Args>
-// Conveyor<std::tuple<Args...>> joinConveyors(std::tuple<Conveyor<Args...>>&
-// conveyors);
+template <typename... Args>
+Conveyor<std::tuple<Args...>>
+joinConveyors(std::tuple<Conveyor<Args>...> &conveyors);
 
 template <typename T> class ConveyorFeeder {
 public:
@@ -258,8 +295,29 @@ public:
 
 class SinkConveyorNode;
 
-class ConveyorSinks : public Event {
+class ConveyorSinks final : public Event {
 private:
+	/*
+		class Helper final : public Event {
+		private:
+			void destroySinkConveyorNode(ConveyorNode& sink);
+			void fail(Error&& error);
+
+			std::vector<Own<ConveyorNode>> sink_nodes;
+			std::queue<ConveyorNode*> delete_nodes;
+			std::function<void(Error&& error)> error_handler;
+
+		public:
+			ConveyorSinks() = default;
+			ConveyorSinks(EventLoop& event_loop);
+
+			void add(Conveyor<void> node);
+
+			void fire() override {}
+		};
+
+		gin::Own<Helper> helper;
+	*/
 	friend class SinkConveyorNode;
 
 	void destroySinkConveyorNode(ConveyorNode &sink_node);
@@ -272,7 +330,10 @@ private:
 	std::function<void(Error &&error)> error_handler;
 
 public:
+	// ConveyorSinks();
+	// ConveyorSinks(EventLoop& event_loop);
 	ConveyorSinks() = default;
+	ConveyorSinks(EventLoop &event_loop);
 
 	void add(Conveyor<void> &&node);
 
@@ -280,7 +341,7 @@ public:
 };
 
 /*
- * EventLoop class inspired directly by capn'proto.
+ * EventLoop class similar to capn'proto.
  * https://github.com/capnproto/capnproto
  */
 class EventLoop {
@@ -326,7 +387,7 @@ public:
 };
 
 /*
- * WaitScope class inspired directly by capn'proto.
+ * WaitScope class similar to capn'proto.
  * https://github.com/capnproto/capnproto
  */
 class WaitScope {
@@ -385,7 +446,7 @@ template <> struct FixVoidCaller<Void, Void> {
 template <typename T> class AdaptConveyorNode;
 
 template <typename T>
-class AdaptConveyorFeeder : public ConveyorFeeder<UnfixVoid<T>> {
+class AdaptConveyorFeeder final : public ConveyorFeeder<UnfixVoid<T>> {
 private:
 	AdaptConveyorNode<T> *feedee = nullptr;
 
@@ -402,13 +463,15 @@ public:
 };
 
 template <typename T>
-class AdaptConveyorNode : public ConveyorNode, public ConveyorStorage {
+class AdaptConveyorNode final : public ConveyorNode,
+								public ConveyorEventStorage {
 private:
 	AdaptConveyorFeeder<T> *feeder = nullptr;
 
-	std::queue<ErrorOr<T>> storage;
+	std::queue<ErrorOr<UnfixVoid<T>>> storage;
 
 public:
+	AdaptConveyorNode();
 	~AdaptConveyorNode();
 
 	void setFeeder(AdaptConveyorFeeder<T> *feeder);
@@ -423,7 +486,8 @@ public:
 	size_t space() const override;
 	size_t queued() const override;
 
-	void childFired() override {}
+	void childHasFired() override;
+	void parentHasFired() override;
 
 	// Event
 	void fire() override;
@@ -432,7 +496,7 @@ public:
 template <typename T> class OneTimeConveyorNode;
 
 template <typename T>
-class OneTimeConveyorFeeder : public ConveyorFeeder<UnfixVoid<T>> {
+class OneTimeConveyorFeeder final : public ConveyorFeeder<UnfixVoid<T>> {
 private:
 	OneTimeConveyorNode<T> *feedee = nullptr;
 
@@ -449,7 +513,12 @@ public:
 };
 
 template <typename T>
-class OneTimeConveyorNode : public ConveyorNode, public ConveyorStorage {
+class OneTimeConveyorNode final : public ConveyorNode,
+								  public ConveyorStorage,
+								  public Event {
+protected:
+	Own<ConveyorNode> child;
+
 private:
 	OneTimeConveyorFeeder<T> *feeder = nullptr;
 
@@ -471,80 +540,63 @@ public:
 	size_t space() const override;
 	size_t queued() const override;
 
-	void childFired() override {}
+	void childHasFired() override {}
+	void parentHasFired() override;
 
 	// Event
 	void fire() override;
 };
 
 class QueueBufferConveyorNodeBase : public ConveyorNode,
-									public ConveyorStorage {
+									public ConveyorEventStorage {
+protected:
+	Own<ConveyorNode> child;
+
 public:
-	QueueBufferConveyorNodeBase(Own<ConveyorNode> &&dep)
-		: ConveyorNode(std::move(dep)) {}
+	QueueBufferConveyorNodeBase(ConveyorStorage *child_store,
+								Own<ConveyorNode> dep)
+		: ConveyorEventStorage{child_store}, child(std::move(dep)) {}
 	virtual ~QueueBufferConveyorNodeBase() = default;
 };
 
 template <typename T>
-class QueueBufferConveyorNode : public QueueBufferConveyorNodeBase {
+class QueueBufferConveyorNode final : public QueueBufferConveyorNodeBase {
 private:
 	std::queue<ErrorOr<T>> storage;
 	size_t max_store;
 
 public:
-	QueueBufferConveyorNode(Own<ConveyorNode> &&dep, size_t max_size)
-		: QueueBufferConveyorNodeBase(std::move(dep)), max_store{max_size} {}
+	QueueBufferConveyorNode(ConveyorStorage *child_store, Own<ConveyorNode> dep,
+							size_t max_size)
+		: QueueBufferConveyorNodeBase{child_store, std::move(dep)},
+		  max_store{max_size} {}
 	// Event
-	void fire() override {
-		if (child) {
-			if (!storage.empty()) {
-				if (storage.front().isError()) {
-					if (storage.front().error().isCritical()) {
-						child = nullptr;
-					}
-				}
-			}
-		}
-		if (parent) {
-			parent->childFired();
-			if (!storage.empty()) {
-				armLater();
-			}
-		}
-	}
+	void fire() override;
 	// ConveyorNode
-	void getResult(ErrorOrValue &eov) override {
-		ErrorOr<T> &err_or_val = eov.as<T>();
-		err_or_val = std::move(storage.front());
-		storage.pop();
-	}
+	void getResult(ErrorOrValue &eov) noexcept override;
 
 	// ConveyorStorage
-	size_t space() const override { return max_store - storage.size(); }
-	size_t queued() const override { return storage.size(); }
+	size_t space() const override;
+	size_t queued() const override;
 
-	void childFired() override {
-		if (child && storage.size() < max_store) {
-			ErrorOr<T> eov;
-			child->getResult(eov);
-			storage.push(std::move(eov));
-			if (!isArmed()) {
-				armLater();
-			}
-		}
-	}
+	void childHasFired() override;
+	void parentHasFired() override;
 };
 
 class AttachConveyorNodeBase : public ConveyorNode {
-public:
-	AttachConveyorNodeBase(Own<ConveyorNode> &&dep)
-		: ConveyorNode(std::move(dep)) {}
+protected:
+	Own<ConveyorNode> child;
 
-	void getResult(ErrorOrValue &err_or_val) override;
+public:
+	AttachConveyorNodeBase(Own<ConveyorNode> &&dep) : child(std::move(dep)) {}
+
+	virtual ~AttachConveyorNodeBase() = default;
+
+	void getResult(ErrorOrValue &err_or_val) noexcept override;
 };
 
 template <typename... Args>
-class AttachConveyorNode : public AttachConveyorNodeBase {
+class AttachConveyorNode final : public AttachConveyorNodeBase {
 private:
 	std::tuple<Args...> attached_data;
 
@@ -555,8 +607,12 @@ public:
 };
 
 class ConvertConveyorNodeBase : public ConveyorNode {
+protected:
+	Own<ConveyorNode> child;
+
 public:
 	ConvertConveyorNodeBase(Own<ConveyorNode> &&dep);
+	virtual ~ConvertConveyorNodeBase() = default;
 
 	void getResult(ErrorOrValue &err_or_val) override;
 
@@ -564,10 +620,13 @@ public:
 };
 
 template <typename T, typename DepT, typename Func, typename ErrorFunc>
-class ConvertConveyorNode : public ConvertConveyorNodeBase {
+class ConvertConveyorNode final : public ConvertConveyorNodeBase {
 private:
 	Func func;
 	ErrorFunc error_func;
+
+	static_assert(std::is_same<DepT, RemoveErrorOr<DepT>>::value,
+				  "Should never be of type ErrorOr");
 
 public:
 	ConvertConveyorNode(Own<ConveyorNode> &&dep, Func &&func,
@@ -576,12 +635,14 @@ public:
 		  error_func{std::move(error_func)} {}
 
 	void getImpl(ErrorOrValue &err_or_val) noexcept override {
-		ErrorOr<DepT> dep_eov;
-		ErrorOr<T> &eov = err_or_val.as<T>();
+		ErrorOr<UnfixVoid<DepT>> dep_eov;
+		ErrorOr<UnfixVoid<RemoveErrorOr<T>>> &eov =
+			err_or_val.as<UnfixVoid<RemoveErrorOr<T>>>();
 		if (child) {
 			child->getResult(dep_eov);
 			if (dep_eov.isValue()) {
 				try {
+
 					eov = FixVoidCaller<T, DepT>::apply(
 						func, std::move(dep_eov.value()));
 				} catch (const std::bad_alloc &) {
@@ -602,16 +663,21 @@ public:
 	}
 };
 
-class SinkConveyorNode : public ConveyorNode, public ConveyorStorage {
+class SinkConveyorNode final : public ConveyorNode,
+							   public ConveyorEventStorage {
 private:
+	Own<ConveyorNode> child;
 	ConveyorSinks *conveyor_sink;
 
 public:
-	SinkConveyorNode(Own<ConveyorNode> &&node, ConveyorSinks &conv_sink)
-		: ConveyorNode(std::move(node)), conveyor_sink{&conv_sink} {}
+	SinkConveyorNode(ConveyorStorage *child_store, Own<ConveyorNode> node,
+					 ConveyorSinks &conv_sink)
+		: ConveyorEventStorage{child_store}, child{std::move(node)},
+		  conveyor_sink{&conv_sink} {}
 
-	SinkConveyorNode(Own<ConveyorNode> &&node)
-		: ConveyorNode(std::move(node)), conveyor_sink{nullptr} {}
+	SinkConveyorNode(ConveyorStorage *child_store, Own<ConveyorNode> node)
+		: ConveyorEventStorage{child_store}, child{std::move(node)},
+		  conveyor_sink{nullptr} {}
 
 	// Event only queued if a critical error occured
 	void fire() override {
@@ -636,9 +702,9 @@ public:
 	}
 
 	// ConveyorStorage
-	void childFired() override {
+	void childHasFired() override {
 		if (child) {
-			ErrorOr<Void> dep_eov;
+			ErrorOr<void> dep_eov;
 			child->getResult(dep_eov);
 			if (dep_eov.isError()) {
 				if (dep_eov.error().isCritical()) {
@@ -652,18 +718,27 @@ public:
 			}
 		}
 	}
+
+	/*
+	 * No parent needs to be fired since we always have space
+	 */
+	void parentHasFired() override {}
 };
 
-class ImmediateConveyorNodeBase : public ConveyorNode, public ConveyorStorage {
+class ImmediateConveyorNodeBase : public ConveyorNode,
+								  public ConveyorEventStorage {
 private:
 public:
+	ImmediateConveyorNodeBase();
+
+	virtual ~ImmediateConveyorNodeBase() = default;
 };
 
 template <typename T>
-class ImmediateConveyorNode : public ImmediateConveyorNodeBase {
+class ImmediateConveyorNode final : public ImmediateConveyorNodeBase {
 private:
 	ErrorOr<FixVoid<T>> value;
-	bool retrieved;
+	uint8_t retrieved;
 
 public:
 	ImmediateConveyorNode(FixVoid<T> &&val);
@@ -673,21 +748,135 @@ public:
 	size_t space() const override;
 	size_t queued() const override;
 
-	void childFired() override;
+	void childHasFired() override;
+	void parentHasFired() override;
 
 	// ConveyorNode
 	void getResult(ErrorOrValue &err_or_val) noexcept override {
-		if (retrieved) {
-			err_or_val.as<FixVoid<T>>() = criticalError("Already taken value");
+		if (retrieved > 0) {
+			err_or_val.as<FixVoid<T>>() =
+				makeError("Already taken value", Error::Code::Exhausted);
 		} else {
 			err_or_val.as<FixVoid<T>>() = std::move(value);
-			retrieved = true;
+		}
+		if (queued() > 0) {
+			++retrieved;
 		}
 	}
 
 	// Event
 	void fire() override;
 };
+
+/*
+ * Collects every incoming value and throws it in one lane
+ */
+class MergeConveyorNodeBase : public ConveyorNode, public ConveyorEventStorage {
+public:
+	MergeConveyorNodeBase();
+
+	virtual ~MergeConveyorNodeBase() = default;
+};
+
+template <typename T> class MergeConveyorNode : public MergeConveyorNodeBase {
+private:
+	class Appendage final : public ConveyorStorage {
+	public:
+		Own<ConveyorNode> child;
+		MergeConveyorNode *merger;
+
+		Maybe<ErrorOr<FixVoid<T>>> error_or_value;
+
+	public:
+		Appendage(ConveyorStorage *child_store, Own<ConveyorNode> n,
+				  MergeConveyorNode &m)
+			: ConveyorStorage{child_store}, child{std::move(n)}, merger{&m},
+			  error_or_value{std::nullopt} {}
+
+		bool childStorageHasElementQueued() const {
+			if (child_storage) {
+				return child_storage->queued() > 0;
+			}
+			return false;
+		}
+
+		void getAppendageResult(ErrorOrValue &eov);
+
+		size_t space() const override;
+
+		size_t queued() const override;
+
+		void childHasFired() override;
+
+		void parentHasFired() override;
+
+		void setParent(ConveyorStorage *par) override;
+	};
+
+	friend class MergeConveyorNodeData<T>;
+	friend class Appendage;
+
+	Our<MergeConveyorNodeData<T>> data;
+	size_t next_appendage = 0;
+
+public:
+	MergeConveyorNode(Our<MergeConveyorNodeData<T>> data);
+	~MergeConveyorNode();
+
+	// Event
+	void getResult(ErrorOrValue &err_or_val) noexcept override;
+
+	void fire() override;
+
+	// ConveyorStorage
+
+	size_t space() const override;
+	size_t queued() const override;
+	void childHasFired() override;
+	void parentHasFired() override;
+};
+
+template <typename T> class MergeConveyorNodeData {
+public:
+	std::vector<Own<typename MergeConveyorNode<T>::Appendage>> appendages;
+
+	MergeConveyorNode<T> *merger = nullptr;
+
+public:
+	void attach(Conveyor<T> conv);
+
+	void governingNodeDestroyed();
+};
+
+/*
+class JoinConveyorNodeBase : public ConveyorNode, public ConveyorEventStorage {
+private:
+
+public:
+};
+
+template <typename... Args>
+class JoinConveyorNode final : public JoinConveyorNodeBase {
+private:
+	template<typename T>
+	class Appendage : public ConveyorEventStorage {
+	private:
+		Maybe<T> data = std::nullopt;
+
+	public:
+		size_t space() const override;
+		size_t queued() const override;
+
+		void fire() override;
+		void getResult(ErrorOrValue& eov) override;
+	};
+
+	std::tuple<Appendage<Args>...> appendages;
+
+public:
+};
+
+*/
 
 } // namespace gin
 

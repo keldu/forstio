@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <tuple>
 #include <variant>
+#include <vector>
 
 #include "common.h"
 
@@ -160,9 +161,56 @@ public:
 
 		bool isSetExplicitly() const { return message.set_explicitly; }
 
-		Builder asBuilder() { return Reader{message}; }
+		Builder asBuilder() { return Builder{message}; }
 	};
 };
+
+/// @todo how to do initialization?
+template <typename T> class MessageArray : public Message {
+private:
+	using array_type = std::vector<T>;
+	array_type elements;
+	friend class Builder;
+	friend class Reader;
+
+public:
+	class Reader;
+	class Builder {
+	private:
+		MessageArray<T> &message;
+
+	public:
+		Builder(MessageArray<T> &message) : message{message} {
+			message.set_explicitly = true;
+		}
+
+		constexpr typename T::Builder init(size_t i) {
+			T &msg_ref = message.elements.at(i);
+			return typename T::Builder{msg_ref};
+		}
+
+		Reader asReader() { return Reader{message}; }
+	};
+
+	class Reader {
+	private:
+		MessageArray<T> &message;
+
+	public:
+		Reader(MessageArray<T> &message) : message{message} {}
+
+		constexpr typename T::Reader get(size_t i) {
+			return message.elements.at(i);
+		}
+
+		size_t size() const { return message.elements.size(); }
+
+		bool isSetExplicitly() const { return message.set_explicitly; }
+
+		Builder asBuilder() { return Builder{message}; }
+	};
+};
+
 template <typename T, typename K> struct MessageStructMember;
 
 template <typename T, typename C, C... Chars>

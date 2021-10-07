@@ -1,6 +1,6 @@
 #include "suite/suite.h"
 
-#include "source/async.h"
+#include "source/kelgin/async.h"
 
 namespace {
 GIN_TEST("Async Immediate"){
@@ -180,5 +180,51 @@ GIN_TEST("Async Scheduling"){
 	GIN_EXPECT(!foo_30.isError(), foo_30.error().message());
 	GIN_EXPECT(foo_30.isValue(), "Return is not a value");
 	GIN_EXPECT(foo_30.value() == (std::string{"pre"} + std::to_string(33) + std::string{"post"}), "Values is not pre33post, but " + foo_30.value());
+}
+
+GIN_TEST("Async detach"){
+	using namespace gin;
+
+	EventLoop event_loop;
+	WaitScope wait_scope{event_loop};
+
+	int num = 0;
+
+	Conveyor<int>{10}.then([&num](int bar){
+		num = bar;
+	}).detach();
+
+	wait_scope.poll();
+
+	GIN_EXPECT(num == 10, std::string{"Bad value: Expected 10, but got "} + std::to_string(num));
+}
+
+GIN_TEST("Async Merge"){
+	using namespace gin;
+
+	EventLoop event_loop;
+	WaitScope wait_scope{event_loop};
+
+	auto cam = Conveyor<int>{10}.merge();
+
+	cam.second.attach(Conveyor<int>{11});
+
+	cam.second.attach(Conveyor<int>{14});
+
+	size_t elements_passed = 0;
+	bool wrong_value = false;
+
+	auto sink = cam.first.then([&elements_passed, &wrong_value](int foo){
+		if(foo == 10 || foo == 11 || 14){
+			++elements_passed;
+		}else{
+			wrong_value = true;
+		}
+	}).sink();
+
+	wait_scope.poll();
+
+	GIN_EXPECT(!wrong_value, std::string{"Expected values 10 or 11"});
+	GIN_EXPECT(elements_passed == 3, std::string{"Expected 2 passed elements, got only "} + std::to_string(elements_passed));
 }
 }

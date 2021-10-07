@@ -3,6 +3,7 @@
 #include <sstream>
 
 namespace gin {
+namespace unix {
 IFdOwner::IFdOwner(UnixEventPort &event_port, int file_descriptor, int fd_flags,
 				   uint32_t event_mask)
 	: event_port{event_port}, file_descriptor{file_descriptor},
@@ -17,76 +18,12 @@ IFdOwner::~IFdOwner() {
 	}
 }
 
-void UnixIoStream::readStep() {
-	if (read_ready) {
-		read_ready->feed();
-	}
-	while (!read_tasks.empty()) {
-		ReadIoTask &task = read_tasks.front();
-
-		ssize_t n = ::read(fd(), task.buffer, task.max_length);
-
-		if (n <= 0) {
-			if (n == 0) {
-				if (on_read_disconnect) {
-					on_read_disconnect->feed();
-				}
-				break;
-			}
-			int error = errno;
-			if (error == EAGAIN || error == EWOULDBLOCK) {
-				break;
-			} else {
-				if (read_done) {
-					read_done->fail(criticalError("Read failed"));
-				}
-				read_tasks.pop();
-			}
-		} else if (static_cast<size_t>(n) >= task.min_length &&
-				   static_cast<size_t>(n) <= task.max_length) {
-			if (read_done) {
-				read_done->feed(static_cast<size_t>(n));
-			}
-			size_t max_len = task.max_length;
-			read_tasks.pop();
-		} else {
-			task.buffer = reinterpret_cast<uint8_t *>(task.buffer) + n;
-			task.min_length -= static_cast<size_t>(n);
-			task.max_length -= static_cast<size_t>(n);
-		}
-	}
+ssize_t unixRead(int fd, void *buffer, size_t length) {
+	return ::recv(fd, buffer, length, 0);
 }
 
-void UnixIoStream::writeStep() {
-	if (write_ready) {
-		write_ready->feed();
-	}
-	while (!write_tasks.empty()) {
-		WriteIoTask &task = write_tasks.front();
-
-		ssize_t n = ::write(fd(), task.buffer, task.length);
-
-		if (n < 0) {
-			int error = errno;
-			if (error == EAGAIN || error == EWOULDBLOCK) {
-				break;
-			} else {
-				if (write_done) {
-					write_done->fail(criticalError("Write failed"));
-				}
-				write_tasks.pop();
-			}
-		} else if (static_cast<size_t>(n) == task.length) {
-			if (write_done) {
-				write_done->feed(static_cast<size_t>(task.length));
-			}
-			write_tasks.pop();
-		} else {
-			task.buffer = reinterpret_cast<const uint8_t *>(task.buffer) +
-						  static_cast<size_t>(n);
-			task.length -= static_cast<size_t>(n);
-		}
-	}
+ssize_t unixWrite(int fd, const void *buffer, size_t length) {
+	return ::send(fd, buffer, length, 0);
 }
 
 UnixIoStream::UnixIoStream(UnixEventPort &event_port, int file_descriptor,
@@ -94,18 +31,15 @@ UnixIoStream::UnixIoStream(UnixEventPort &event_port, int file_descriptor,
 	: IFdOwner{event_port, file_descriptor, fd_flags, event_mask | EPOLLRDHUP} {
 }
 
-void UnixIoStream::read(void *buffer, size_t min_length, size_t max_length) {
-	bool is_ready = read_tasks.empty();
-	read_tasks.push(ReadIoTask{buffer, min_length, max_length});
-	if (is_ready) {
-		readStep();
+ErrorOr<size_t> UnixIoStream::read(void *buffer, size_t length) {
+	ssize_t read_bytes = unixRead(fd(), buffer, length);
+	if (read_bytes > 0) {
+		return static_cast<size_t>(read_bytes);
+	} else if (read_bytes == 0) {
+		return criticalError("Disconnected", Error::Code::Disconnected);
 	}
-}
 
-Conveyor<size_t> UnixIoStream::readDone() {
-	auto caf = newConveyorAndFeeder<size_t>();
-	read_done = std::move(caf.feeder);
-	return std::move(caf.conveyor);
+	return recoverableError("Currently busy");
 }
 
 Conveyor<void> UnixIoStream::readReady() {
@@ -120,18 +54,19 @@ Conveyor<void> UnixIoStream::onReadDisconnected() {
 	return std::move(caf.conveyor);
 }
 
-void UnixIoStream::write(const void *buffer, size_t length) {
-	bool is_ready = write_tasks.empty();
-	write_tasks.push(WriteIoTask{buffer, length});
-	if (is_ready) {
-		writeStep();
+ErrorOr<size_t> UnixIoStream::write(const void *buffer, size_t length) {
+	ssize_t write_bytes = unixWrite(fd(), buffer, length);
+	if (write_bytes > 0) {
+		return static_cast<size_t>(write_bytes);
 	}
-}
 
-Conveyor<size_t> UnixIoStream::writeDone() {
-	auto caf = newConveyorAndFeeder<size_t>();
-	write_done = std::move(caf.feeder);
-	return std::move(caf.conveyor);
+	int error = errno;
+
+	if (error == EAGAIN || error == EWOULDBLOCK) {
+		return recoverableError("Currently busy");
+	}
+
+	return criticalError("Disconnected", Error::Code::Disconnected);
 }
 
 Conveyor<void> UnixIoStream::writeReady() {
@@ -142,11 +77,15 @@ Conveyor<void> UnixIoStream::writeReady() {
 
 void UnixIoStream::notify(uint32_t mask) {
 	if (mask & EPOLLOUT) {
-		writeStep();
+		if (write_ready) {
+			write_ready->feed();
+		}
 	}
 
 	if (mask & EPOLLIN) {
-		readStep();
+		if (read_ready) {
+			read_ready->feed();
+		}
 	}
 
 	if (mask & EPOLLRDHUP) {
@@ -208,26 +147,31 @@ Own<Server> UnixNetworkAddress::listen() {
 
 	::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 
-	addresses.front().bind(fd);
+	bool failed = addresses.front().bind(fd);
+	if (failed) {
+		return nullptr;
+	}
+
 	::listen(fd, SOMAXCONN);
 
 	return heap<UnixServer>(event_port, fd, 0);
 }
 
-Own<IoStream> UnixNetworkAddress::connect() {
+Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 	assert(addresses.size() > 0);
 	if (addresses.size() == 0) {
-		return nullptr;
+		return Conveyor<Own<IoStream>>{criticalError("No address found")};
 	}
 
 	int fd = addresses.front().socket(SOCK_STREAM);
 	if (fd < 0) {
-		return nullptr;
+		return Conveyor<Own<IoStream>>{criticalError("Couldn't open socket")};
 	}
 
 	Own<UnixIoStream> io_stream =
 		heap<UnixIoStream>(event_port, fd, 0, EPOLLIN | EPOLLOUT);
 
+	bool success = false;
 	for (auto iter = addresses.begin(); iter != addresses.end(); ++iter) {
 		int status = ::connect(fd, iter->getRaw(), iter->getRawLength());
 		if (status < 0) {
@@ -237,28 +181,35 @@ Own<IoStream> UnixNetworkAddress::connect() {
 			 * But edge triggered epolling means that it'll
 			 * be ready when the signal is triggered
 			 */
+
+			/// @todo Add limit node when implemented
 			if (error == EINPROGRESS) {
-				Conveyor<void> write_ready = io_stream->writeReady();
-				break;
 				/*
-				* Future function return
+				Conveyor<void> write_ready = io_stream->writeReady();
 				return write_ready.then(
-					[io_stream{std::move(io_stream)}]() mutable {
-						io_stream->write_ready = nullptr;
-						return std::move(io_stream);
+					[ios{std::move(io_stream)}]() mutable {
+						ios->write_ready = nullptr;
+						return std::move(ios);
 					});
 				*/
+				success = true;
+				break;
 			} else if (error != EINTR) {
-				return nullptr;
+				/// @todo Push error message from
+				return Conveyor<Own<IoStream>>{
+					criticalError("Couldn't connect")};
 			}
 		} else {
+			success = true;
 			break;
 		}
 	}
 
-	return io_stream;
-	// @todo change function into a safe return type.
-	// return Conveyor<Own<IoStream>>{std::move(io_stream)};
+	if (!success) {
+		return criticalError("Couldn't connect");
+	}
+
+	return Conveyor<Own<IoStream>>{std::move(io_stream)};
 }
 
 std::string UnixNetworkAddress::toString() const {
@@ -273,19 +224,14 @@ std::string UnixNetworkAddress::toString() const {
 		return {};
 	}
 }
+const std::string &UnixNetworkAddress::address() const { return path; }
 
-UnixAsyncIoProvider::UnixAsyncIoProvider(UnixEventPort &port_ref,
-										 Own<EventPort> &&port)
-	: event_port{port_ref}, event_loop{std::move(port)} {}
+uint16_t UnixNetworkAddress::port() const { return port_hint; }
 
-Own<NetworkAddress> UnixAsyncIoProvider::parseAddress(const std::string &path,
-													  uint16_t port_hint) {
-	UnixEventPort *port =
-		reinterpret_cast<UnixEventPort *>(event_loop.eventPort());
-	if (!port) {
-		return nullptr;
-	}
+UnixNetwork::UnixNetwork(UnixEventPort &event) : event_port{event} {}
 
+Conveyor<Own<NetworkAddress>> UnixNetwork::parseAddress(const std::string &path,
+														uint16_t port_hint) {
 	std::string_view addr_view{path};
 	{
 		std::string_view begins_with = "unix:";
@@ -297,23 +243,34 @@ Own<NetworkAddress> UnixAsyncIoProvider::parseAddress(const std::string &path,
 	std::list<SocketAddress> addresses =
 		SocketAddress::parse(addr_view, port_hint);
 
-	return heap<UnixNetworkAddress>(*port, *this, path, port_hint,
-									std::move(addresses));
+	return Conveyor<Own<NetworkAddress>>{heap<UnixNetworkAddress>(
+		event_port, path, port_hint, std::move(addresses))};
 }
 
-Own<InputStream> UnixAsyncIoProvider::wrapInputFd(int fd) {
+UnixIoProvider::UnixIoProvider(UnixEventPort &port_ref, Own<EventPort> port)
+	: event_port{port_ref}, event_loop{std::move(port)}, unix_network{
+															 port_ref} {}
+
+Own<InputStream> UnixIoProvider::wrapInputFd(int fd) {
 	return heap<UnixIoStream>(event_port, fd, 0, EPOLLIN);
 }
 
-EventLoop &UnixAsyncIoProvider::eventLoop() { return event_loop; }
+Network &UnixIoProvider::network() {
+	return static_cast<Network &>(unix_network);
+}
+
+EventLoop &UnixIoProvider::eventLoop() { return event_loop; }
+
+} // namespace unix
 
 ErrorOr<AsyncIoContext> setupAsyncIo() {
+	using namespace unix;
 	try {
 		Own<UnixEventPort> prt = heap<UnixEventPort>();
 		UnixEventPort &prt_ref = *prt;
 
-		Own<UnixAsyncIoProvider> io_provider =
-			heap<UnixAsyncIoProvider>(prt_ref, std::move(prt));
+		Own<UnixIoProvider> io_provider =
+			heap<UnixIoProvider>(prt_ref, std::move(prt));
 
 		EventLoop &loop_ref = io_provider->eventLoop();
 

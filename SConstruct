@@ -29,19 +29,25 @@ def add_kel_source_files(self, sources, filetype, lib_env=None, shared=False, ta
             sources.append( self.StaticObject( target=target_name, source=path ) )
     pass
 
-env=Environment(CPPPATH=['#source','#','#driver'],
-    CXX='c++',
+env=Environment(CPPPATH=['#source/kelgin','#source','#','#driver'],
+    CXX='clang++',
     CPPDEFINES=['GIN_UNIX'],
     CXXFLAGS=['-std=c++17','-g','-Wall','-Wextra'],
-    LIBS=[])
+    LIBS=['gnutls'])
 env.__class__.add_source_files = add_kel_source_files
 
+env.objects = []
 env.sources = []
 env.headers = []
-env.objects = []
+
+env.tls_sources = []
+env.tls_headers = []
+
+env.driver_sources = []
+env.driver_headers = []
 
 Export('env')
-SConscript('source/SConscript')
+SConscript('source/kelgin/SConscript')
 SConscript('driver/SConscript')
 
 # Library build
@@ -49,11 +55,11 @@ SConscript('driver/SConscript')
 env_library = env.Clone()
 
 env.objects_shared = []
-env_library.add_source_files(env.objects_shared, env.sources, shared=True)
+env_library.add_source_files(env.objects_shared, env.sources + env.driver_sources + env.tls_sources, shared=True)
 env.library_shared = env_library.SharedLibrary('#bin/kelgin', [env.objects_shared])
 
 env.objects_static = []
-env_library.add_source_files(env.objects_static, env.sources)
+env_library.add_source_files(env.objects_static, env.sources + env.driver_sources + env.tls_sources)
 env.library_static = env_library.StaticLibrary('#bin/kelgin', [env.objects_static])
 
 env.Alias('library', [env.library_shared, env.library_static])
@@ -75,7 +81,7 @@ def format_iter(env,files):
         env.format_actions.append(env.AlwaysBuild(env.ClangFormat(target=f+"-clang-format",source=f)))
     pass
 
-format_iter(env,env.sources + env.headers)
+format_iter(env,env.sources + env.driver_sources + env.headers + env.driver_headers)
 
 env.Alias('format', env.format_actions)
 
@@ -83,5 +89,7 @@ env.Alias('all', ['format', 'library_shared', 'library_static', 'test'])
 
 env.Install('/usr/local/lib/', [env.library_shared, env.library_static])
 env.Install('/usr/local/include/kelgin/', [env.headers])
+env.Install('/usr/local/include/kelgin/tls/', [env.tls_headers])
+
 env.Install('/usr/local/include/kelgin/test/', [env.test_headers])
 env.Alias('install', '/usr/local/')

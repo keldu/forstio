@@ -1,6 +1,6 @@
 #include "suite/suite.h"
 
-#include "source/proto_kel.h"
+#include "source/kelgin/proto_kel.h"
 
 #include <iostream>
 
