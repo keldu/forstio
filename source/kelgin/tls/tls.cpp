@@ -99,6 +99,58 @@ Conveyor<Own<IoStream>> TlsServer::accept() {
 	});
 }
 
+namespace {
+struct TlsClientStreamHelper {
+public:
+	Own<ConveyorFeeder<Own<IoStream>>> feeder;
+	SinkConveyor connection_sink;
+	SinkConveyor stream_reader;
+	SinkConveyor stream_writer;
+
+	Own<TlsIoStream> stream = nullptr;
+public:
+	TlsClientStreamHelper(Own<ConveyorFeeder<Own<IoStream>>> f):
+		feeder{std::move(f)}
+	{}
+
+	void setupTurn(){
+		GIN_ASSERT(stream){
+			return;
+		}
+
+		stream_reader = stream->readReady().then([this](){
+			turn();
+		}).sink();
+
+		stream_writer = stream->writeReady().then([this](){
+			turn();
+		}).sink();
+	}
+
+	void turn(){
+		if(stream){
+			// Guarantee that the receiving end is already setup
+			GIN_ASSERT(feeder){
+				return;
+			}
+
+			auto &session = stream->session();
+
+			int ret;
+			do {
+				ret = gnutls_handshake(session);
+			} while (ret == GNUTLS_E_AGAIN && gnutls_error_is_fatal(ret) == 0);
+
+			if(gnutls_error_is_fatal(ret) != 0){
+				feeder->fail(criticalError("Couldn't create Tls connection"));
+			}else if(ret == GNUTLS_E_SUCCESS){
+				feeder->feed(std::move(stream));
+			}
+		}
+	}
+};
+}
+
 TlsNetworkAddress::TlsNetworkAddress(Own<NetworkAddress> net_addr, const std::string& host_name_, Tls &tls_)
 	: internal{std::move(net_addr)}, host_name{host_name_}, tls{tls_} {}
 
@@ -109,8 +161,15 @@ Own<Server> TlsNetworkAddress::listen() {
 
 Conveyor<Own<IoStream>> TlsNetworkAddress::connect() {
 	GIN_ASSERT(internal) { return Conveyor<Own<IoStream>>{nullptr, nullptr}; }
-	return internal->connect().then([this](
-										Own<IoStream> stream) -> ErrorOr<Own<IoStream>> {
+
+	// Helper setups
+	auto caf = newConveyorAndFeeder<Own<IoStream>>();
+	Own<TlsClientStreamHelper> helper = heap<TlsClientStreamHelper>(std::move(caf.feeder));
+	TlsClientStreamHelper* hlp_ptr = helper.get();
+	
+	// Conveyor entangled structure
+	auto prim_conv = internal->connect().then([this, hlp_ptr](
+										Own<IoStream> stream) -> ErrorOr<void> {
 		IoStream* inner_stream = stream.get();
 		auto tls_stream = heap<TlsIoStream>(std::move(stream));
 
@@ -134,17 +193,16 @@ Conveyor<Own<IoStream>> TlsNetworkAddress::connect() {
 
 		// gnutls_handshake_set_timeout(session, GNUTLS_DEFAULT_HANDSHAKE_TIMEOUT);
 
-		int ret;
-		do {
-			ret = gnutls_handshake(session);
-		} while (ret < 0 && gnutls_error_is_fatal(ret) == 0);
+		hlp_ptr->stream = std::move(tls_stream);
+		hlp_ptr->setupTurn();
+		hlp_ptr->turn();
 
-		if(ret < 0){
-			return criticalError("Couldn't create Tls connection");
-		}
-
-		return Own<IoStream>{std::move(tls_stream)};
+		return Void{};
 	});
+
+	helper->connection_sink = prim_conv.sink();
+
+	return caf.conveyor.attach(std::move(helper));
 }
 
 static ssize_t kelgin_tls_push_func(gnutls_transport_ptr_t p, const void *data,

@@ -194,18 +194,17 @@ public:
 	[[nodiscard]] Conveyor<T> limit(size_t val = 1);
 
 	/**
+	 *
+	 */
+	[[nodiscard]] std::pair<Conveyor<T>, MergeConveyor<T>> merge();
+
+	/**
 	 * Moves the conveyor chain into a thread local storage point which drops
 	 * every element. Use sink() if you want to control the lifetime of a
 	 * conveyor chain
 	 */
 	template <typename ErrorFunc = PropagateError>
 	void detach(ErrorFunc &&err_func = PropagateError());
-
-	/**
-	 *
-	 */
-	[[nodiscard]] std::pair<Conveyor<T>, MergeConveyor<T>> merge();
-
 	/**
 	 * Creates a local sink which drops elements, but lifetime control remains
 	 * in your hand.
@@ -825,7 +824,7 @@ public:
 	~MergeConveyorNode();
 
 	// Event
-	void getResult(ErrorOrValue &err_or_val) override;
+	void getResult(ErrorOrValue &err_or_val) noexcept override;
 
 	void fire() override;
 
@@ -850,45 +849,33 @@ public:
 };
 
 /*
-class JoinConveyorNodeBase : public ConveyorStorage {
-public:
-	virtual ~JoinConveyorNodeBase() = default;
-};
-
-template <typename T>
-class JoinConveyorNode final : public JoinConveyorNodeBase {
+class JoinConveyorNodeBase : public ConveyorNode, public ConveyorEventStorage {
 private:
-	T data;
 
-public:
-};
-
-class JoinConveyorMergeNodeBase : public ConveyorNode, public ConveyorStorage {
 public:
 };
 
 template <typename... Args>
-class JoinConveyorMergerNode final : public JoinConveyorMergeNodeBase {
+class JoinConveyorNode final : public JoinConveyorNodeBase {
 private:
-	std::tuple<JoinConveyorNode<Args>...> joined;
+	template<typename T>
+	class Appendage : public ConveyorEventStorage {
+	private:
+		Maybe<T> data = std::nullopt;
+
+	public:
+		size_t space() const override;
+		size_t queued() const override;
+
+		void fire() override;
+		void getResult(ErrorOrValue& eov) override;
+	};
+
+	std::tuple<Appendage<Args>...> appendages;
 
 public:
-	void getResult(ErrorOrValue &err_or_val) noexcept override {}
-
-	void fire() override;
 };
 
-class UniteConveyorNodeBase : public ConveyorNode, public ConveyorStorage {
-public:
-	virtual ~UniteConveyorNodeBase() = default;
-};
-
-template <typename T> class UniteConveyorNode : public UniteConveyorNodeBase {
-public:
-	virtual ~UniteConveyorNode() = default;
-};
-
-template <typename T> class
 */
 
 } // namespace gin

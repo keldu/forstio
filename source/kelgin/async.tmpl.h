@@ -302,7 +302,8 @@ MergeConveyorNode<T>::MergeConveyorNode(Our<MergeConveyorNodeData<T>> d)
 
 template <typename T> MergeConveyorNode<T>::~MergeConveyorNode() {}
 
-template <typename T> void MergeConveyorNode<T>::getResult(ErrorOrValue &eov) {
+template <typename T>
+void MergeConveyorNode<T>::getResult(ErrorOrValue &eov) noexcept {
 	ErrorOr<FixVoid<T>> &err_or_val = eov.as<FixVoid<T>>();
 
 	GIN_ASSERT(data) { return; }
