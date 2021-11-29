@@ -29,8 +29,8 @@ def add_kel_source_files(self, sources, filetype, lib_env=None, shared=False, ta
             sources.append( self.StaticObject( target=target_name, source=path ) )
     pass
 
-env=Environment(CPPPATH=['#source/kelgin','#source','#','#driver'],
-    CXX='clang++',
+env=Environment(ENV=os.environ, CPPPATH=['#source/kelgin','#source','#','#driver'],
+    CXX='g++',
     CPPDEFINES=['GIN_UNIX'],
     CXXFLAGS=['-std=c++17','-g','-Wall','-Wextra'],
     LIBS=['gnutls'])
