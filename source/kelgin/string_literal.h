@@ -12,7 +12,7 @@ namespace gin {
 template <template CharT, size_t N> class StringLiteral {
 public:
 	constexpr StringLiteral(const CharT (&input)[N]) noexcept {
-		for(size_t i = 0; i < N ; ++i){
+		for (size_t i = 0; i < N; ++i) {
 			data[i] = input[i];
 		}
 	}
@@ -26,6 +26,6 @@ public:
 
 template <typename T, T... Chars>
 constexpr gin::StringLiteral<T, sizeof...(Chars)> operator""_key() {
-	return gin::StringLiteral<T,sizeof...(Chars)+1u>{Chars..., '\0'};
+	return gin::StringLiteral<T, sizeof...(Chars) + 1u>{Chars..., '\0'};
 }
 } // namespace gin

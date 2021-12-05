@@ -2,9 +2,9 @@
 
 #include <cstdint>
 #include <tuple>
+#include <type_traits>
 #include <variant>
 #include <vector>
-#include <type_traits>
 
 #include "common.h"
 
@@ -29,21 +29,21 @@ public:
 };
 /*
  * Representing all message types
- * Description which type to use happens through the use of the schema classes in schema.h
- * The message classes are a container class which either contains singular types or has
- * some form of encoding in a buffer present
+ * Description which type to use happens through the use of the schema classes
+ * in schema.h The message classes are a container class which either contains
+ * singular types or has some form of encoding in a buffer present
  */
 
 template <class... V, StringLiteral... Keys, class Container>
 class Message<schema::Struct<schema::NamedMember<V, Keys>...>, Container> final
 	: public MessageBase {
 private:
-	using SchemaType = schema::Struct<schema::NamedMember<V,Keys>...>;
-	using MessageType =
-		Message<SchemaType, Container>;
+	using SchemaType = schema::Struct<schema::NamedMember<V, Keys>...>;
+	using MessageType = Message<SchemaType, Container>;
 	Container container;
 
-	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>, "Container should have same Schema as Message");
+	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
+				  "Container should have same Schema as Message");
 
 	friend class Builder;
 	friend class Reader;
@@ -59,13 +59,15 @@ public:
 
 		Reader asReader() { return Reader{MessageType & message}; }
 
-		template<size_t i>
-		typename Container::Element<i>::Builder init(){
-			return typename Container::Element<i>::Builder{message.container.get<i>()};
+		template <size_t i> typename Container::Element<i>::Builder init() {
+			return typename Container::Element<i>::Builder{
+				message.container.get<i>()};
 		}
 
-		template<StringLiteral Literal> typename Container::Element<i>::Builder init(){
-			constexpr size_t i = MessageParameterPackIndex<Literal, Keys...>::Value;
+		template <StringLiteral Literal>
+		typename Container::Element<i>::Builder init() {
+			constexpr size_t i =
+				MessageParameterPackIndex<Literal, Keys...>::Value;
 
 			return init<i>();
 		}
@@ -80,25 +82,27 @@ public:
 
 		Builder asBuilder() { return Builder{MessageType & message}; }
 
-		template<size_t i>
-		typename Container::Element<i>::Reader get(){
-			return typename Container::Element<i>::Reader{message.container.get<i>()};
+		template <size_t i> typename Container::Element<i>::Reader get() {
+			return typename Container::Element<i>::Reader{
+				message.container.get<i>()};
 		}
 
-		template<StringLiteral Literal> typename Container::Element<i>::Reader get(){
-			constexpr size_t i = MessageParameterPackIndex<Literal, Keys...>::Value;
+		template <StringLiteral Literal>
+		typename Container::Element<i>::Reader get() {
+			constexpr size_t i =
+				MessageParameterPackIndex<Literal, Keys...>::Value;
 
 			return get<i>();
 		}
 	};
 };
 
-template<class T, size_t N, class Container>
-class Message<schema::Primitive<T,N>, Container> final : public MessageBase {
+template <class T, size_t N, class Container>
+class Message<schema::Primitive<T, N>, Container> final : public MessageBase {
 private:
 	Container container;
-public:
 
+public:
 };
 
 class MessageReader {

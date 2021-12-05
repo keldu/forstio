@@ -23,19 +23,12 @@ struct SignedIntegral {};
 struct UnsignedIntegral {};
 struct FloatingPoint {};
 
-template<class T, size_t N>
-struct Primitive {
-	static_assert(
-		(
-			(std::is_same_v<T, SignedIntegral> || std::is_same_v<T,UnsignedIntegral>) &&
-			(N == 1 || N == 2 || N == 4 || N == 8)
-		)||
-		(
-			std::is_same_v<T,FloatingPoint> &&
-			(N==4 || N == 8)
-		),
-		"Primitive Type is not supported"
-	);
+template <class T, size_t N> struct Primitive {
+	static_assert(((std::is_same_v<T, SignedIntegral> ||
+					std::is_same_v<T, UnsignedIntegral>)&&(N == 1 || N == 2 ||
+														   N == 4 || N == 8)) ||
+					  (std::is_same_v<T, FloatingPoint> && (N == 4 || N == 8)),
+				  "Primitive Type is not supported");
 };
 
 using Int8 = Primitive<SignedIntegral, 1>;
