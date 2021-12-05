@@ -104,6 +104,18 @@ public:
 
 	void set(const ValueType &v) { value = v; }
 
-	const T &get() { return value; }
+	const ValueType &get() const { return value; }
+};
+
+template <> class MessageContainer<schema::String> {
+public:
+private:
+	using ValueType = std::string;
+	ValueType value;
+
+public:
+	void set(const ValueType &v) { value = v; }
+
+	const ValueType &get() const { return value; }
 };
 } // namespace gin
