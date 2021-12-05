@@ -34,7 +34,6 @@ public:
  * singular types or has some form of encoding in a buffer present
  */
 
-
 /*
  * Struct Message
  */
@@ -92,7 +91,7 @@ public:
 		Reader(MessageType &msg) : message{msg} {}
 
 		Builder asBuilder() { return Builder{message}; }
-		
+
 		/*
 		 * Get member by index
 		 */
