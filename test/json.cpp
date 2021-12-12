@@ -20,8 +20,12 @@ using gin::Error;
 
 using gin::RingBuffer;
 
+namespace schema {
+using namespace gin::schema;
+}
+
 namespace {
-typedef MessageList<MessagePrimitive<uint32_t>, MessagePrimitive<std::string> > TestList;
+using TestTuple = schema::Tuple<schema::UInt32, schema::String >;
 
 GIN_TEST("JSON List Encoding"){
 	auto builder = heapMessageBuilder();
@@ -38,29 +42,28 @@ GIN_TEST("JSON List Encoding"){
 	std::string tmp_string = temp_buffer.toString();
 	GIN_EXPECT(tmp_string == "[12,\"free\"]", std::string{"Bad encoding:\n"} + tmp_string);
 }
-
-typedef MessageStruct<
-	MessageStructMember<MessagePrimitive<uint32_t>, decltype("test_uint"_t)>,
-	MessageStructMember<MessagePrimitive<std::string>, decltype("test_string"_t)>,
-	MessageStructMember<MessagePrimitive<std::string>, decltype("test_name"_t)>,
-	MessageStructMember<MessagePrimitive<bool>, decltype("test_bool"_t)>
-> TestStruct;
+using TestStruct = schema::Struct<
+	schema::NamedMember<schema::UInt32, "test_uint">,
+	schema::NamedMember<schema::String, "test_string">,
+	schema::NamedMember<schema::String, "test_name">,
+	schema::NamedMember<schema::Bool, "test_bool">
+>;
 
 GIN_TEST("JSON Struct Encoding"){
 	auto builder = heapMessageBuilder();
 	auto root = builder.initRoot<TestStruct>();
 	
-	auto uint = root.init<decltype("test_uint"_t)>();
+	auto uint = root.init<"test_uint">();
 	uint.set(23);
 
 	std::string test_string = "foo";
-	auto string = root.init<decltype("test_string"_t)>();
+	auto string = root.init<"test_string">();
 	string.set(test_string);
 	
-	auto string_name = root.init<decltype("test_name"_t)>();
+	auto string_name = root.init<"test_name">();
 	string_name.set("test_name"_t.view());
 
-	root.init<decltype("test_bool"_t)>().set(false);
+	root.init<"test_bool">().set(false);
 
 	JsonCodec codec;
 	RingBuffer temp_buffer;
@@ -72,10 +75,10 @@ GIN_TEST("JSON Struct Encoding"){
 	GIN_EXPECT(tmp_string == expected_result, std::string{"Bad encoding:\n"} + tmp_string);
 }
 
-typedef gin::MessageUnion<
-	gin::MessageUnionMember<gin::MessagePrimitive<uint32_t>, decltype("test_uint"_t)>,
-	gin::MessageUnionMember<gin::MessagePrimitive<std::string>, decltype("test_string"_t)>
-> TestUnion;
+using TestUnion = schema::Union<
+	schema::NamedMember<schema::UInt32, "test_uint">,
+	schema::NamedMember<schema::String, "test_string">
+>;
 
 GIN_TEST("JSON Union Encoding"){
 	using namespace gin;
@@ -83,7 +86,7 @@ GIN_TEST("JSON Union Encoding"){
 		auto builder = heapMessageBuilder();
 		auto root = builder.initRoot<TestUnion>();
 
-		auto test_uint = root.init<decltype("test_uint"_t)>();
+		auto test_uint = root.init<"test_uint">();
 		test_uint.set(23);
 
 		RingBuffer buffer;
@@ -102,7 +105,7 @@ GIN_TEST("JSON Union Encoding"){
 		auto builder = heapMessageBuilder();
 		auto root = builder.initRoot<TestUnion>();
 
-		auto test_string = root.init<decltype("test_string"_t)>();
+		auto test_string = root.init<"test_string">();
 		test_string.set("foo");
 
 		RingBuffer buffer;
@@ -138,10 +141,10 @@ GIN_TEST("JSON Struct Decoding"){
 	GIN_EXPECT( !error.failed(), error.message() );
 
 	auto reader = root.asReader();
-	GIN_EXPECT( reader.get<decltype("test_string"_t)>().get() == "banana", "Test String has wrong value" );
-	GIN_EXPECT( reader.get<decltype("test_uint"_t)>().get() == 5, "Test Unsigned has wrong value" );
-	GIN_EXPECT( reader.get<decltype("test_name"_t)>().get() == "keldu", "Test Name has wrong value" );
-	GIN_EXPECT( reader.get<decltype("test_bool"_t)>().get() == true, "Test Bool has wrong value" );
+	GIN_EXPECT( reader.get<"test_string">().get() == "banana", "Test String has wrong value" );
+	GIN_EXPECT( reader.get<"test_uint">().get() == 5, "Test Unsigned has wrong value" );
+	GIN_EXPECT( reader.get<"test_name">().get() == "keldu", "Test Name has wrong value" );
+	GIN_EXPECT( reader.get<"test_bool">().get() == true, "Test Bool has wrong value" );
 }
 
 GIN_TEST("JSON List Decoding"){
@@ -165,11 +168,11 @@ GIN_TEST("JSON List Decoding"){
 	GIN_EXPECT( reader.get<1>().get() == "free", "Test String has wrong value" );
 }
 
-typedef MessageStruct<
-	MessageStructMember<MessagePrimitive<uint32_t>, decltype("test_uint"_t)>,
-	MessageStructMember<TestStruct, decltype("test_struct"_t)>,
-	MessageStructMember<MessagePrimitive<std::string>, decltype("test_name"_t)>
-> TestStructDepth;
+using TestStructDepth = schema::Struct<
+	schema::NamedMember<schema::UInt32, "test_uint">,
+	schema::NamedMember<TestStruct, "test_struct">,
+	schema::NamedMember<schema::String, "test_name">
+>;
 
 GIN_TEST("JSON Struct Decoding Two layer"){
 	std::string json_string = R"(
@@ -195,57 +198,63 @@ GIN_TEST("JSON Struct Decoding Two layer"){
 
 	auto reader = root.asReader();
 
-	auto inner_reader = reader.get<decltype("test_struct"_t)>();
+	auto inner_reader = reader.get<"test_struct">();
 	
-	GIN_EXPECT( inner_reader.get<decltype("test_string"_t)>().get() == "banana", "Test String has wrong value" );
-	GIN_EXPECT( inner_reader.get<decltype("test_uint"_t)>().get() == 40, "Test Unsigned has wrong value" );
-	GIN_EXPECT( inner_reader.get<decltype("test_name"_t)>().get() == "HaDiKo", "Test Name has wrong value" );
-	GIN_EXPECT( inner_reader.get<decltype("test_bool"_t)>().get() == false, "Test Bool has wrong value" );
-	GIN_EXPECT( reader.get<decltype("test_uint"_t)>().get() == 5, "Test Unsigned has wrong value" );
-	GIN_EXPECT( reader.get<decltype("test_name"_t)>().get() == "keldu", "Test Name has wrong value" );
+	GIN_EXPECT( inner_reader.get<"test_string">().get() == "banana", "Test String has wrong value" );
+	GIN_EXPECT( inner_reader.get<"test_uint">().get() == 40, "Test Unsigned has wrong value" );
+	GIN_EXPECT( inner_reader.get<"test_name">().get() == "HaDiKo", "Test Name has wrong value" );
+	GIN_EXPECT( inner_reader.get<"test_bool">().get() == false, "Test Bool has wrong value" );
+	GIN_EXPECT( reader.get<"test_uint">().get() == 5, "Test Unsigned has wrong value" );
+	GIN_EXPECT( reader.get<"test_name">().get() == "keldu", "Test Name has wrong value" );
 }
 
-typedef MessageStruct<
-	MessageStructMember<
-		MessageStruct<
-			MessageStructMember< MessagePrimitive<std::string>, decltype("title"_t)>,
-			MessageStructMember<
-				MessageStruct<
-					MessageStructMember<MessagePrimitive<std::string>,decltype("title"_t)>,
-					MessageStructMember<
-						MessageStruct<
-							MessageStructMember<
-								MessageStruct<
-									MessageStructMember<MessagePrimitive<std::string>,decltype("ID"_t)>,
-									MessageStructMember<MessagePrimitive<std::string>,decltype("SortAs"_t)>,
-									MessageStructMember<MessagePrimitive<std::string>,decltype("GlossTerm"_t)>,
-									MessageStructMember<MessagePrimitive<std::string>,decltype("Acronym"_t)>,
-									MessageStructMember<MessagePrimitive<std::string>,decltype("Abbrev"_t)>,
-									MessageStructMember<
-										MessageStruct<
-											MessageStructMember<MessagePrimitive<std::string>, decltype("para"_t)>,
-											MessageStructMember<
-												MessageList<
-													MessagePrimitive<std::string>,
-													MessagePrimitive<std::string>
-												>
-											, decltype("GlossSeeAlso"_t)>
-										>
-									, decltype("GlossDef"_t)>,
-									MessageStructMember<MessagePrimitive<std::string>, decltype("GlossSee"_t)>
-								>
-							, decltype("GlossEntry"_t)>
-						>
-					, decltype("GlossList"_t)>
-				>
-			, decltype("GlossDiv"_t)>
-		>
-	, decltype("glossary"_t)>
-> TestJsonOrgExample;
+using TestJsonOrgExample1 = schema::Struct<
+	schema::NamedMember<
+		schema::Struct<
+			schema::NamedMember< schema::String, "title">,
+			schema::NamedMember<
+				schema::Struct<
+					schema::NamedMember< schema::String, "title">,
+					schema::NamedMember<
+						schema::Struct<
+							schema::NamedMember<
+								schema::Struct<
+									schema::NamedMember<schema::String, "ID">,
+									schema::NamedMember<schema::String, "SortAs">,
+									schema::NamedMember<schema::String, "GlossTerm">,
+									schema::NamedMember<schema::String, "Acronym">,
+									schema::NamedMember<schema::String, "Abbrev">,
+									schema::NamedMember<
+										schema::Struct<
+											schema::NamedMember<schema::String, "para">,
+											schema::NamedMember<
+												schema::Tuple<
+													schema::String,
+													schema::String
+												>,
+												"GlossSeeAlso"
+											>
+										>,
+										"GlossDef"
+									>,
+									schema::NamedMember<schema::String, "GlossSee">
+								>,
+								"GlossEntry"
+							>
+						>,
+						"GlossList"	
+					>
+				>,
+				"GlossDiv"
+			>
+		>,
+		"glossary"
+	>
+>;
 
 GIN_TEST ("JSON.org Decoding Example"){
 	auto builder = heapMessageBuilder();
-	TestJsonOrgExample::Builder root = builder.initRoot<TestJsonOrgExample>();
+	TestJsonOrgExample::Builder root = builder.initRoot<TestJsonOrgExample1>();
 
 	JsonCodec codec;
 	RingBuffer temp_buffer;
@@ -256,30 +265,30 @@ GIN_TEST ("JSON.org Decoding Example"){
 
 	auto reader = root.asReader();
 
-	auto glossary_reader = reader.get<decltype("glossary"_t)>();
+	auto glossary_reader = reader.get<"glossary">();
 
-	GIN_EXPECT(glossary_reader.get<decltype("title"_t)>().get() == "example glossary", "Bad glossary title");
+	GIN_EXPECT(glossary_reader.get<"title">().get() == "example glossary", "Bad glossary title");
 
-	auto gloss_div_reader = glossary_reader.get<decltype("GlossDiv"_t)>();
+	auto gloss_div_reader = glossary_reader.get<"GlossDiv">();
 
-	GIN_EXPECT(gloss_div_reader.get<decltype("title"_t)>().get() == "S", "bad gloss div value" );
+	GIN_EXPECT(gloss_div_reader.get<"title">().get() == "S", "bad gloss div value" );
 
-	auto gloss_list_reader = gloss_div_reader.get<decltype("GlossList"_t)>();
+	auto gloss_list_reader = gloss_div_reader.get<"GlossList">();
 
-	auto gloss_entry_reader = gloss_list_reader.get<decltype("GlossEntry"_t)>();
+	auto gloss_entry_reader = gloss_list_reader.get<"GlossEntry">();
 
-	GIN_EXPECT(gloss_entry_reader.get<decltype("ID"_t)>().get() == "SGML", "bad ID value" );
-	GIN_EXPECT(gloss_entry_reader.get<decltype("SortAs"_t)>().get() == "SGML", "bad SortAs value" );
-	GIN_EXPECT(gloss_entry_reader.get<decltype("GlossTerm"_t)>().get() == "Standard Generalized Markup Language", "bad GlossTerm value" );
-	GIN_EXPECT(gloss_entry_reader.get<decltype("Acronym"_t)>().get() == "SGML", "bad Acronym value" );
-	GIN_EXPECT(gloss_entry_reader.get<decltype("Abbrev"_t)>().get() == "ISO 8879:1986", "bad Abbrev value" );
-	GIN_EXPECT(gloss_entry_reader.get<decltype("GlossSee"_t)>().get() == "markup", "bad GlossSee value" );
+	GIN_EXPECT(gloss_entry_reader.get<"ID">().get() == "SGML", "bad ID value" );
+	GIN_EXPECT(gloss_entry_reader.get<"SortAs">().get() == "SGML", "bad SortAs value" );
+	GIN_EXPECT(gloss_entry_reader.get<"GlossTerm">().get() == "Standard Generalized Markup Language", "bad GlossTerm value" );
+	GIN_EXPECT(gloss_entry_reader.get<"Acronym">().get() == "SGML", "bad Acronym value" );
+	GIN_EXPECT(gloss_entry_reader.get<"Abbrev">().get() == "ISO 8879:1986", "bad Abbrev value" );
+	GIN_EXPECT(gloss_entry_reader.get<"GlossSee">().get() == "markup", "bad GlossSee value" );
 
-	auto gloss_def_reader = gloss_entry_reader.get<decltype("GlossDef"_t)>();
+	auto gloss_def_reader = gloss_entry_reader.get<"GlossDef">();
 
-	GIN_EXPECT(gloss_def_reader.get<decltype("para"_t)>().get() == "A meta-markup language, used to create markup languages such as DocBook.", "para value wrong");
+	GIN_EXPECT(gloss_def_reader.get<"para">().get() == "A meta-markup language, used to create markup languages such as DocBook.", "para value wrong");
 
-	auto gloss_see_also_reader = gloss_def_reader.get<decltype("GlossSeeAlso"_t)>();
+	auto gloss_see_also_reader = gloss_def_reader.get<"GlossSeeAlso">();
 
 	GIN_EXPECT(gloss_see_also_reader.get<0>().get() == "GML", "List 0 value wrong");
 	GIN_EXPECT(gloss_see_also_reader.get<1>().get() == "XML", "List 1 value wrong");

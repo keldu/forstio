@@ -114,6 +114,51 @@ public:
 	};
 };
 
+/*
+ * Union message class
+ */
+template<class... V, StringLiteral... Keys, class Container>
+class Message<schema::Union<schema::NamedMember<V,Keys>...>, Container> final : public MessageBase {
+private:
+	using SchemaType = schema::Union<schema::NamedMember<V, Keys>...>;
+	using MessageType = Message<SchemaType, Container>;
+
+	Container container;
+
+	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
+				  "Container should have same Schema as Message");
+
+	friend class Builder;
+	friend class Reader;
+
+public:
+	class Reader;
+	class Builder {
+	private:
+		MessageType & message;
+	public:
+		Builder(MessageType& msg):message{msg}{}
+
+		Reader asReader(){return Reader{message};}
+		
+
+	};
+
+	class Reader {
+	private:
+		MessageType& message;
+	public:
+		Reader(MessageType& msg):message{msg}{}
+
+		Builder asBuilder(){return Builder{message};}
+
+
+	};
+};
+
+/*
+ * Primitive type (float, double, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t) message class
+ */
 template <class T, size_t N, class Container>
 class Message<schema::Primitive<T, N>, Container> final : public MessageBase {
 private:
@@ -123,6 +168,7 @@ private:
 	Container container;
 
 	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
+				  "Container should have same Schema as Message");
 
 	friend class Builder;
 	friend class Reader;
@@ -162,6 +208,7 @@ private:
 	Container container;
 
 	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
+				  "Container should have same Schema as Message");
 
 	friend class Builder;
 	friend class Reader;

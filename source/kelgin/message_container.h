@@ -30,20 +30,31 @@ struct MessageParameterPackIndex<T, TL0, TL...> {
 		1u + MessageParameterPackIndex<T, TL...>::Value;
 };
 
-template <class... V, class... K>
-class MessageContainer<schema::Struct<schema::NamedMember<V, K>...>> {
+template <class... V, StringLiteral... Keys>
+class MessageContainer<schema::Struct<schema::NamedMember<V, Keys>...>> {
 private:
 	using ValueType = std::tuple<Message<V, MessageContainer<V>>...>;
 	ValueType values;
 
 public:
-	using SchemaType = schema::Struct<schema::NamedMember<V, K>...>;
+	using SchemaType = schema::Struct<schema::NamedMember<V, Keys>...>;
 
 	template <size_t i>
-	using Element =
-		MessageParameterPackType<N, Message<V, MessageContainer<V>>...>;
+	using ElementType =
+		MessageParameterPackType<i, Message<V, MessageContainer<V>>...>::Type;
 
-	template <size_t i> Element<i> &get() { return std::get<i>(values); }
+	template <size_t i> ElementType<i> &get() { return std::get<i>(values); }
+};
+
+/*
+ * Union storage
+ */
+template<class... V, StringLiteral... Keys>
+class MessageContainer<schema::Union<schema::NamedMember<V,Keys>...>> {
+private:
+	using ValueType = std::variant<Message<V,MessageContainer<V>>...>;
+	ValueType value;
+public:
 };
 
 /*
