@@ -30,8 +30,11 @@ public:
 /*
  * Representing all message types
  * Description which type to use happens through the use of the schema classes
- * in schema.h The message classes are a container class which either contains
- * singular types or has some form of encoding in a buffer present
+ * in schema.h The message classes are wrapper classes which store the data according
+ * to the specified container class.  
+ *
+ * The reader and builder classe exist to create some clarity while implementing parsers.
+ * Also minor guarantess are provided if the message is used as a template parameter.
  */
 
 /*
@@ -65,8 +68,8 @@ public:
 		/*
 		 * Initialize a member by index
 		 */
-		template <size_t i> typename Container::Element<i>::Builder init() {
-			return typename Container::Element<i>::Builder{
+		template <size_t i> typename Container::ElementType<i>::Builder init() {
+			return typename Container::ElementType<i>::Builder{
 				message.container.get<i>()};
 		}
 
@@ -75,7 +78,7 @@ public:
 		 * This is the preferred method for schema::Struct messages
 		 */
 		template <StringLiteral Literal>
-		typename Container::Element<MessageParameterPackIndex<Literal,Keys...>::Value>::Builder init() {
+		typename Container::ElementType<MessageParameterPackIndex<Literal,Keys...>::Value>::Builder init() {
 			constexpr size_t i =
 				MessageParameterPackIndex<Literal, Keys...>::Value;
 
@@ -95,8 +98,8 @@ public:
 		/*
 		 * Get member by index
 		 */
-		template <size_t i> typename Container::Element<i>::Reader get() {
-			return typename Container::Element<i>::Reader{
+		template <size_t i> typename Container::ElementType<i>::Reader get() {
+			return typename Container::ElementType<i>::Reader{
 				message.container.get<i>()};
 		}
 
@@ -105,7 +108,8 @@ public:
 		 * This is the preferred method for schema::Struct messages
 		 */
 		template <StringLiteral Literal>
-		typename Container::Element<MessageParameterPackIndex<Literal,Keys...>::Value>::Reader get() {
+		typename Container::ElementType<MessageParameterPackIndex<Literal,Keys...>::Value>::Reader get() {
+			// The index of the first match
 			constexpr size_t i =
 				MessageParameterPackIndex<Literal, Keys...>::Value;
 
@@ -115,7 +119,7 @@ public:
 };
 
 /*
- * Union message class
+ * Union message class. Wrapper object 
  */
 template<class... V, StringLiteral... Keys, class Container>
 class Message<schema::Union<schema::NamedMember<V,Keys>...>, Container> final : public MessageBase {
@@ -142,8 +146,8 @@ public:
 		Reader asReader(){return Reader{message};}
 		
 		template<size_t i>
-		typename Container::Element<i>::Builder init(){
-			return typename Container::Element<i>::Builder{message.container.get<i>()};
+		typename Container::ElementType<i>::Builder init(){
+			return typename Container::ElementType<i>::Builder{message.container.get<i>()};
 		}
 	};
 
@@ -155,8 +159,8 @@ public:
 
 		Builder asBuilder(){return Builder{message};}
 
-		template<size_t i> typename Container::Element<i>::Reader get(){
-			return typename Container::Element<i>::Reader{message.container.get<i>()};
+		template<size_t i> typename Container::ElementType<i>::Reader get(){
+			return typename Container::ElementType<i>::Reader{message.container.get<i>()};
 		}
 
 		template<StringLiteral Literal>
@@ -166,10 +170,15 @@ public:
 	};
 };
 
-template<class V, class Container>
-class Message<schema::Array<V>, Container> final : public MessageBase {
+/*
+ * Array message class. Wrapper around an array schema element
+ * @todo Array class needs either a resize function or each message class has an individual call for Array children
+ */
+/*
+template<class T, class Container>
+class Message<schema::Array<T>, Container> final : public MessageBase {
 private:
-	using SchemaType = schema::Array<V>;
+	using SchemaType = schema::Array<T>;
 	using MessageType = Message<SchemaType, Container>;
 	
 	Container container;
@@ -196,6 +205,52 @@ public:
 		}
 	};
 	
+	class Reader {
+	private:
+		MessageType& message;
+	public:
+		Reader(MessageType& msg):message{msg}{}
+
+		Builder asBuilder(){return Builder{message};}
+
+		template<size_t i>
+		typename Container::MessageType::Reader get(){
+			return typename Container::MessageType::Reader{message.container.get<i>()};
+		}
+	};
+};
+*/
+
+/*
+ * Tuple message class. Wrapper around a tuple schema
+ */
+template<class... T>
+class Message<schema::Tuple<T...>, Container> final : public MessageBase {
+private:
+	using SchemaType = schema::Tuple<T...>;
+	using MessageType = Message<SchemaType, Container>;
+	
+	Container container;
+
+	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
+				  "Container should have same Schema as Message");
+
+	friend class Builder;
+	friend class Reader;
+public:
+	class Reader;
+	class Builder {
+		MessageType & message;
+	public:
+		Builder(MessageType& msg):message{msg}{}
+
+		Reader asReader(){return Reader{message};}
+
+		template<size_t i>
+		typename Container::MessageType::Builder init(){
+			return typename Container::MessageType::Builder{message.container.get<i>()};
+		}
+	};
 	class Reader {
 	private:
 		MessageType& message;

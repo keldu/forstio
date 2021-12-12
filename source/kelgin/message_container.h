@@ -55,7 +55,35 @@ private:
 	using ValueType = std::variant<Message<V,MessageContainer<V>>...>;
 	ValueType value;
 public:
+	using SchemaType = schema::Union<schema::NamedMember<V, Keys>...>;
+	
+	template <size_t i>
+	using ElementType =
+		MessageParameterPackType<i, Message<V, MessageContainer<V>>...>::Type;
+
+
+	template<size_t i> ElementType<i> &get() {return std::get<i>(value);}
+	
 };
+
+/*
+ * Array storage
+ */
+
+/*
+template<class T>
+class MessageContainer<schema::Array> {
+private:
+	using ValueType = std::vector<Message<T,MessageContainer<T>>>;
+	ValueType values;
+public:
+	using SchemaType = schema::Array<T>;
+
+	template<size_t i> Message<T,MessageContainer<T>>& get(){
+		return values.at(i);
+	}
+};
+*/
 
 /*
  * Helper for the basic message container, so the class doesn't have to be
