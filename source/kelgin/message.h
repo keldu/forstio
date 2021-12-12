@@ -30,11 +30,12 @@ public:
 /*
  * Representing all message types
  * Description which type to use happens through the use of the schema classes
- * in schema.h The message classes are wrapper classes which store the data according
- * to the specified container class.  
+ * in schema.h The message classes are wrapper classes which store the data
+ * according to the specified container class.
  *
- * The reader and builder classe exist to create some clarity while implementing parsers.
- * Also minor guarantess are provided if the message is used as a template parameter.
+ * The reader and builder classe exist to create some clarity while implementing
+ * parsers. Also minor guarantess are provided if the message is used as a
+ * template parameter.
  */
 
 /*
@@ -78,7 +79,9 @@ public:
 		 * This is the preferred method for schema::Struct messages
 		 */
 		template <StringLiteral Literal>
-		typename Container::ElementType<MessageParameterPackIndex<Literal,Keys...>::Value>::Builder init() {
+		typename Container::ElementType<
+			MessageParameterPackIndex<Literal, Keys...>::Value>::Builder
+		init() {
 			constexpr size_t i =
 				MessageParameterPackIndex<Literal, Keys...>::Value;
 
@@ -108,7 +111,9 @@ public:
 		 * This is the preferred method for schema::Struct messages
 		 */
 		template <StringLiteral Literal>
-		typename Container::ElementType<MessageParameterPackIndex<Literal,Keys...>::Value>::Reader get() {
+		typename Container::ElementType<
+			MessageParameterPackIndex<Literal, Keys...>::Value>::Reader
+		get() {
 			// The index of the first match
 			constexpr size_t i =
 				MessageParameterPackIndex<Literal, Keys...>::Value;
@@ -119,10 +124,11 @@ public:
 };
 
 /*
- * Union message class. Wrapper object 
+ * Union message class. Wrapper object
  */
-template<class... V, StringLiteral... Keys, class Container>
-class Message<schema::Union<schema::NamedMember<V,Keys>...>, Container> final : public MessageBase {
+template <class... V, StringLiteral... Keys, class Container>
+class Message<schema::Union<schema::NamedMember<V, Keys>...>, Container> final
+	: public MessageBase {
 private:
 	using SchemaType = schema::Union<schema::NamedMember<V, Keys>...>;
 	using MessageType = Message<SchemaType, Container>;
@@ -139,31 +145,34 @@ public:
 	class Reader;
 	class Builder {
 	private:
-		MessageType & message;
-	public:
-		Builder(MessageType& msg):message{msg}{}
+		MessageType &message;
 
-		Reader asReader(){return Reader{message};}
-		
-		template<size_t i>
-		typename Container::ElementType<i>::Builder init(){
-			return typename Container::ElementType<i>::Builder{message.container.get<i>()};
+	public:
+		Builder(MessageType &msg) : message{msg} {}
+
+		Reader asReader() { return Reader{message}; }
+
+		template <size_t i> typename Container::ElementType<i>::Builder init() {
+			return typename Container::ElementType<i>::Builder{
+				message.container.get<i>()};
 		}
 	};
 
 	class Reader {
 	private:
-		MessageType& message;
+		MessageType &message;
+
 	public:
-		Reader(MessageType& msg):message{msg}{}
+		Reader(MessageType &msg) : message{msg} {}
 
-		Builder asBuilder(){return Builder{message};}
+		Builder asBuilder() { return Builder{message}; }
 
-		template<size_t i> typename Container::ElementType<i>::Reader get(){
-			return typename Container::ElementType<i>::Reader{message.container.get<i>()};
+		template <size_t i> typename Container::ElementType<i>::Reader get() {
+			return typename Container::ElementType<i>::Reader{
+				message.container.get<i>()};
 		}
 
-		template<StringLiteral Literal>
+		template <StringLiteral Literal>
 		constexpr size_t index() const noexcept {
 			return MessageParameterPackIndex<Literal, Keys...>::Value;
 		}
@@ -172,7 +181,8 @@ public:
 
 /*
  * Array message class. Wrapper around an array schema element
- * @todo Array class needs either a resize function or each message class has an individual call for Array children
+ * @todo Array class needs either a resize function or each message class has an
+ * individual call for Array children
  */
 /*
 template<class T, class Container>
@@ -180,7 +190,7 @@ class Message<schema::Array<T>, Container> final : public MessageBase {
 private:
 	using SchemaType = schema::Array<T>;
 	using MessageType = Message<SchemaType, Container>;
-	
+
 	Container container;
 
 	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
@@ -201,10 +211,11 @@ public:
 
 		template<size_t i>
 		typename Container::MessageType::Builder init(){
-			return typename Container::MessageType::Builder{message.container.get<i>()};
+			return typename
+Container::MessageType::Builder{message.container.get<i>()};
 		}
 	};
-	
+
 	class Reader {
 	private:
 		MessageType& message;
@@ -215,7 +226,8 @@ public:
 
 		template<size_t i>
 		typename Container::MessageType::Reader get(){
-			return typename Container::MessageType::Reader{message.container.get<i>()};
+			return typename
+Container::MessageType::Reader{message.container.get<i>()};
 		}
 	};
 };
@@ -224,12 +236,12 @@ public:
 /*
  * Tuple message class. Wrapper around a tuple schema
  */
-template<class... T>
+template <class... T>
 class Message<schema::Tuple<T...>, Container> final : public MessageBase {
 private:
 	using SchemaType = schema::Tuple<T...>;
 	using MessageType = Message<SchemaType, Container>;
-	
+
 	Container container;
 
 	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
@@ -237,37 +249,41 @@ private:
 
 	friend class Builder;
 	friend class Reader;
+
 public:
 	class Reader;
 	class Builder {
-		MessageType & message;
+		MessageType &message;
+
 	public:
-		Builder(MessageType& msg):message{msg}{}
+		Builder(MessageType &msg) : message{msg} {}
 
-		Reader asReader(){return Reader{message};}
+		Reader asReader() { return Reader{message}; }
 
-		template<size_t i>
-		typename Container::MessageType::Builder init(){
-			return typename Container::MessageType::Builder{message.container.get<i>()};
+		template <size_t i> typename Container::MessageType::Builder init() {
+			return typename Container::MessageType::Builder{
+				message.container.get<i>()};
 		}
 	};
 	class Reader {
 	private:
-		MessageType& message;
+		MessageType &message;
+
 	public:
-		Reader(MessageType& msg):message{msg}{}
+		Reader(MessageType &msg) : message{msg} {}
 
-		Builder asBuilder(){return Builder{message};}
+		Builder asBuilder() { return Builder{message}; }
 
-		template<size_t i>
-		typename Container::MessageType::Reader get(){
-			return typename Container::MessageType::Reader{message.container.get<i>()};
+		template <size_t i> typename Container::MessageType::Reader get() {
+			return typename Container::MessageType::Reader{
+				message.container.get<i>()};
 		}
 	};
 };
 
 /*
- * Primitive type (float, double, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t) message class
+ * Primitive type (float, double, uint8_t, uint16_t, uint32_t, uint64_t, int8_t,
+ * int16_t, int32_t, int64_t) message class
  */
 template <class T, size_t N, class Container>
 class Message<schema::Primitive<T, N>, Container> final : public MessageBase {
@@ -282,6 +298,7 @@ private:
 
 	friend class Builder;
 	friend class Reader;
+
 public:
 	class Reader;
 	class Builder {
@@ -289,7 +306,7 @@ public:
 		MessageType &message;
 
 	public:
-		Builder(MessageType & msg) : message{msg} {}
+		Builder(MessageType &msg) : message{msg} {}
 
 		Reader asReader() { return Reader{message}; }
 
@@ -301,7 +318,7 @@ public:
 		MessageType &message;
 
 	public:
-		Reader(Message & msg) : message{msg} {}
+		Reader(Message &msg) : message{msg} {}
 
 		Builder asBuilder() { return Builder{message}; }
 
@@ -322,6 +339,7 @@ private:
 
 	friend class Builder;
 	friend class Reader;
+
 public:
 	class Reader;
 	class Builder {
@@ -329,7 +347,7 @@ public:
 		MessageType &message;
 
 	public:
-		Builder(MessageType & msg) : message{msg} {}
+		Builder(MessageType &msg) : message{msg} {}
 
 		Reader asReader() { return Reader{message}; }
 
@@ -341,7 +359,7 @@ public:
 		MessageType &message;
 
 	public:
-		Reader(MessageType & msg) : message{msg} {}
+		Reader(MessageType &msg) : message{msg} {}
 
 		Builder asBuilder() { return Builder{message}; }
 

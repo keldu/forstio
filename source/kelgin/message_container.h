@@ -49,21 +49,20 @@ public:
 /*
  * Union storage
  */
-template<class... V, StringLiteral... Keys>
-class MessageContainer<schema::Union<schema::NamedMember<V,Keys>...>> {
+template <class... V, StringLiteral... Keys>
+class MessageContainer<schema::Union<schema::NamedMember<V, Keys>...>> {
 private:
-	using ValueType = std::variant<Message<V,MessageContainer<V>>...>;
+	using ValueType = std::variant<Message<V, MessageContainer<V>>...>;
 	ValueType value;
+
 public:
 	using SchemaType = schema::Union<schema::NamedMember<V, Keys>...>;
-	
+
 	template <size_t i>
 	using ElementType =
 		MessageParameterPackType<i, Message<V, MessageContainer<V>>...>::Type;
 
-
-	template<size_t i> ElementType<i> &get() {return std::get<i>(value);}
-	
+	template <size_t i> ElementType<i> &get() { return std::get<i>(value); }
 };
 
 /*
@@ -84,6 +83,24 @@ public:
 	}
 };
 */
+
+/*
+ * Tuple storage
+ */
+template <class... T> class MessageContainer<schema::Tuple<T...>> {
+private:
+	using ValueType = std::tuple<T...>;
+	ValueType values;
+
+public:
+	using SchemaType = schema::Tuple<T...>;
+
+	template <size_t i>
+	using ElementType =
+		MessageParameterPackType<i, Message<T, MessageContainer<T>>...>::Type;
+
+	template <size_t i> ElementType<i> &get() { return std::get<i>(values); }
+};
 
 /*
  * Helper for the basic message container, so the class doesn't have to be
