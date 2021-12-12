@@ -75,7 +75,7 @@ public:
 		 * This is the preferred method for schema::Struct messages
 		 */
 		template <StringLiteral Literal>
-		typename Container::Element<i>::Builder init() {
+		typename Container::Element<MessageParameterPackIndex<Literal,Keys...>::Value>::Builder init() {
 			constexpr size_t i =
 				MessageParameterPackIndex<Literal, Keys...>::Value;
 
@@ -105,7 +105,7 @@ public:
 		 * This is the preferred method for schema::Struct messages
 		 */
 		template <StringLiteral Literal>
-		typename Container::Element<i>::Reader get() {
+		typename Container::Element<MessageParameterPackIndex<Literal,Keys...>::Value>::Reader get() {
 			constexpr size_t i =
 				MessageParameterPackIndex<Literal, Keys...>::Value;
 
@@ -141,7 +141,10 @@ public:
 
 		Reader asReader(){return Reader{message};}
 		
-
+		template<size_t i>
+		typename Container::Element<i>::Builder init(){
+			return typename Container::Element<i>::Builder{message.container.get<i>()};
+		}
 	};
 
 	class Reader {
@@ -152,7 +155,59 @@ public:
 
 		Builder asBuilder(){return Builder{message};}
 
+		template<size_t i> typename Container::Element<i>::Reader get(){
+			return typename Container::Element<i>::Reader{message.container.get<i>()};
+		}
 
+		template<StringLiteral Literal>
+		constexpr size_t index() const noexcept {
+			return MessageParameterPackIndex<Literal, Keys...>::Value;
+		}
+	};
+};
+
+template<class V, class Container>
+class Message<schema::Array<V>, Container> final : public MessageBase {
+private:
+	using SchemaType = schema::Array<V>;
+	using MessageType = Message<SchemaType, Container>;
+	
+	Container container;
+
+	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
+				  "Container should have same Schema as Message");
+
+	friend class Builder;
+	friend class Reader;
+
+public:
+	class Reader;
+	class Builder {
+	private:
+		MessageType & message;
+	public:
+		Builder(MessageType& msg):message{msg}{}
+
+		Reader asReader(){return Reader{message};}
+
+		template<size_t i>
+		typename Container::MessageType::Builder init(){
+			return typename Container::MessageType::Builder{message.container.get<i>()};
+		}
+	};
+	
+	class Reader {
+	private:
+		MessageType& message;
+	public:
+		Reader(MessageType& msg):message{msg}{}
+
+		Builder asBuilder(){return Builder{message};}
+
+		template<size_t i>
+		typename Container::MessageType::Reader get(){
+			return typename Container::MessageType::Reader{message.container.get<i>()};
+		}
 	};
 };
 

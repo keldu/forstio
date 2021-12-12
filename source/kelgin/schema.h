@@ -7,15 +7,17 @@ namespace schema {
 
 template <class T, StringLiteral Literal> struct NamedMember {};
 
-template <typename... T> struct Struct {};
+template <class... T> struct Struct;
 
-template <typename... V, typename... K> struct Struct<NamedMember<V, K>...> {};
+template <class... V, class... K> struct Struct<NamedMember<V, K>...> {};
 
-template <typename... T> struct Union {};
+template <class... T> struct Union;
 
-template <typename... V, typename... K> struct Union<NamedMember<V, K>...> {};
+template <class... V, class... K> struct Union<NamedMember<V, K>...> {};
 
-template <typename T> struct Array {};
+template <class T> struct Array {};
+
+template <class... T> struct Tuple {};
 
 struct String {};
 
