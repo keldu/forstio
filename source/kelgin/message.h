@@ -50,7 +50,7 @@ private:
 	Container container;
 
 	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
-				  "Container should have same Schema as Message");
+				  "Container should have same the schema as Message");
 
 	friend class Builder;
 	friend class Reader;
@@ -136,7 +136,7 @@ private:
 	Container container;
 
 	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
-				  "Container should have same Schema as Message");
+				  "Container should have same the schema as Message");
 
 	friend class Builder;
 	friend class Reader;
@@ -245,7 +245,7 @@ private:
 	Container container;
 
 	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
-				  "Container should have same Schema as Message");
+				  "Container should have same the schema as Message");
 
 	friend class Builder;
 	friend class Reader;
@@ -294,7 +294,7 @@ private:
 	Container container;
 
 	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
-				  "Container should have same Schema as Message");
+				  "Container should have same the schema as Message");
 
 	friend class Builder;
 	friend class Reader;
@@ -335,7 +335,7 @@ private:
 	Container container;
 
 	static_assert(std::is_same_v<SchemaType, typename Container::SchemaType>,
-				  "Container should have same Schema as Message");
+				  "Container should have same the schema as Message");
 
 	friend class Builder;
 	friend class Reader;
