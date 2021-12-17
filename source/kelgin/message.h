@@ -121,6 +121,14 @@ public:
 			return get<i>();
 		}
 	};
+
+	Builder build(){
+		return Builder{*this};
+	}
+
+	Reader read(){
+		return Reader{*this};
+	}
 };
 
 /*
@@ -373,13 +381,10 @@ public:
 };
 
 class MessageBuilder {
-private:
-	Own<Message> root_message = nullptr;
-
 public:
 	virtual ~MessageBuilder() = default;
 
-	template <typename MessageRoot> typename MessageRoot::Builder initRoot() {
+	template <class > typename MessageRoot::Builder initRoot() {
 		root_message = std::make_unique<MessageRoot>();
 		MessageRoot &msg_ref = root_message->as<MessageRoot>();
 		return typename MessageRoot::Builder{msg_ref};
