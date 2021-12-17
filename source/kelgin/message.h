@@ -372,15 +372,16 @@ public:
 	virtual ~MessageReader() = default;
 };
 
+template<class Schema, class Container>
 class MessageBuilder {
 private:
-	Own<Message> root_message = nullptr;
+	Own<Message<Schema,Container>> root_message = nullptr;
 
 public:
 	virtual ~MessageBuilder() = default;
 
-	template <typename MessageRoot> typename MessageRoot::Builder initRoot() {
-		root_message = std::make_unique<MessageRoot>();
+	typename Message<Schema, Container>::Builder initRoot() {
+		root_message = std::make_unique<Message<Schema, Container>>();
 		MessageRoot &msg_ref = root_message->as<MessageRoot>();
 		return typename MessageRoot::Builder{msg_ref};
 	}
