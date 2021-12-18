@@ -10,7 +10,7 @@ template <class T, class Container> class Message;
 template <size_t N, class... T> struct MessageParameterPackType;
 
 template <class TN, class... T> struct MessageParameterPackType<0, TN, T...> {
-	using Type = T;
+	using Type = TN;
 };
 
 template <size_t N, class TN, class... T>
@@ -28,6 +28,19 @@ template <class T, class TL0, class... TL>
 struct MessageParameterPackIndex<T, TL0, TL...> {
 	static constexpr size_t Value =
 		1u + MessageParameterPackIndex<T, TL...>::Value;
+};
+
+template <StringLiteral... ValueKeys> struct MessageParameterKeyIndex;
+
+template <StringLiteral V, StringLiteral... Keys>
+struct MessageParameterKeyIndex<V, V, Keys...> {
+	static constexpr size_t Value = 0u;
+};
+
+template <StringLiteral V, StringLiteral Key0, StringLiteral... Keys>
+struct MessageParameterKeyIndex<V, Key0, Keys...> {
+	static constexpr size_t Value =
+		1u + MessageParameterKeyIndex<V, Keys...>::Value;
 };
 
 template <class... V, StringLiteral... Keys>
@@ -108,47 +121,57 @@ public:
  */
 template <class T> struct PrimitiveTypeHelper;
 
+template <>
 struct PrimitiveTypeHelper<schema::Primitive<schema::SignedIntegral, 1>> {
 	using Type = int8_t;
 };
 
+template <>
 struct PrimitiveTypeHelper<schema::Primitive<schema::SignedIntegral, 2>> {
 	using Type = int16_t;
 };
 
+template <>
 struct PrimitiveTypeHelper<schema::Primitive<schema::SignedIntegral, 4>> {
 	using Type = int32_t;
 };
 
+template <>
 struct PrimitiveTypeHelper<schema::Primitive<schema::SignedIntegral, 8>> {
 	using Type = int64_t;
 };
 
+template <>
 struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedIntegral, 1>> {
 	using Type = uint8_t;
 };
 
+template <>
 struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedIntegral, 2>> {
 	using Type = uint16_t;
 };
 
+template <>
 struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedIntegral, 4>> {
 	using Type = uint32_t;
 };
 
+template <>
 struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedIntegral, 8>> {
 	using Type = uint64_t;
 };
 
+template <>
 struct PrimitiveTypeHelper<schema::Primitive<schema::FloatingPoint, 4>> {
 	using Type = float;
 };
 
+template <>
 struct PrimitiveTypeHelper<schema::Primitive<schema::FloatingPoint, 8>> {
 	using Type = double;
 };
 
-template <class T, class N> class MessageContainer<schema::Primitive<T, N>> {
+template <class T, size_t N> class MessageContainer<schema::Primitive<T, N>> {
 public:
 	using ValueType = PrimitiveTypeHelper<schema::Primitive<T, N>>::Type;
 

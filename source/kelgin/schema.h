@@ -9,11 +9,12 @@ template <class T, StringLiteral Literal> struct NamedMember {};
 
 template <class... T> struct Struct;
 
-template <class... V, class... K> struct Struct<NamedMember<V, K>...> {};
+template <class... V, StringLiteral... K>
+struct Struct<NamedMember<V, K>...> {};
 
 template <class... T> struct Union;
 
-template <class... V, class... K> struct Union<NamedMember<V, K>...> {};
+template <class... V, StringLiteral... K> struct Union<NamedMember<V, K>...> {};
 
 template <class T> struct Array {};
 

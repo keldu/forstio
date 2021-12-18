@@ -8,6 +8,7 @@
 
 #include "common.h"
 
+#include "message_container.h"
 #include "schema.h"
 #include "string_literal.h"
 
@@ -80,10 +81,10 @@ public:
 		 */
 		template <StringLiteral Literal>
 		typename Container::ElementType<
-			MessageParameterPackIndex<Literal, Keys...>::Value>::Builder
+			MessageParameterKeyIndex<Literal, Keys...>::Value>::Builder
 		init() {
 			constexpr size_t i =
-				MessageParameterPackIndex<Literal, Keys...>::Value;
+				MessageParameterKeyIndex<Literal, Keys...>::Value;
 
 			return init<i>();
 		}
@@ -112,11 +113,11 @@ public:
 		 */
 		template <StringLiteral Literal>
 		typename Container::ElementType<
-			MessageParameterPackIndex<Literal, Keys...>::Value>::Reader
+			MessageParameterKeyIndex<Literal, Keys...>::Value>::Reader
 		get() {
 			// The index of the first match
 			constexpr size_t i =
-				MessageParameterPackIndex<Literal, Keys...>::Value;
+				MessageParameterKeyIndex<Literal, Keys...>::Value;
 
 			return get<i>();
 		}

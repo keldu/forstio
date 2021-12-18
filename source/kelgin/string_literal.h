@@ -9,7 +9,7 @@ namespace gin {
  * literal. It guarantees compile time uniqueness and thus allows using strings
  * in template parameters.
  */
-template <template CharT, size_t N> class StringLiteral {
+template <class CharT, size_t N> class StringLiteral {
 public:
 	constexpr StringLiteral(const CharT (&input)[N]) noexcept {
 		for (size_t i = 0; i < N; ++i) {
