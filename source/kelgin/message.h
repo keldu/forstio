@@ -375,21 +375,31 @@ public:
 	}
 };
 
-class MessageReader {
+template<class Schema, class Container = MessageContainer<Schema>>
+class HeapMessageRoot {
+private:
+	Own<Message<Schema, Container>> root;
 public:
-	virtual ~MessageReader() = default;
-};
+	HeapMessageRoot(Own<Message<Schema,Container>> r):root{std::move(r)}{}
 
-class MessageBuilder {
-public:
-	virtual ~MessageBuilder() = default;
+	typename Message<Schema, Container>::Builder build(){
+		assert(root);
+		return root->build();
+	}
 
-	template <class > typename MessageRoot::Builder initRoot() {
-		root_message = std::make_unique<MessageRoot>();
-		MessageRoot &msg_ref = root_message->as<MessageRoot>();
-		return typename MessageRoot::Builder{msg_ref};
+	typename Message<Schema, Container>::Reader read(){
+		assert(root);
+		return root->read();
 	}
 };
 
-inline MessageBuilder messageBuilder() { return MessageBuilder{}; }
+/*
+ * Minor helper for creating a message root
+ */
+template<class Schema, class Container = MessageContainer<Schema>> 
+inline HeapMessageRoot heapMessageRoot() {
+	Own<Message<Schema, Container>> root = heap<Message<Schema, Container>>();
+	return HeapMessageRoot<Schema, Container>{std::move(root)};
+
+}
 } // namespace gin
