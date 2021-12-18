@@ -30,17 +30,30 @@ struct MessageParameterPackIndex<T, TL0, TL...> {
 		1u + MessageParameterPackIndex<T, TL...>::Value;
 };
 
-template <StringLiteral... ValueKeys> struct MessageParameterKeyIndex;
-
-template <StringLiteral V, StringLiteral... Keys>
-struct MessageParameterKeyIndex<V, V, Keys...> {
-	static constexpr size_t Value = 0u;
+/*
+ * Nightmare inducing compiler problems found here. Somehow non-type
+ * StringLiterals cannot be resolved as non-type primitive template values can.
+ * This is the workaround
+ */
+template <StringLiteral V, StringLiteral Key0, StringLiteral... Keys>
+struct MessageParameterKeyPackIndexHelper {
+	static constexpr size_t Value =
+		(V == Key0)
+			? (0u)
+			: (1u + MessageParameterKeyPackIndexHelper<V, Keys...>::Value);
 };
 
-template <StringLiteral V, StringLiteral Key0, StringLiteral... Keys>
-struct MessageParameterKeyIndex<V, Key0, Keys...> {
+template <StringLiteral V, StringLiteral Key0>
+struct MessageParameterKeyPackIndexHelper<V, Key0> {
+	static constexpr size_t Value = (V == Key0) ? (0u) : (1u);
+};
+
+template <StringLiteral V, StringLiteral... Keys>
+struct MessageParameterKeyPackIndex {
 	static constexpr size_t Value =
-		1u + MessageParameterKeyIndex<V, Keys...>::Value;
+		MessageParameterKeyPackIndexHelper<V, Keys...>::Value;
+	static_assert(Value < sizeof...(Keys),
+				  "Provided StringLiteral doesn't exist in searched list");
 };
 
 template <class... V, StringLiteral... Keys>

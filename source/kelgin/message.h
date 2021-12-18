@@ -65,14 +65,14 @@ public:
 	public:
 		Builder(MessageType &msg) : message{msg} {}
 
-		Reader asReader() { return Reader{MessageType & message}; }
+		Reader asReader() { return Reader{message}; }
 
 		/*
 		 * Initialize a member by index
 		 */
 		template <size_t i> typename Container::ElementType<i>::Builder init() {
 			return typename Container::ElementType<i>::Builder{
-				message.container.get<i>()};
+				message.container.template get<i>()};
 		}
 
 		/*
@@ -81,10 +81,10 @@ public:
 		 */
 		template <StringLiteral Literal>
 		typename Container::ElementType<
-			MessageParameterKeyIndex<Literal, Keys...>::Value>::Builder
+			MessageParameterKeyPackIndex<Literal, Keys...>::Value>::Builder
 		init() {
 			constexpr size_t i =
-				MessageParameterKeyIndex<Literal, Keys...>::Value;
+				MessageParameterKeyPackIndex<Literal, Keys...>::Value;
 
 			return init<i>();
 		}
@@ -104,7 +104,7 @@ public:
 		 */
 		template <size_t i> typename Container::ElementType<i>::Reader get() {
 			return typename Container::ElementType<i>::Reader{
-				message.container.get<i>()};
+				message.container.template get<i>()};
 		}
 
 		/*
@@ -113,11 +113,11 @@ public:
 		 */
 		template <StringLiteral Literal>
 		typename Container::ElementType<
-			MessageParameterKeyIndex<Literal, Keys...>::Value>::Reader
+			MessageParameterKeyPackIndex<Literal, Keys...>::Value>::Reader
 		get() {
 			// The index of the first match
 			constexpr size_t i =
-				MessageParameterKeyIndex<Literal, Keys...>::Value;
+				MessageParameterKeyPackIndex<Literal, Keys...>::Value;
 
 			return get<i>();
 		}
@@ -159,7 +159,7 @@ public:
 
 		template <size_t i> typename Container::ElementType<i>::Builder init() {
 			return typename Container::ElementType<i>::Builder{
-				message.container.get<i>()};
+				message.container.template get<i>()};
 		}
 	};
 
@@ -174,12 +174,12 @@ public:
 
 		template <size_t i> typename Container::ElementType<i>::Reader get() {
 			return typename Container::ElementType<i>::Reader{
-				message.container.get<i>()};
+				message.container.template get<i>()};
 		}
 
 		template <StringLiteral Literal>
 		constexpr size_t index() const noexcept {
-			return MessageParameterPackIndex<Literal, Keys...>::Value;
+			return MessageParameterKeyPackIndex<Literal, Keys...>::Value;
 		}
 	};
 };
@@ -241,7 +241,7 @@ Container::MessageType::Reader{message.container.get<i>()};
 /*
  * Tuple message class. Wrapper around a tuple schema
  */
-template <class... T>
+template <class... T, class Container>
 class Message<schema::Tuple<T...>, Container> final : public MessageBase {
 private:
 	using SchemaType = schema::Tuple<T...>;
@@ -267,7 +267,7 @@ public:
 
 		template <size_t i> typename Container::MessageType::Builder init() {
 			return typename Container::MessageType::Builder{
-				message.container.get<i>()};
+				message.container.template get<i>()};
 		}
 	};
 	class Reader {
@@ -281,7 +281,7 @@ public:
 
 		template <size_t i> typename Container::MessageType::Reader get() {
 			return typename Container::MessageType::Reader{
-				message.container.get<i>()};
+				message.container.template get<i>()};
 		}
 	};
 };
@@ -369,7 +369,7 @@ public:
 		Builder asBuilder() { return Builder{message}; }
 
 		std::string_view get() { return message.container.get(); }
-	}
+	};
 };
 
 template <class Schema, class Container = MessageContainer<Schema>>
