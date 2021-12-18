@@ -122,13 +122,9 @@ public:
 		}
 	};
 
-	Builder build(){
-		return Builder{*this};
-	}
+	Builder build() { return Builder{*this}; }
 
-	Reader read(){
-		return Reader{*this};
-	}
+	Reader read() { return Reader{*this}; }
 };
 
 /*
@@ -375,19 +371,20 @@ public:
 	}
 };
 
-template<class Schema, class Container = MessageContainer<Schema>>
+template <class Schema, class Container = MessageContainer<Schema>>
 class HeapMessageRoot {
 private:
 	Own<Message<Schema, Container>> root;
-public:
-	HeapMessageRoot(Own<Message<Schema,Container>> r):root{std::move(r)}{}
 
-	typename Message<Schema, Container>::Builder build(){
+public:
+	HeapMessageRoot(Own<Message<Schema, Container>> r) : root{std::move(r)} {}
+
+	typename Message<Schema, Container>::Builder build() {
 		assert(root);
 		return root->build();
 	}
 
-	typename Message<Schema, Container>::Reader read(){
+	typename Message<Schema, Container>::Reader read() {
 		assert(root);
 		return root->read();
 	}
@@ -396,10 +393,9 @@ public:
 /*
  * Minor helper for creating a message root
  */
-template<class Schema, class Container = MessageContainer<Schema>> 
+template <class Schema, class Container = MessageContainer<Schema>>
 inline HeapMessageRoot heapMessageRoot() {
 	Own<Message<Schema, Container>> root = heap<Message<Schema, Container>>();
 	return HeapMessageRoot<Schema, Container>{std::move(root)};
-
 }
 } // namespace gin

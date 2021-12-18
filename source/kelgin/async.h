@@ -183,7 +183,7 @@ public:
 	 * Useful for resource lifetime control.
 	 */
 	template <typename... Args>
-	[[nodiscard]] Conveyor<T> attach(Args &&...args);
+	[[nodiscard]] Conveyor<T> attach(Args &&... args);
 
 	/** @todo implement
 	 * This method limits the total amount of passed elements
@@ -601,7 +601,7 @@ private:
 	std::tuple<Args...> attached_data;
 
 public:
-	AttachConveyorNode(Own<ConveyorNode> &&dep, Args &&...args)
+	AttachConveyorNode(Own<ConveyorNode> &&dep, Args &&... args)
 		: AttachConveyorNodeBase(std::move(dep)), attached_data{
 													  std::move(args...)} {}
 };

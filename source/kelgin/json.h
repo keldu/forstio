@@ -835,9 +835,7 @@ Error JsonCodec::decodeValue(Own<DynamicMessage> &message, Buffer &buffer,
 		decodeNull(buffer);
 		message = std::move(msg_null);
 	} break;
-	default: {
-		return criticalError("Cannot identify next JSON value");
-	}
+	default: { return criticalError("Cannot identify next JSON value"); }
 	}
 
 	skipWhitespace(buffer);
