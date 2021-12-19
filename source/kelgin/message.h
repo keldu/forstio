@@ -395,7 +395,7 @@ public:
  * Minor helper for creating a message root
  */
 template <class Schema, class Container = MessageContainer<Schema>>
-inline HeapMessageRoot heapMessageRoot() {
+inline HeapMessageRoot<Schema, Container> heapMessageRoot() {
 	Own<Message<Schema, Container>> root = heap<Message<Schema, Container>>();
 	return HeapMessageRoot<Schema, Container>{std::move(root)};
 }
