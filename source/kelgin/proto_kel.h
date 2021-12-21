@@ -52,20 +52,20 @@ public:
 
 template <typename T> struct ProtoKelEncodeImpl;
 
-template <typename T> struct ProtoKelEncodeImpl<MessagePrimitive<T>> {
-	static Error encode(typename MessagePrimitive<T>::Reader data,
+template <class T, size_t N, class Container> struct ProtoKelEncodeImpl<Message<schema::Primitive<T,N>, Container>> {
+	static Error encode(typename Message<schema::Primitive<T,N>,Container>::Reader data,
 						Buffer &buffer) {
 		Error error = StreamValue<T>::encode(data.get(), buffer);
 		return error;
 	}
 
-	static size_t size(typename MessagePrimitive<T>::Reader) {
+	static size_t size(typename Message<schema::Primitive<T,N>, Container>::Reader) {
 		return StreamValue<T>::size();
 	}
 };
 
-template <> struct ProtoKelEncodeImpl<MessagePrimitive<std::string>> {
-	static Error encode(typename MessagePrimitive<std::string>::Reader data,
+template <class Container> struct ProtoKelEncodeImpl<Message<schema::String, Container>> {
+	static Error encode(typename Message<schema::String, Container>::Reader data,
 						Buffer &buffer) {
 		std::string_view view = data.get();
 		size_t size = view.size();
@@ -86,22 +86,22 @@ template <> struct ProtoKelEncodeImpl<MessagePrimitive<std::string>> {
 		return noError();
 	}
 
-	static size_t size(typename MessagePrimitive<std::string>::Reader reader) {
+	static size_t size(typename Message<schema::String, Container>::Reader reader) {
 		return sizeof(size_t) + reader.get().size();
 	}
 };
 
-template <typename... T> struct ProtoKelEncodeImpl<MessageList<T...>> {
+template <class... T, class Container> struct ProtoKelEncodeImpl<Message<schema::Tuple<T...>, Container>> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(T), Error>::type
-	encodeMembers(typename MessageList<T...>::Reader, Buffer &) {
+	encodeMembers(typename Message<schema::Tuple<T...>,Container>::Reader, Buffer &) {
 		return noError();
 	}
 
 	template <size_t i = 0>
 		static typename std::enable_if <
-		i<sizeof...(T), Error>::type
-		encodeMembers(typename MessageList<T...>::Reader data, Buffer &buffer) {
+		(i<sizeof...(T)), Error>::type
+		encodeMembers(typename Message<schema::Tuple<T...>,Container>::Reader data, Buffer &buffer) {
 		Error error =
 			ProtoKelEncodeImpl<typename ParameterPackType<i, T...>::type>::
 				encode(data.template get<i>(), buffer);
@@ -112,43 +112,43 @@ template <typename... T> struct ProtoKelEncodeImpl<MessageList<T...>> {
 		return encodeMembers<i + 1>(data, buffer);
 	}
 
-	static Error encode(typename MessageList<T...>::Reader data,
+	static Error encode(typename Message<schema::Tuple<T...>,Container>::Reader data,
 						Buffer &buffer) {
 		return encodeMembers<0>(data, buffer);
 	}
 
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(T), size_t>::type
-	sizeMembers(typename MessageList<T...>::Reader) {
+	sizeMembers(typename Message<schema::Tuple<T...>,Container>::Reader) {
 		return 0;
 	}
 
 	template <size_t i = 0>
 		static typename std::enable_if <
 		i<sizeof...(T), size_t>::type
-		sizeMembers(typename MessageList<T...>::Reader reader) {
-		return ProtoKelEncodeImpl<typename ParameterPackType<i, T...>::type>::
+		sizeMembers(typename Message<schema::Tuple<T...>,Container>::Reader reader) {
+		return ProtoKelEncodeImpl<typename Container::ElementType<i>>::
 				   size(reader.template get<i>()) +
 			   sizeMembers<i + 1>(reader);
 	}
 
-	static size_t size(typename MessageList<T...>::Reader reader) {
+	static size_t size(typename Message<schema::Tuple<T...>,Container>::Reader reader) {
 		return sizeMembers<0>(reader);
 	}
 };
 
-template <typename... V, typename... K>
-struct ProtoKelEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
+template <typename... V, StringLiteral... K>
+struct ProtoKelEncodeImpl<Message<schema::Struct<schema::NamedMember<V,K>...>,Container>> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), Error>::type
-	encodeMembers(typename MessageStruct<MessageStructMember<V, K>...>::Reader,
+	encodeMembers(typename Message<schema::Struct<schema::NamedMember<V,K>..., Container>::Reader,
 				  Buffer &) {
 		return noError();
 	}
 	template <size_t i = 0>
 		static typename std::enable_if <
-		i<sizeof...(V), Error>::type encodeMembers(
-			typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
+		i<sizeof...(V), Error>::type
+		encodeMembers(typename Message<schema::Struct<schema::NamedMember<V,K>..., Container>::Reader data,
 			Buffer &buffer) {
 
 		Error error =
@@ -161,21 +161,24 @@ struct ProtoKelEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 	}
 
 	static Error
-	encode(typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
+	encode(typename Message<schema::Struct<schema::NamedMember<V, K>...>,Container>::Reader data,
 		   Buffer &buffer) {
 		return encodeMembers<0>(data, buffer);
 	}
 
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), size_t>::type
-	sizeMembers(typename MessageStruct<MessageStructMember<V, K>...>::Reader) {
+	sizeMembers(
+			typename Message<schema::Struct<schema::NamedMember<V,K>...>, Container>::Reader
+			) {
 		return 0;
 	}
 
 	template <size_t i = 0>
 		static typename std::enable_if <
 		i<sizeof...(V), size_t>::type
-		sizeMembers(typename MessageStruct<MessageStructMember<V, K>...>::Reader
+		sizeMembers(
+			typename Message<schema::Struct<schema::NamedMember<V,K>...>, Container>::Reader
 						reader) {
 		return ProtoKelEncodeImpl<typename ParameterPackType<i, V...>::type>::
 				   size(reader.template get<i>()) +
@@ -189,7 +192,7 @@ struct ProtoKelEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 };
 
 template <typename... V, typename... K>
-struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
+struct ProtoKelEncodeImpl<Message<schema::Union<schema::NamedMember<V,K>...>, Container> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), Error>::type
 	encodeMembers(typename MessageUnion<MessageUnionMember<V, K>...>::Reader,

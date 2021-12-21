@@ -4,24 +4,28 @@
 #include <string>
 
 #include "source/kelgin/message.h"
-using gin::heapMessageBuilder;
+#include "source/kelgin/schema.h"
 
 namespace {
+namespace schema {
+	using namespace gin::schema;
+}
+
 using TestTuple = schema::Tuple<schema::UInt32, schema::String>;
 
 GIN_TEST("MessageList"){
 	std::string test_string_1 = "banana";
 	
-	auto builder = heapMessageBuilder();
-	auto root = builder.initRoot<TestTuple>();
-	auto uint = root.init<0>();
+	auto root = gin::heapMessageRoot<TestTuple>();
+	auto builder = root.build();
+	auto uint = builder.init<0>();
 	uint.set(10);
-	auto string = root.init<1>();
+	auto string = builder.init<1>();
 	string.set(test_string_1);
 
-	auto root_reader = root.asReader();
-	auto uint_reader = root_reader.get<0>();
-	auto string_reader = root_reader.get<1>();
+	auto reader = root.read();
+	auto uint_reader = reader.get<0>();
+	auto string_reader = reader.get<1>();
 	
 	GIN_EXPECT( uint_reader.get() == 10 && string_reader.get() == test_string_1, "wrong values");
 }
@@ -32,18 +36,18 @@ GIN_TEST("MessageList nested"){
 	std::string test_string_1 = "banana";
 	std::string test_string_2 = "bat";
 	
-	auto builder = heapMessageBuilder();
-	auto root = builder.initRoot<NestedTestTuple>();
-	auto inner_list = root.init<0>();
+	auto root = gin::heapMessageRoot<NestedTestTuple>();
+	auto builder = root.build();
+	auto inner_list = builder.init<0>();
 	auto uint = inner_list.init<0>();
 	uint.set(20);
 	auto inner_string = inner_list.init<1>();
 	inner_string.set(test_string_2);
 	
-	auto string = root.init<1>();
+	auto string = builder.init<1>();
 	string.set(test_string_1);
 
-	auto root_reader = root.asReader();
+	auto root_reader = root.read();
 	auto inner_reader = root_reader.get<0>();
 	auto uint_reader = inner_reader.get<0>();
 	auto inner_string_reader = inner_reader.get<1>();
@@ -60,16 +64,16 @@ using TestStruct = schema::Struct<
 
 GIN_TEST("MessageStruct"){
 	std::string test_string = "foo";
-	auto builder = heapMessageBuilder();
-	auto root = builder.initRoot<TestStruct>();
-	auto uint = root.init<"test_uint">();
+	auto root = gin::heapMessageRoot<TestStruct>();
+	auto builder = root.build();
+	auto uint = builder.init<"test_uint">();
 	uint.set(23);
-	auto string = root.init<"test_string">();
+	auto string = builder.init<"test_string">();
 	string.set(test_string);
-	auto string_name = root.init<"test_name">();
-	string_name.set(&"test_name"_t.data[0]);
+	auto string_name = builder.init<"test_name">();
+	string_name.set("test_name");
 
-	auto reader = root.asReader();
+	auto reader = root.read();
 	auto uint_reader = reader.get<"test_uint">();
 	auto string_reader = reader.get<"test_string">();
 	auto name_reader = reader.get<"test_name">();

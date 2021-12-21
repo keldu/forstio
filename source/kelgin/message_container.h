@@ -115,7 +115,7 @@ public:
  */
 template <class... T> class MessageContainer<schema::Tuple<T...>> {
 private:
-	using ValueType = std::tuple<T...>;
+	using ValueType = std::tuple<Message<T, MessageContainer<T>>...>;
 	ValueType values;
 
 public:
@@ -186,6 +186,7 @@ struct PrimitiveTypeHelper<schema::Primitive<schema::FloatingPoint, 8>> {
 
 template <class T, size_t N> class MessageContainer<schema::Primitive<T, N>> {
 public:
+	using SchemaType = schema::Primitive<T, N>;
 	using ValueType = PrimitiveTypeHelper<schema::Primitive<T, N>>::Type;
 
 private:
@@ -201,8 +202,10 @@ public:
 
 template <> class MessageContainer<schema::String> {
 public:
-private:
+	using SchemaType = schema::String;
 	using ValueType = std::string;
+
+private:
 	ValueType value;
 
 public:

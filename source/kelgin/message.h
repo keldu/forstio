@@ -6,6 +6,8 @@
 #include <variant>
 #include <vector>
 
+#include <cassert>
+
 #include "common.h"
 
 #include "message_container.h"
@@ -265,8 +267,8 @@ public:
 
 		Reader asReader() { return Reader{message}; }
 
-		template <size_t i> typename Container::MessageType::Builder init() {
-			return typename Container::MessageType::Builder{
+		template <size_t i> typename Container::ElementType<i>::Builder init() {
+			return typename Container::ElementType<i>::Builder{
 				message.container.template get<i>()};
 		}
 	};
@@ -279,8 +281,8 @@ public:
 
 		Builder asBuilder() { return Builder{message}; }
 
-		template <size_t i> typename Container::MessageType::Reader get() {
-			return typename Container::MessageType::Reader{
+		template <size_t i> typename Container::ElementType<i>::Reader get() {
+			return typename Container::ElementType<i>::Reader{
 				message.container.template get<i>()};
 		}
 	};
@@ -315,7 +317,9 @@ public:
 
 		Reader asReader() { return Reader{message}; }
 
-		void set(const T &value) { message.container.set(value); }
+		void set(const typename Container::ValueType &value) {
+			message.container.set(value);
+		}
 	};
 
 	class Reader {
@@ -327,7 +331,9 @@ public:
 
 		Builder asBuilder() { return Builder{message}; }
 
-		const T &get() const { return message.container.get(); }
+		const typename Container::ValueType &get() const {
+			return message.container.get();
+		}
 	};
 };
 
@@ -382,12 +388,12 @@ public:
 
 	typename Message<Schema, Container>::Builder build() {
 		assert(root);
-		return root->build();
+		return typename Message<Schema, Container>::Builder{*root};
 	}
 
 	typename Message<Schema, Container>::Reader read() {
 		assert(root);
-		return root->read();
+		return typename Message<Schema, Container>::Reader{*root};
 	}
 };
 
