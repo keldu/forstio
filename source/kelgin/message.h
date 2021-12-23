@@ -163,6 +163,16 @@ public:
 			return typename Container::ElementType<i>::Builder{
 				message.container.template get<i>()};
 		}
+
+		template <StringLiteral Literal>
+		typename Container::ElementType<
+			MessageParameterKeyPackIndex<Literal, Keys...>::Value>::Builder
+		init() {
+			constexpr size_t i =
+				MessageParameterKeyPackIndex<Literal, Keys...>::Value;
+
+			return init<i>();
+		}
 	};
 
 	class Reader {
@@ -180,8 +190,25 @@ public:
 		}
 
 		template <StringLiteral Literal>
-		constexpr size_t index() const noexcept {
+		typename Container::ElementType<
+			MessageParameterKeyPackIndex<Literal, Keys...>::Value>::Reader
+		get() {
+			// The index of the first match
+			constexpr size_t i =
+				MessageParameterKeyPackIndex<Literal, Keys...>::Value;
+
+			return get<i>();
+		}
+
+		template <StringLiteral Literal>
+		constexpr size_t toIndex() const noexcept {
 			return MessageParameterKeyPackIndex<Literal, Keys...>::Value;
+		}
+
+		size_t index() const noexcept { return message.container.index(); }
+
+		template <StringLiteral Literal> bool hasAlternative() const {
+			return index() == toIndex<Literal>();
 		}
 	};
 };

@@ -5,33 +5,37 @@
 #include <iostream>
 
 namespace {
-typedef gin::MessagePrimitive<uint32_t> TestSize;
+namespace schema {
+	using namespace gin::schema;
+}
+using TestSize = schema::UInt32;
 
-typedef gin::MessageList<gin::MessagePrimitive<uint32_t>, gin::MessagePrimitive<uint16_t>> TestList;
+using TestTuple = schema::Tuple<schema::UInt32, schema::UInt16>;
 
-typedef gin::MessageStruct<
-	gin::MessageStructMember<gin::MessagePrimitive<uint32_t>, decltype("test_uint"_t)>,
-	gin::MessageStructMember<gin::MessagePrimitive<std::string>, decltype("test_string"_t)>,
-	gin::MessageStructMember<gin::MessagePrimitive<std::string>, decltype("test_name"_t)>
-> TestStruct;
+using TestStruct = schema::Struct<
+	schema::NamedMember<schema::UInt32, "test_uint">,
+	schema::NamedMember<schema::String, "test_string">,
+	schema::NamedMember<schema::String, "test_name">
+>;
 
-typedef gin::MessageUnion<
-	gin::MessageUnionMember<gin::MessagePrimitive<uint32_t>, decltype("test_uint"_t)>,
-	gin::MessageUnionMember<gin::MessagePrimitive<std::string>, decltype("test_string"_t)>
-> TestUnion;
+using TestUnion = schema::Union<
+	schema::NamedMember<schema::UInt32, "test_uint">,
+	schema::NamedMember<schema::String, "test_string">
+>;
 
 GIN_TEST("Primitive Encoding"){
 	using namespace gin;
 	uint32_t value = 5;
 
-	auto builder = heapMessageBuilder();
-	auto root = builder.initRoot<TestSize>();
+	auto root = heapMessageRoot<TestSize>();
+	auto builder = root.build();
 
-	root.set(value);
+	builder.set(value);
 
 	RingBuffer temp_buffer;
+	ProtoKelCodec codec;
 
-	Error error = ProtoKelEncodeImpl<TestSize>::encode(root.asReader(), temp_buffer);
+	Error error = codec.encode<TestSize>(root.read(), temp_buffer);
 
 	GIN_EXPECT(!error.failed(), error.message());
 	GIN_EXPECT(temp_buffer.readCompositeLength() == sizeof(value), "Bad Size: " + std::to_string(temp_buffer.readCompositeLength()));
@@ -41,18 +45,18 @@ GIN_TEST("Primitive Encoding"){
 GIN_TEST("List Encoding"){
 	using namespace gin;
 
-	auto builder = heapMessageBuilder();
-	auto root = builder.initRoot<TestList>();
+	auto root = heapMessageRoot<TestTuple>();
+	auto builder = root.build();
 
-	auto first = root.init<0>();
+	auto first = builder.init<0>();
 	first.set(2135231);
-	auto second = root.init<1>();
+	auto second = builder.init<1>();
 	second.set(43871);
 
 	RingBuffer buffer;
 	ProtoKelCodec codec;
 
-	Error error = codec.encode<TestList>(root.asReader(), buffer);
+	Error error = codec.encode<TestTuple>(root.read(), buffer);
 
 	GIN_EXPECT(!error.failed(), error.message());
 	GIN_EXPECT(buffer.readCompositeLength() == 14, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
@@ -62,23 +66,23 @@ GIN_TEST("List Encoding"){
 GIN_TEST("Struct Encoding"){
 	using namespace gin;
 
-	auto builder = heapMessageBuilder();
-	auto root = builder.initRoot<TestStruct>();
+	auto root = heapMessageRoot<TestStruct>();
+	auto builder = root.build();
 
-	auto test_uint = root.init<decltype("test_uint"_t)>();
+	auto test_uint = builder.init<"test_uint">();
 	test_uint.set(23);
 
 	std::string test_string = "foo";
-	auto string = root.init<decltype("test_string"_t)>();
+	auto string = builder.init<"test_string">();
 	string.set(test_string);
 	
-	auto string_name = root.init<decltype("test_name"_t)>();
-	string_name.set("test_name"_t.view());
+	auto string_name = builder.init<"test_name">();
+	string_name.set("test_name");
 
 	RingBuffer buffer;
 	ProtoKelCodec codec;
 
-	Error error = codec.encode<TestStruct>(root.asReader(), buffer);
+	Error error = codec.encode<TestStruct>(builder.asReader(), buffer);
 
 	GIN_EXPECT(!error.failed(), error.message());
 	GIN_EXPECT(buffer.readCompositeLength() == 40, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
@@ -89,16 +93,16 @@ GIN_TEST("Struct Encoding"){
 GIN_TEST("Union Encoding"){
 	using namespace gin;
 	{
-		auto builder = heapMessageBuilder();
-		auto root = builder.initRoot<TestUnion>();
+		auto root = heapMessageRoot<TestUnion>();
+		auto builder = root.build();
 
-		auto test_uint = root.init<decltype("test_uint"_t)>();
+		auto test_uint = builder.init<"test_uint">();
 		test_uint.set(23);
 
 		RingBuffer buffer;
 		ProtoKelCodec codec;
 
-		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
+		Error error = codec.encode<TestUnion>(builder.asReader(), buffer);
 
 		GIN_EXPECT(!error.failed(), error.message());
 		GIN_EXPECT(buffer.readCompositeLength() == 16, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
@@ -106,16 +110,16 @@ GIN_TEST("Union Encoding"){
 			== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
 	}
 	{
-		auto builder = heapMessageBuilder();
-		auto root = builder.initRoot<TestUnion>();
+		auto root = heapMessageRoot<TestUnion>();
+		auto builder = root.build();
 
-		auto test_string = root.init<decltype("test_string"_t)>();
+		auto test_string = builder.init<"test_string">();
 		test_string.set("foo");
 
 		RingBuffer buffer;
 		ProtoKelCodec codec;
 
-		Error error = codec.encode<TestUnion>(root.asReader(), buffer);
+		Error error = codec.encode<TestUnion>(builder.asReader(), buffer);
 
 		GIN_EXPECT(!error.failed(), error.message());
 		GIN_EXPECT(buffer.readCompositeLength() == 23, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
@@ -124,7 +128,7 @@ GIN_TEST("Union Encoding"){
 	}
 }
 
-GIN_TEST("List Decoding"){
+GIN_TEST("Tuple Decoding"){
 	using namespace gin;
 	const uint8_t buffer_raw[] = {0x06, 0, 0, 0, 0, 0, 0, 0, 0xbf, 0x94, 0x20, 0x00, 0x5f, 0xab};
 
@@ -133,13 +137,13 @@ GIN_TEST("List Decoding"){
 
 	ProtoKelCodec codec;
 
-	auto builder = heapMessageBuilder();
-	auto root = builder.initRoot<TestList>();
+	auto root = heapMessageRoot<TestTuple>();
+	auto builder = root.build();
 
-	Error error = codec.decode<TestList>(root, buffer);
+	Error error = codec.decode<TestTuple>(builder, buffer);
 	GIN_EXPECT(!error.failed(), error.message());
 	
-	auto reader = root.asReader();
+	auto reader = builder.asReader();
 
 	auto first = reader.get<0>();
 	auto second = reader.get<1>();
@@ -156,15 +160,15 @@ GIN_TEST("Struct Decoding"){
 
 	ProtoKelCodec codec;
 
-	auto builder = heapMessageBuilder();
-	auto root = builder.initRoot<TestStruct>();
+	auto root = heapMessageRoot<TestStruct>();
+	auto builder = root.build();
 
-	Error error = codec.decode<TestStruct>(root, buffer);
-	auto reader = root.asReader();
+	Error error = codec.decode<TestStruct>(builder, buffer);
+	auto reader = builder.asReader();
 
-	auto foo_string = reader.get<decltype("test_string"_t)>();
-	auto test_uint = reader.get<decltype("test_uint"_t)>();
-	auto test_name = reader.get<decltype("test_name"_t)>();
+	auto foo_string = reader.get<"test_string">();
+	auto test_uint = reader.get<"test_uint">();
+	auto test_name = reader.get<"test_name">();
 
 	GIN_EXPECT(!error.failed(), error.message());
 	GIN_EXPECT(foo_string.get() == "foo" && test_uint.get() == 23 && test_name.get() == "test_name", "Values not correctly decoded");
@@ -179,15 +183,15 @@ GIN_TEST("Union Decoding"){
 
 	ProtoKelCodec codec;
 
-	auto builder = heapMessageBuilder();
-	auto root = builder.initRoot<TestUnion>();
-	auto reader = root.asReader();
+	auto root = heapMessageRoot<TestUnion>();
+	auto builder = root.build();
+	auto reader = builder.asReader();
 
-	Error error = codec.decode<TestUnion>(root, buffer);
+	Error error = codec.decode<TestUnion>(builder, buffer);
 
 	GIN_EXPECT(!error.failed(), error.message());
-	GIN_EXPECT(reader.holdsAlternative<decltype("test_string"_t)>(), "Wrong union value");
-	auto str_rd = reader.get<decltype("test_string"_t)>();
+	GIN_EXPECT(reader.hasAlternative<"test_string">(), "Wrong union value");
+	auto str_rd = reader.get<"test_string">();
 	GIN_EXPECT(str_rd.get() == "foo", "Wrong value: " + std::string{str_rd.get()});
 }
 }

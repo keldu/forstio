@@ -15,6 +15,7 @@ template <class TN, class... T> struct MessageParameterPackType<0, TN, T...> {
 
 template <size_t N, class TN, class... T>
 struct MessageParameterPackType<N, TN, T...> {
+	static_assert(sizeof...(T) > 0, "Exhausted parameters");
 	using Type = typename MessageParameterPackType<N - 1, T...>::Type;
 };
 
@@ -89,6 +90,8 @@ public:
 		MessageParameterPackType<i, Message<V, MessageContainer<V>>...>::Type;
 
 	template <size_t i> ElementType<i> &get() { return std::get<i>(value); }
+
+	size_t index() const noexcept { return value.index(); }
 };
 
 /*
