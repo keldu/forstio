@@ -89,7 +89,13 @@ public:
 	using ElementType = typename MessageParameterPackType<
 		i, Message<V, MessageContainer<V>>...>::Type;
 
-	template <size_t i> ElementType<i> &get() { return std::get<i>(value); }
+	template <size_t i> ElementType<i> &get() {
+		if (i != value.index()) {
+			using MessageIV = typename MessageParameterPackType<i, V...>::Type;
+			value = Message<MessageIV, MessageContainer<MessageIV>>{};
+		}
+		return std::get<i>(value);
+	}
 
 	size_t index() const noexcept { return value.index(); }
 };
