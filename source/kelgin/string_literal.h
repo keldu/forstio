@@ -23,12 +23,12 @@ public:
 		return std::string_view{data.data()};
 	}
 
-	constexpr bool operator==(const StringLiteral<CharT, N> &) const
-		noexcept = default;
+	constexpr bool
+	operator==(const StringLiteral<CharT, N> &) const noexcept = default;
 
 	template <class CharTR, size_t NR>
-	constexpr bool operator==(const StringLiteral<CharTR, NR> &) const
-		noexcept {
+	constexpr bool
+	operator==(const StringLiteral<CharTR, NR> &) const noexcept {
 		return false;
 	}
 };

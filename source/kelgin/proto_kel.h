@@ -114,8 +114,8 @@ struct ProtoKelEncodeImpl<Message<schema::Tuple<T...>, Container>> {
 	encodeMembers(typename Message<schema::Tuple<T...>, Container>::Reader data,
 				  Buffer &buffer) {
 		Error error =
-			ProtoKelEncodeImpl<typename Container::ElementType<i>>::encode(
-				data.template get<i>(), buffer);
+			ProtoKelEncodeImpl<typename Container::template ElementType<i>>::
+				encode(data.template get<i>(), buffer);
 		if (error.failed()) {
 			return error;
 		}
@@ -139,8 +139,8 @@ struct ProtoKelEncodeImpl<Message<schema::Tuple<T...>, Container>> {
 		static typename std::enable_if <
 		i<sizeof...(T), size_t>::type sizeMembers(
 			typename Message<schema::Tuple<T...>, Container>::Reader reader) {
-		return ProtoKelEncodeImpl<typename Container::ElementType<i>>::size(
-				   reader.template get<i>()) +
+		return ProtoKelEncodeImpl<typename Container::template ElementType<i>>::
+				   size(reader.template get<i>()) +
 			   sizeMembers<i + 1>(reader);
 	}
 
@@ -168,8 +168,8 @@ struct ProtoKelEncodeImpl<
 			Buffer &buffer) {
 
 		Error error =
-			ProtoKelEncodeImpl<typename Container::ElementType<i>>::encode(
-				data.template get<i>(), buffer);
+			ProtoKelEncodeImpl<typename Container::template ElementType<i>>::
+				encode(data.template get<i>(), buffer);
 		if (error.failed()) {
 			return error;
 		}
@@ -195,8 +195,8 @@ struct ProtoKelEncodeImpl<
 		i<sizeof...(V), size_t>::type sizeMembers(
 			typename Message<schema::Struct<schema::NamedMember<V, K>...>,
 							 Container>::Reader reader) {
-		return ProtoKelEncodeImpl<typename Container::ElementType<i>>::size(
-				   reader.template get<i>()) +
+		return ProtoKelEncodeImpl<typename Container::template ElementType<i>>::
+				   size(reader.template get<i>()) +
 			   sizeMembers<i + 1>(reader);
 	}
 
@@ -213,7 +213,8 @@ struct ProtoKelEncodeImpl<
 
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), Error>::type
-	encodeMembers(typename Container::ElementType<i>::Reader, Buffer &) {
+	encodeMembers(typename Container::template ElementType<i>::Reader,
+				  Buffer &) {
 		return noError();
 	}
 
@@ -228,8 +229,8 @@ struct ProtoKelEncodeImpl<
 			if (error.failed()) {
 				return error;
 			}
-			return ProtoKelEncodeImpl<typename Container::ElementType<i>>::
-				encode(reader.template get<i>(), buffer);
+			return ProtoKelEncodeImpl<typename Container::template ElementType<
+				i>>::encode(reader.template get<i>(), buffer);
 		}
 		return encodeMembers<i + 1>(reader, buffer);
 	}
@@ -254,8 +255,8 @@ struct ProtoKelEncodeImpl<
 			typename Message<schema::Union<schema::NamedMember<V, K>...>,
 							 Container>::Reader reader) {
 		if (reader.index() == i) {
-			return ProtoKelEncodeImpl<typename Container::ElementType<i>>::size(
-				reader.template get<i>());
+			return ProtoKelEncodeImpl<typename Container::template ElementType<
+				i>>::size(reader.template get<i>());
 		}
 		return sizeMembers<i + 1>(reader);
 	}
@@ -337,8 +338,8 @@ struct ProtoKelDecodeImpl<Message<schema::Tuple<T...>, Container>> {
 			Buffer &buffer) {
 
 		Error error =
-			ProtoKelDecodeImpl<typename Container::ElementType<i>>::decode(
-				builder.template init<i>(), buffer);
+			ProtoKelDecodeImpl<typename Container::template ElementType<i>>::
+				decode(builder.template init<i>(), buffer);
 		if (error.failed()) {
 			return error;
 		}
@@ -372,8 +373,8 @@ struct ProtoKelDecodeImpl<
 			Buffer &buffer) {
 
 		Error error =
-			ProtoKelDecodeImpl<typename Container::ElementType<i>>::decode(
-				builder.template init<i>(), buffer);
+			ProtoKelDecodeImpl<typename Container::template ElementType<i>>::
+				decode(builder.template init<i>(), buffer);
 		if (error.failed()) {
 			return error;
 		}
@@ -408,8 +409,8 @@ struct ProtoKelDecodeImpl<
 
 		if (id == i) {
 			Error error =
-				ProtoKelDecodeImpl<typename Container::ElementType<i>>::decode(
-					builder.template init<i>(), buffer);
+				ProtoKelDecodeImpl<typename Container::template ElementType<
+					i>>::decode(builder.template init<i>(), buffer);
 			if (error.failed()) {
 				return error;
 			}

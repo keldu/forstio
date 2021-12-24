@@ -72,8 +72,9 @@ public:
 		/*
 		 * Initialize a member by index
 		 */
-		template <size_t i> typename Container::ElementType<i>::Builder init() {
-			return typename Container::ElementType<i>::Builder{
+		template <size_t i>
+		typename Container::template ElementType<i>::Builder init() {
+			return typename Container::template ElementType<i>::Builder{
 				message.container.template get<i>()};
 		}
 
@@ -82,7 +83,7 @@ public:
 		 * This is the preferred method for schema::Struct messages
 		 */
 		template <StringLiteral Literal>
-		typename Container::ElementType<
+		typename Container::template ElementType<
 			MessageParameterKeyPackIndex<Literal, Keys...>::Value>::Builder
 		init() {
 			constexpr size_t i =
@@ -104,8 +105,9 @@ public:
 		/*
 		 * Get member by index
 		 */
-		template <size_t i> typename Container::ElementType<i>::Reader get() {
-			return typename Container::ElementType<i>::Reader{
+		template <size_t i>
+		typename Container::template ElementType<i>::Reader get() {
+			return typename Container::template ElementType<i>::Reader{
 				message.container.template get<i>()};
 		}
 
@@ -114,7 +116,7 @@ public:
 		 * This is the preferred method for schema::Struct messages
 		 */
 		template <StringLiteral Literal>
-		typename Container::ElementType<
+		typename Container::template ElementType<
 			MessageParameterKeyPackIndex<Literal, Keys...>::Value>::Reader
 		get() {
 			// The index of the first match
@@ -159,13 +161,14 @@ public:
 
 		Reader asReader() { return Reader{message}; }
 
-		template <size_t i> typename Container::ElementType<i>::Builder init() {
-			return typename Container::ElementType<i>::Builder{
+		template <size_t i>
+		typename Container::template ElementType<i>::Builder init() {
+			return typename Container::template ElementType<i>::Builder{
 				message.container.template get<i>()};
 		}
 
 		template <StringLiteral Literal>
-		typename Container::ElementType<
+		typename Container::template ElementType<
 			MessageParameterKeyPackIndex<Literal, Keys...>::Value>::Builder
 		init() {
 			constexpr size_t i =
@@ -184,13 +187,14 @@ public:
 
 		Builder asBuilder() { return Builder{message}; }
 
-		template <size_t i> typename Container::ElementType<i>::Reader get() {
-			return typename Container::ElementType<i>::Reader{
+		template <size_t i>
+		typename Container::template ElementType<i>::Reader get() {
+			return typename Container::template ElementType<i>::Reader{
 				message.container.template get<i>()};
 		}
 
 		template <StringLiteral Literal>
-		typename Container::ElementType<
+		typename Container::template ElementType<
 			MessageParameterKeyPackIndex<Literal, Keys...>::Value>::Reader
 		get() {
 			// The index of the first match
@@ -294,8 +298,9 @@ public:
 
 		Reader asReader() { return Reader{message}; }
 
-		template <size_t i> typename Container::ElementType<i>::Builder init() {
-			return typename Container::ElementType<i>::Builder{
+		template <size_t i>
+		typename Container::template ElementType<i>::Builder init() {
+			return typename Container::template ElementType<i>::Builder{
 				message.container.template get<i>()};
 		}
 	};
@@ -308,8 +313,9 @@ public:
 
 		Builder asBuilder() { return Builder{message}; }
 
-		template <size_t i> typename Container::ElementType<i>::Reader get() {
-			return typename Container::ElementType<i>::Reader{
+		template <size_t i>
+		typename Container::template ElementType<i>::Reader get() {
+			return typename Container::template ElementType<i>::Reader{
 				message.container.template get<i>()};
 		}
 	};

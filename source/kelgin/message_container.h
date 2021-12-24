@@ -67,8 +67,8 @@ public:
 	using SchemaType = schema::Struct<schema::NamedMember<V, Keys>...>;
 
 	template <size_t i>
-	using ElementType =
-		MessageParameterPackType<i, Message<V, MessageContainer<V>>...>::Type;
+	using ElementType = typename MessageParameterPackType<
+		i, Message<V, MessageContainer<V>>...>::Type;
 
 	template <size_t i> ElementType<i> &get() { return std::get<i>(values); }
 };
@@ -86,8 +86,8 @@ public:
 	using SchemaType = schema::Union<schema::NamedMember<V, Keys>...>;
 
 	template <size_t i>
-	using ElementType =
-		MessageParameterPackType<i, Message<V, MessageContainer<V>>...>::Type;
+	using ElementType = typename MessageParameterPackType<
+		i, Message<V, MessageContainer<V>>...>::Type;
 
 	template <size_t i> ElementType<i> &get() { return std::get<i>(value); }
 
@@ -125,8 +125,8 @@ public:
 	using SchemaType = schema::Tuple<T...>;
 
 	template <size_t i>
-	using ElementType =
-		MessageParameterPackType<i, Message<T, MessageContainer<T>>...>::Type;
+	using ElementType = typename MessageParameterPackType<
+		i, Message<T, MessageContainer<T>>...>::Type;
 
 	template <size_t i> ElementType<i> &get() { return std::get<i>(values); }
 };
@@ -190,7 +190,8 @@ struct PrimitiveTypeHelper<schema::Primitive<schema::FloatingPoint, 8>> {
 template <class T, size_t N> class MessageContainer<schema::Primitive<T, N>> {
 public:
 	using SchemaType = schema::Primitive<T, N>;
-	using ValueType = PrimitiveTypeHelper<schema::Primitive<T, N>>::Type;
+	using ValueType =
+		typename PrimitiveTypeHelper<schema::Primitive<T, N>>::Type;
 
 private:
 	ValueType value;

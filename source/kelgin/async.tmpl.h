@@ -73,7 +73,7 @@ template <typename T> Conveyor<T> Conveyor<T>::buffer(size_t size) {
 
 template <typename T>
 template <typename... Args>
-Conveyor<T> Conveyor<T>::attach(Args &&... args) {
+Conveyor<T> Conveyor<T>::attach(Args &&...args) {
 	Own<AttachConveyorNode<Args...>> attach_node =
 		heap<AttachConveyorNode<Args...>>(std::move(node), std::move(args...));
 	return Conveyor<T>{std::move(attach_node), storage};
