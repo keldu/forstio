@@ -38,8 +38,9 @@ GIN_TEST("Primitive Encoding"){
 	Error error = codec.encode<TestSize>(root.read(), temp_buffer);
 
 	GIN_EXPECT(!error.failed(), error.message());
-	GIN_EXPECT(temp_buffer.readCompositeLength() == (sizeof(value)+8), "Bad Size: " + std::to_string(temp_buffer.readCompositeLength()));
-	GIN_EXPECT(temp_buffer[8] == 5 && temp_buffer[9] == 0 && temp_buffer[10] == 0 && temp_buffer[11] == 0, "Wrong encoded values");
+	GIN_EXPECT(temp_buffer.readCompositeLength() == (sizeof(value)+sizeof(msg_packet_length_t)), "Bad Size: " + std::to_string(temp_buffer.readCompositeLength()));
+	constexpr size_t pkt_shift = sizeof(msg_packet_length_t);
+	GIN_EXPECT(temp_buffer[pkt_shift] == 5 && temp_buffer[pkt_shift+1] == 0 && temp_buffer[pkt_shift+2] == 0 && temp_buffer[pkt_shift+3] == 0, "Wrong encoded values");
 }
 
 GIN_TEST("List Encoding"){
