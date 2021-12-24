@@ -38,7 +38,7 @@ GIN_TEST("Primitive Encoding"){
 	Error error = codec.encode<TestSize>(root.read(), temp_buffer);
 
 	GIN_EXPECT(!error.failed(), error.message());
-	GIN_EXPECT(temp_buffer.readCompositeLength() == sizeof(value), "Bad Size: " + std::to_string(temp_buffer.readCompositeLength()));
+	GIN_EXPECT(temp_buffer.readCompositeLength() == (sizeof(value)+8), "Bad Size: " + std::to_string(temp_buffer.readCompositeLength()));
 	GIN_EXPECT(temp_buffer[0] == 5 && temp_buffer[1] == 0 && temp_buffer[2] == 0 && temp_buffer[3] == 0, "Wrong encoded values");
 }
 
