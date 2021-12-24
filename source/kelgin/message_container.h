@@ -138,42 +138,42 @@ public:
 template <class T> struct PrimitiveTypeHelper;
 
 template <>
-struct PrimitiveTypeHelper<schema::Primitive<schema::SignedIntegral, 1>> {
+struct PrimitiveTypeHelper<schema::Primitive<schema::SignedInteger, 1>> {
 	using Type = int8_t;
 };
 
 template <>
-struct PrimitiveTypeHelper<schema::Primitive<schema::SignedIntegral, 2>> {
+struct PrimitiveTypeHelper<schema::Primitive<schema::SignedInteger, 2>> {
 	using Type = int16_t;
 };
 
 template <>
-struct PrimitiveTypeHelper<schema::Primitive<schema::SignedIntegral, 4>> {
+struct PrimitiveTypeHelper<schema::Primitive<schema::SignedInteger, 4>> {
 	using Type = int32_t;
 };
 
 template <>
-struct PrimitiveTypeHelper<schema::Primitive<schema::SignedIntegral, 8>> {
+struct PrimitiveTypeHelper<schema::Primitive<schema::SignedInteger, 8>> {
 	using Type = int64_t;
 };
 
 template <>
-struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedIntegral, 1>> {
+struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedInteger, 1>> {
 	using Type = uint8_t;
 };
 
 template <>
-struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedIntegral, 2>> {
+struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedInteger, 2>> {
 	using Type = uint16_t;
 };
 
 template <>
-struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedIntegral, 4>> {
+struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedInteger, 4>> {
 	using Type = uint32_t;
 };
 
 template <>
-struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedIntegral, 8>> {
+struct PrimitiveTypeHelper<schema::Primitive<schema::UnsignedInteger, 8>> {
 	using Type = uint64_t;
 };
 

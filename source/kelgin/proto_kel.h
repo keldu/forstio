@@ -213,7 +213,8 @@ struct ProtoKelEncodeImpl<
 
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), Error>::type
-	encodeMembers(typename Container::template ElementType<i>::Reader,
+	encodeMembers(typename Message<schema::Union<schema::NamedMember<V, K>...>,
+								   Container>::Reader,
 				  Buffer &) {
 		return noError();
 	}

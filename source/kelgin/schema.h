@@ -22,27 +22,27 @@ template <class... T> struct Tuple {};
 
 struct String {};
 
-struct SignedIntegral {};
-struct UnsignedIntegral {};
+struct SignedInteger {};
+struct UnsignedInteger {};
 struct FloatingPoint {};
 
 template <class T, size_t N> struct Primitive {
-	static_assert(((std::is_same_v<T, SignedIntegral> ||
-					std::is_same_v<T, UnsignedIntegral>)&&(N == 1 || N == 2 ||
-														   N == 4 || N == 8)) ||
+	static_assert(((std::is_same_v<T, SignedInteger> ||
+					std::is_same_v<T, UnsignedInteger>)&&(N == 1 || N == 2 ||
+														  N == 4 || N == 8)) ||
 					  (std::is_same_v<T, FloatingPoint> && (N == 4 || N == 8)),
 				  "Primitive Type is not supported");
 };
 
-using Int8 = Primitive<SignedIntegral, 1>;
-using Int16 = Primitive<SignedIntegral, 2>;
-using Int32 = Primitive<SignedIntegral, 4>;
-using Int64 = Primitive<SignedIntegral, 8>;
+using Int8 = Primitive<SignedInteger, 1>;
+using Int16 = Primitive<SignedInteger, 2>;
+using Int32 = Primitive<SignedInteger, 4>;
+using Int64 = Primitive<SignedInteger, 8>;
 
-using UInt8 = Primitive<UnsignedIntegral, 1>;
-using UInt16 = Primitive<UnsignedIntegral, 2>;
-using UInt32 = Primitive<UnsignedIntegral, 4>;
-using UInt64 = Primitive<UnsignedIntegral, 8>;
+using UInt8 = Primitive<UnsignedInteger, 1>;
+using UInt16 = Primitive<UnsignedInteger, 2>;
+using UInt32 = Primitive<UnsignedInteger, 4>;
+using UInt64 = Primitive<UnsignedInteger, 8>;
 
 using Float32 = Primitive<FloatingPoint, 4>;
 using Float64 = Primitive<FloatingPoint, 8>;
