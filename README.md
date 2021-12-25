@@ -10,10 +10,11 @@ Very early stage. I am currently rewriting my software to find a good interface 
 
 You will need  
 
-* A compiler (std=c++17) (g++/clang++)  
+* A compiler (std=c++20) (g++/clang++)  
 * scons  
 * gnutls  
 
+Currently the build script explicitly calls clang++ due to some occasional compiler error on archlinux with g++.  
 Optional dependencies are  
 
 * clang-format  
@@ -29,29 +30,36 @@ It's that simple.
 
 # Schema Structure  
 
-Message description currently is achieved by a series of templated Message classes as seen below.  
-Though it is sufficient the next code block is a little bit tedious to write.  
-
-```
-using BasicStruct = MessageStruct<
-	MessageStructMember<decltype("foo"_t), MessagePrimitive<int32_t>,
-	MessageStructMember<decltype("bar"_t), MessagePrimitive<std::string>
->;
-```  
-  
-Since this concept unites writing the schema description coupled with the storage in memory I have chosen to seperate these concepts into
-schema descriptions and containers. The Message class would be just a wrapper around those concepts. Together with C++20 templated string literals and
-the seperated schema and variable storage we achieve a description in this style.  
+Message description currently is achieved by a series of templated schema classes found in ```kelgin/schema.h``` as seen below
 
 ```
 using BasicStruct = schema::Struct<
-	schema::NamedMember<"foo", Int32>,
-	schema::NamedMember<"bar", String>	
+	schema::NamedMember<Int32, "foo">,
+	schema::NamedMember<String, "bar">	
 >;
 ```  
+These schema classes are just meant to describe the schema itself. By itself, it can't do anything.  
+For a message we build 
+Using those schemas and appropriate container classes, we can now build a message class
 
-The main advantage is the increased readibility. Together with the seperated storage we are now able to implement zerocopy storage patterns.  
-This message description change is currently being developed and the old message description / schema classes will be removed when it is finished.  
+```
+HeapMessageRoot<BasicStruct, MessageContainer<BasicStruct>> buildBasicMessage(int32_t foo_value, std::string bar_value){
+	auto root = heapMessageRoot<BasicStruct>();
+	// This is equivalent to
+	// auto root = heapMessageRoot<BasicStruct, MessageContainer<BasicStruct>>();
+
+	auto builder = root.build();
+	auto bar_build = builder.init<"bar">().set("banana");
+	
+	auto foo_build = builder.init<"foo">().set(5);
+
+	return root;
+}
+```
+
+The current default message container stores each value in stl containers as `std::string`, `std::vector`, `std::tuple`, `std::variant`
+or in its primitive form.  
+Though it is planned to allow storing those directly in buffers.  
 
 # Examples  
 
@@ -62,7 +70,8 @@ this library. Though no schema or io features are used there.
 # Roadmap  
 
 * Zerocopy for message templates during parsing  
-* Tls with gnutls  
+* Tls with gnutls (Client side partly done. Server side missing)  
 * Windows/Mac Support  
 * Multithreaded conveyor communication  
 * Logger implementation  
+* Reintroduce JSON without dynamic message parsing or at least with more streaming support  
