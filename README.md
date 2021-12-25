@@ -43,7 +43,7 @@ For a message we build
 Using those schemas and appropriate container classes, we can now build a message class
 
 ```
-HeapMessageRoot<BasicStruct, MessageContainer<BasicStruct>> buildBasicMessage(int32_t foo_value, std::string bar_value){
+HeapMessageRoot<BasicStruct, MessageContainer<BasicStruct>> buildBasicMessage(){
 	auto root = heapMessageRoot<BasicStruct>();
 	// This is equivalent to
 	// auto root = heapMessageRoot<BasicStruct, MessageContainer<BasicStruct>>();
