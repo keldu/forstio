@@ -42,31 +42,39 @@ public:
 
 	const Version version() const { return Version{0, 0, 0}; }
 
-	template <typename T>
-	Error encode(typename T::Reader reader, Buffer &buffer);
+	template <class Schema, class Container = MessageContainer<Schema>>
+	Error encode(typename Message<Schema, Container>::Reader reader,
+				 Buffer &buffer);
 
-	template <typename T>
-	Error decode(typename T::Builder builder, Buffer &buffer,
-				 const Limits &limits = Limits{});
+	template <class Schema, class Container = MessageContainer<Schema>>
+	Error decode(typename Message<Schema, Container>::Builder builder,
+				 Buffer &buffer, const Limits &limits = Limits{});
 };
 
-template <typename T> struct ProtoKelEncodeImpl;
+template <class T> struct ProtoKelEncodeImpl;
 
-template <typename T> struct ProtoKelEncodeImpl<MessagePrimitive<T>> {
-	static Error encode(typename MessagePrimitive<T>::Reader data,
-						Buffer &buffer) {
-		Error error = StreamValue<T>::encode(data.get(), buffer);
+template <class T, size_t N, class Container>
+struct ProtoKelEncodeImpl<Message<schema::Primitive<T, N>, Container>> {
+	static Error
+	encode(typename Message<schema::Primitive<T, N>, Container>::Reader data,
+		   Buffer &buffer) {
+		Error error = StreamValue<typename PrimitiveTypeHelper<
+			schema::Primitive<T, N>>::Type>::encode(data.get(), buffer);
 		return error;
 	}
 
-	static size_t size(typename MessagePrimitive<T>::Reader) {
-		return StreamValue<T>::size();
+	static size_t
+	size(typename Message<schema::Primitive<T, N>, Container>::Reader) {
+		return StreamValue<typename PrimitiveTypeHelper<
+			schema::Primitive<T, N>>::Type>::size();
 	}
 };
 
-template <> struct ProtoKelEncodeImpl<MessagePrimitive<std::string>> {
-	static Error encode(typename MessagePrimitive<std::string>::Reader data,
-						Buffer &buffer) {
+template <class Container>
+struct ProtoKelEncodeImpl<Message<schema::String, Container>> {
+	static Error
+	encode(typename Message<schema::String, Container>::Reader data,
+		   Buffer &buffer) {
 		std::string_view view = data.get();
 		size_t size = view.size();
 
@@ -86,24 +94,27 @@ template <> struct ProtoKelEncodeImpl<MessagePrimitive<std::string>> {
 		return noError();
 	}
 
-	static size_t size(typename MessagePrimitive<std::string>::Reader reader) {
+	static size_t
+	size(typename Message<schema::String, Container>::Reader reader) {
 		return sizeof(size_t) + reader.get().size();
 	}
 };
 
-template <typename... T> struct ProtoKelEncodeImpl<MessageList<T...>> {
+template <class... T, class Container>
+struct ProtoKelEncodeImpl<Message<schema::Tuple<T...>, Container>> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(T), Error>::type
-	encodeMembers(typename MessageList<T...>::Reader, Buffer &) {
+	encodeMembers(typename Message<schema::Tuple<T...>, Container>::Reader,
+				  Buffer &) {
 		return noError();
 	}
 
 	template <size_t i = 0>
-		static typename std::enable_if <
-		i<sizeof...(T), Error>::type
-		encodeMembers(typename MessageList<T...>::Reader data, Buffer &buffer) {
+	static typename std::enable_if<(i < sizeof...(T)), Error>::type
+	encodeMembers(typename Message<schema::Tuple<T...>, Container>::Reader data,
+				  Buffer &buffer) {
 		Error error =
-			ProtoKelEncodeImpl<typename ParameterPackType<i, T...>::type>::
+			ProtoKelEncodeImpl<typename Container::template ElementType<i>>::
 				encode(data.template get<i>(), buffer);
 		if (error.failed()) {
 			return error;
@@ -112,47 +123,52 @@ template <typename... T> struct ProtoKelEncodeImpl<MessageList<T...>> {
 		return encodeMembers<i + 1>(data, buffer);
 	}
 
-	static Error encode(typename MessageList<T...>::Reader data,
-						Buffer &buffer) {
+	static Error
+	encode(typename Message<schema::Tuple<T...>, Container>::Reader data,
+		   Buffer &buffer) {
 		return encodeMembers<0>(data, buffer);
 	}
 
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(T), size_t>::type
-	sizeMembers(typename MessageList<T...>::Reader) {
+	sizeMembers(typename Message<schema::Tuple<T...>, Container>::Reader) {
 		return 0;
 	}
 
 	template <size_t i = 0>
 		static typename std::enable_if <
-		i<sizeof...(T), size_t>::type
-		sizeMembers(typename MessageList<T...>::Reader reader) {
-		return ProtoKelEncodeImpl<typename ParameterPackType<i, T...>::type>::
+		i<sizeof...(T), size_t>::type sizeMembers(
+			typename Message<schema::Tuple<T...>, Container>::Reader reader) {
+		return ProtoKelEncodeImpl<typename Container::template ElementType<i>>::
 				   size(reader.template get<i>()) +
 			   sizeMembers<i + 1>(reader);
 	}
 
-	static size_t size(typename MessageList<T...>::Reader reader) {
+	static size_t
+	size(typename Message<schema::Tuple<T...>, Container>::Reader reader) {
 		return sizeMembers<0>(reader);
 	}
 };
 
-template <typename... V, typename... K>
-struct ProtoKelEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
+template <typename... V, StringLiteral... K, class Container>
+struct ProtoKelEncodeImpl<
+	Message<schema::Struct<schema::NamedMember<V, K>...>, Container>> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), Error>::type
-	encodeMembers(typename MessageStruct<MessageStructMember<V, K>...>::Reader,
+	encodeMembers(typename Message<schema::Struct<schema::NamedMember<V, K>...>,
+								   Container>::Reader,
 				  Buffer &) {
 		return noError();
 	}
 	template <size_t i = 0>
 		static typename std::enable_if <
 		i<sizeof...(V), Error>::type encodeMembers(
-			typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
+			typename Message<schema::Struct<schema::NamedMember<V, K>...>,
+							 Container>::Reader data,
 			Buffer &buffer) {
 
 		Error error =
-			ProtoKelEncodeImpl<typename ParameterPackType<i, V...>::type>::
+			ProtoKelEncodeImpl<typename Container::template ElementType<i>>::
 				encode(data.template get<i>(), buffer);
 		if (error.failed()) {
 			return error;
@@ -161,79 +177,87 @@ struct ProtoKelEncodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 	}
 
 	static Error
-	encode(typename MessageStruct<MessageStructMember<V, K>...>::Reader data,
+	encode(typename Message<schema::Struct<schema::NamedMember<V, K>...>,
+							Container>::Reader data,
 		   Buffer &buffer) {
 		return encodeMembers<0>(data, buffer);
 	}
 
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), size_t>::type
-	sizeMembers(typename MessageStruct<MessageStructMember<V, K>...>::Reader) {
-		return 0;
-	}
-
-	template <size_t i = 0>
-		static typename std::enable_if <
-		i<sizeof...(V), size_t>::type
-		sizeMembers(typename MessageStruct<MessageStructMember<V, K>...>::Reader
-						reader) {
-		return ProtoKelEncodeImpl<typename ParameterPackType<i, V...>::type>::
-				   size(reader.template get<i>()) +
-			   sizeMembers<i + 1>(reader);
-	}
-
-	static size_t
-	size(typename MessageStruct<MessageStructMember<V, K>...>::Reader reader) {
-		return sizeMembers<0>(reader);
-	}
-};
-
-template <typename... V, typename... K>
-struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
-	template <size_t i = 0>
-	static typename std::enable_if<i == sizeof...(V), Error>::type
-	encodeMembers(typename MessageUnion<MessageUnionMember<V, K>...>::Reader,
-				  Buffer &) {
-		return noError();
-	}
-
-	template <size_t i = 0>
-		static typename std::enable_if <
-		i<sizeof...(V), Error>::type encodeMembers(
-			typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader,
-			Buffer &buffer) {
-		if (reader.template holdsAlternative<
-				typename ParameterPackType<i, K...>::type>()) {
-			Error error = StreamValue<msg_union_id_t>::encode(i, buffer);
-			if (error.failed()) {
-				return error;
-			}
-			return ProtoKelEncodeImpl<typename ParameterPackType<
-				i, V...>::type>::encode(reader.template get<i>(), buffer);
-		}
-		return encodeMembers<i + 1>(reader, buffer);
-	}
-
-	static Error
-	encode(typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader,
-		   Buffer &buffer) {
-		return encodeMembers<0>(reader, buffer);
-	}
-
-	template <size_t i = 0>
-	static typename std::enable_if<i == sizeof...(V), size_t>::type
-	sizeMembers(typename MessageUnion<MessageUnionMember<V, K>...>::Reader) {
+	sizeMembers(typename Message<schema::Struct<schema::NamedMember<V, K>...>,
+								 Container>::Reader) {
 		return 0;
 	}
 
 	template <size_t i = 0>
 		static typename std::enable_if <
 		i<sizeof...(V), size_t>::type sizeMembers(
-			typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader) {
-		if (reader.template holdsAlternative<
-				typename ParameterPackType<i, K...>::type>()) {
-			return ProtoKelEncodeImpl<typename ParameterPackType<
-				i, V...>::type>::size(reader.template get<i>());
+			typename Message<schema::Struct<schema::NamedMember<V, K>...>,
+							 Container>::Reader reader) {
+		return ProtoKelEncodeImpl<typename Container::template ElementType<i>>::
+				   size(reader.template get<i>()) +
+			   sizeMembers<i + 1>(reader);
+	}
+
+	static size_t
+	size(typename Message<schema::Struct<schema::NamedMember<V, K>...>,
+						  Container>::Reader reader) {
+		return sizeMembers<0>(reader);
+	}
+};
+
+template <typename... V, StringLiteral... K, class Container>
+struct ProtoKelEncodeImpl<
+	Message<schema::Union<schema::NamedMember<V, K>...>, Container>> {
+
+	template <size_t i = 0>
+	static typename std::enable_if<i == sizeof...(V), Error>::type
+	encodeMembers(typename Message<schema::Union<schema::NamedMember<V, K>...>,
+								   Container>::Reader,
+				  Buffer &) {
+		return noError();
+	}
+
+	template <size_t i = 0>
+		static typename std::enable_if <
+		i<sizeof...(V), Error>::type encodeMembers(
+			typename Message<schema::Union<schema::NamedMember<V, K>...>,
+							 Container>::Reader reader,
+			Buffer &buffer) {
+		if (reader.index() == i) {
+			Error error = StreamValue<msg_union_id_t>::encode(i, buffer);
+			if (error.failed()) {
+				return error;
+			}
+			return ProtoKelEncodeImpl<typename Container::template ElementType<
+				i>>::encode(reader.template get<i>(), buffer);
+		}
+		return encodeMembers<i + 1>(reader, buffer);
+	}
+
+	static Error
+	encode(typename Message<schema::Union<schema::NamedMember<V, K>...>,
+							Container>::Reader reader,
+		   Buffer &buffer) {
+		return encodeMembers<0>(reader, buffer);
+	}
+
+	template <size_t i = 0>
+	static typename std::enable_if<i == sizeof...(V), size_t>::type
+	sizeMembers(typename Message<schema::Union<schema::NamedMember<V, K>...>,
+								 Container>::Reader) {
+		return 0;
+	}
+
+	template <size_t i = 0>
+		static typename std::enable_if <
+		i<sizeof...(V), size_t>::type sizeMembers(
+			typename Message<schema::Union<schema::NamedMember<V, K>...>,
+							 Container>::Reader reader) {
+		if (reader.index() == i) {
+			return ProtoKelEncodeImpl<typename Container::template ElementType<
+				i>>::size(reader.template get<i>());
 		}
 		return sizeMembers<i + 1>(reader);
 	}
@@ -242,8 +266,9 @@ struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 	 * Size of union id + member size
 	 */
 	static size_t
-	size(typename MessageUnion<MessageUnionMember<V, K>...>::Reader reader) {
-		return sizeof(uint32_t) + sizeMembers<0>(reader);
+	size(typename Message<schema::Union<schema::NamedMember<V, K>...>,
+						  Container>::Reader reader) {
+		return sizeof(msg_union_id_t) + sizeMembers<0>(reader);
 	}
 };
 /*
@@ -251,19 +276,24 @@ struct ProtoKelEncodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
  */
 template <typename T> struct ProtoKelDecodeImpl;
 
-template <typename T> struct ProtoKelDecodeImpl<MessagePrimitive<T>> {
-	static Error decode(typename MessagePrimitive<T>::Builder data,
-						Buffer &buffer) {
-		T val = 0;
-		Error error = StreamValue<T>::decode(val, buffer);
+template <class T, size_t N, class Container>
+struct ProtoKelDecodeImpl<Message<schema::Primitive<T, N>, Container>> {
+	static Error
+	decode(typename Message<schema::Primitive<T, N>, Container>::Builder data,
+		   Buffer &buffer) {
+		typename PrimitiveTypeHelper<schema::Primitive<T, N>>::Type val = 0;
+		Error error = StreamValue<typename PrimitiveTypeHelper<
+			schema::Primitive<T, N>>::Type>::decode(val, buffer);
 		data.set(val);
 		return error;
 	}
 };
 
-template <> struct ProtoKelDecodeImpl<MessagePrimitive<std::string>> {
-	static Error decode(typename MessagePrimitive<std::string>::Builder data,
-						Buffer &buffer) {
+template <class Container>
+struct ProtoKelDecodeImpl<Message<schema::String, Container>> {
+	static Error
+	decode(typename Message<schema::String, Container>::Builder data,
+		   Buffer &buffer) {
 		size_t size = 0;
 		if (sizeof(size) > buffer.readCompositeLength()) {
 			return recoverableError("Buffer too small");
@@ -293,21 +323,23 @@ template <> struct ProtoKelDecodeImpl<MessagePrimitive<std::string>> {
 	}
 };
 
-template <typename... T> struct ProtoKelDecodeImpl<MessageList<T...>> {
+template <class... T, class Container>
+struct ProtoKelDecodeImpl<Message<schema::Tuple<T...>, Container>> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(T), Error>::type
-	decodeMembers(typename MessageList<T...>::Builder, Buffer &) {
+	decodeMembers(typename Message<schema::Tuple<T...>, Container>::Builder,
+				  Buffer &) {
 		return noError();
 	}
 
 	template <size_t i = 0>
 		static typename std::enable_if <
-		i<sizeof...(T), Error>::type
-		decodeMembers(typename MessageList<T...>::Builder builder,
-					  Buffer &buffer) {
+		i<sizeof...(T), Error>::type decodeMembers(
+			typename Message<schema::Tuple<T...>, Container>::Builder builder,
+			Buffer &buffer) {
 
 		Error error =
-			ProtoKelDecodeImpl<typename ParameterPackType<i, T...>::type>::
+			ProtoKelDecodeImpl<typename Container::template ElementType<i>>::
 				decode(builder.template init<i>(), buffer);
 		if (error.failed()) {
 			return error;
@@ -315,17 +347,21 @@ template <typename... T> struct ProtoKelDecodeImpl<MessageList<T...>> {
 		return decodeMembers<i + 1>(builder, buffer);
 	}
 
-	static Error decode(typename MessageList<T...>::Builder builder,
-						Buffer &buffer) {
+	static Error
+	decode(typename Message<schema::Tuple<T...>, Container>::Builder builder,
+		   Buffer &buffer) {
 		return decodeMembers<0>(builder, buffer);
 	}
 };
 
-template <typename... V, typename... K>
-struct ProtoKelDecodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
+template <class... V, StringLiteral... K, class Container>
+struct ProtoKelDecodeImpl<
+	Message<schema::Struct<schema::NamedMember<V, K>...>, Container>> {
+
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), Error>::type
-	decodeMembers(typename MessageStruct<MessageStructMember<V, K>...>::Builder,
+	decodeMembers(typename Message<schema::Struct<schema::NamedMember<V, K>...>,
+								   Container>::Builder,
 				  Buffer &) {
 		return noError();
 	}
@@ -333,12 +369,12 @@ struct ProtoKelDecodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 	template <size_t i = 0>
 		static typename std::enable_if <
 		i<sizeof...(V), Error>::type decodeMembers(
-			typename MessageStruct<MessageStructMember<V, K>...>::Builder
-				builder,
+			typename Message<schema::Struct<schema::NamedMember<V, K>...>,
+							 Container>::Builder builder,
 			Buffer &buffer) {
 
 		Error error =
-			ProtoKelDecodeImpl<typename ParameterPackType<i, V...>::type>::
+			ProtoKelDecodeImpl<typename Container::template ElementType<i>>::
 				decode(builder.template init<i>(), buffer);
 		if (error.failed()) {
 			return error;
@@ -346,18 +382,21 @@ struct ProtoKelDecodeImpl<MessageStruct<MessageStructMember<V, K>...>> {
 		return decodeMembers<i + 1>(builder, buffer);
 	}
 
-	static Error decode(
-		typename MessageStruct<MessageStructMember<V, K>...>::Builder builder,
-		Buffer &buffer) {
+	static Error
+	decode(typename Message<schema::Struct<schema::NamedMember<V, K>...>,
+							Container>::Builder builder,
+		   Buffer &buffer) {
 		return decodeMembers<0>(builder, buffer);
 	}
 };
 
-template <typename... V, typename... K>
-struct ProtoKelDecodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
+template <class... V, StringLiteral... K, class Container>
+struct ProtoKelDecodeImpl<
+	Message<schema::Union<schema::NamedMember<V, K>...>, Container>> {
 	template <size_t i = 0>
 	static typename std::enable_if<i == sizeof...(V), Error>::type
-	decodeMembers(typename MessageUnion<MessageUnionMember<V, K>...>::Builder,
+	decodeMembers(typename Message<schema::Union<schema::NamedMember<V, K>...>,
+								   Container>::Builder,
 				  Buffer &, msg_union_id_t) {
 		return noError();
 	}
@@ -365,13 +404,14 @@ struct ProtoKelDecodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 	template <size_t i = 0>
 		static typename std::enable_if <
 		i<sizeof...(V), Error>::type decodeMembers(
-			typename MessageUnion<MessageUnionMember<V, K>...>::Builder builder,
+			typename Message<schema::Union<schema::NamedMember<V, K>...>,
+							 Container>::Builder builder,
 			Buffer &buffer, msg_union_id_t id) {
 
 		if (id == i) {
 			Error error =
-				ProtoKelDecodeImpl<typename ParameterPackType<i, V...>::type>::
-					decode(builder.template init<i>(), buffer);
+				ProtoKelDecodeImpl<typename Container::template ElementType<
+					i>>::decode(builder.template init<i>(), buffer);
 			if (error.failed()) {
 				return error;
 			}
@@ -380,7 +420,8 @@ struct ProtoKelDecodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 	}
 
 	static Error
-	decode(typename MessageUnion<MessageUnionMember<V, K>...>::Builder builder,
+	decode(typename Message<schema::Union<schema::NamedMember<V, K>...>,
+							Container>::Builder builder,
 		   Buffer &buffer) {
 		msg_union_id_t id = 0;
 		Error error = StreamValue<msg_union_id_t>::decode(id, buffer);
@@ -395,11 +436,13 @@ struct ProtoKelDecodeImpl<MessageUnion<MessageUnionMember<V, K>...>> {
 	}
 };
 
-template <typename T>
-Error ProtoKelCodec::encode(typename T::Reader reader, Buffer &buffer) {
+template <class Schema, class Container>
+Error ProtoKelCodec::encode(typename Message<Schema, Container>::Reader reader,
+							Buffer &buffer) {
 	BufferView view{buffer};
 
-	msg_packet_length_t packet_length = ProtoKelEncodeImpl<T>::size(reader);
+	msg_packet_length_t packet_length =
+		ProtoKelEncodeImpl<Message<Schema, Container>>::size(reader);
 	// Check the size of the packet for the first
 	// message length description
 
@@ -417,7 +460,8 @@ Error ProtoKelCodec::encode(typename T::Reader reader, Buffer &buffer) {
 		}
 	}
 	{
-		Error error = ProtoKelEncodeImpl<T>::encode(reader, view);
+		Error error = ProtoKelEncodeImpl<Message<Schema, Container>>::encode(
+			reader, view);
 		if (error.failed()) {
 			return error;
 		}
@@ -427,9 +471,10 @@ Error ProtoKelCodec::encode(typename T::Reader reader, Buffer &buffer) {
 	return noError();
 }
 
-template <typename T>
-Error ProtoKelCodec::decode(typename T::Builder builder, Buffer &buffer,
-							const Limits &limits) {
+template <class Schema, class Container>
+Error ProtoKelCodec::decode(
+	typename Message<Schema, Container>::Builder builder, Buffer &buffer,
+	const Limits &limits) {
 	BufferView view{buffer};
 
 	msg_packet_length_t packet_length = 0;
@@ -446,13 +491,15 @@ Error ProtoKelCodec::decode(typename T::Builder builder, Buffer &buffer,
 	}
 
 	{
-		Error error = ProtoKelDecodeImpl<T>::decode(builder, view);
+		Error error = ProtoKelDecodeImpl<Message<Schema, Container>>::decode(
+			builder, view);
 		if (error.failed()) {
 			return error;
 		}
 	}
 	{
-		if (ProtoKelEncodeImpl<T>::size(builder.asReader()) != packet_length) {
+		if (ProtoKelEncodeImpl<Message<Schema, Container>>::size(
+				builder.asReader()) != packet_length) {
 			return criticalError("Bad packet format");
 		}
 	}
