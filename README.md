@@ -39,7 +39,7 @@ using BasicStruct = schema::Struct<
 >;
 ```  
 These schema classes are just meant to describe the schema itself. By itself, it can't do anything.  
-For a message we build 
+For a message we create an instance of any MessageRoot class such as `HeapMessageRoot`.  
 Using those schemas and appropriate container classes, we can now build a message class
 
 ```
