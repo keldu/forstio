@@ -39,11 +39,11 @@ using BasicStruct = schema::Struct<
 >;
 ```  
 These schema classes are just meant to describe the schema itself. By itself, it can't do anything.  
-For a message we build 
+For a message we create an instance of any MessageRoot class such as `HeapMessageRoot`.  
 Using those schemas and appropriate container classes, we can now build a message class
 
 ```
-HeapMessageRoot<BasicStruct, MessageContainer<BasicStruct>> buildBasicMessage(int32_t foo_value, std::string bar_value){
+HeapMessageRoot<BasicStruct, MessageContainer<BasicStruct>> buildBasicMessage(){
 	auto root = heapMessageRoot<BasicStruct>();
 	// This is equivalent to
 	// auto root = heapMessageRoot<BasicStruct, MessageContainer<BasicStruct>>();
