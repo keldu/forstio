@@ -13,7 +13,7 @@ namespace schema {
 
 using TestTuple = schema::Tuple<schema::UInt32, schema::String>;
 
-GIN_TEST("MessageList"){
+GIN_TEST("Message Tuple"){
 	std::string test_string_1 = "banana";
 	
 	auto root = gin::heapMessageRoot<TestTuple>();
@@ -32,7 +32,7 @@ GIN_TEST("MessageList"){
 
 using NestedTestTuple = schema::Tuple<schema::Tuple<schema::UInt32, schema::String>, schema::String>;
 
-GIN_TEST("MessageList nested"){
+GIN_TEST("Message Tuple nested"){
 	std::string test_string_1 = "banana";
 	std::string test_string_2 = "bat";
 	
@@ -62,7 +62,7 @@ using TestStruct = schema::Struct<
 	schema::NamedMember<schema::String, "test_name">
 >;
 
-GIN_TEST("MessageStruct"){
+GIN_TEST("Message Struct"){
 	std::string test_string = "foo";
 	auto root = gin::heapMessageRoot<TestStruct>();
 	auto builder = root.build();
