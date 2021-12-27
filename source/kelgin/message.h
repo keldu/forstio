@@ -380,9 +380,23 @@ public:
 		Reader asReader() { return Reader{message}; }
 
 		template <size_t i>
-		typename Container::template ElementType<i>::Builder init() {
+		typename std::enable_if<
+			!SchemaIsArray<
+				typename MessageParameterPackType<i, T...>::Type>::Value,
+			typename Container::template ElementType<i>::Builder>::type
+		init() {
 			return typename Container::template ElementType<i>::Builder{
 				message.container.template get<i>()};
+		}
+
+		template <size_t i>
+		typename std::enable_if<
+			SchemaIsArray<
+				typename MessageParameterPackType<i, T...>::Type>::Value,
+			typename Container::template ElementType<i>::Builder>::type
+		init(size_t size) {
+			return typename Container::template ElementType<i>::Builder{
+				message.container.template get<i>(), size};
 		}
 	};
 	class Reader {
