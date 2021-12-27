@@ -5,7 +5,7 @@
 namespace gin {
 template <class T> class MessageContainer;
 
-template <class T, class Container> class Message;
+template <class T, class Container = MessageContainer<T>> class Message;
 
 template <size_t N, class... T> struct MessageParameterPackType;
 
