@@ -182,7 +182,7 @@ GIN_TEST("Async Scheduling"){
 	GIN_EXPECT(foo_30.value() == (std::string{"pre"} + std::to_string(33) + std::string{"post"}), "Values is not pre33post, but " + foo_30.value());
 }
 
-GIN_TEST("Async detach"){
+GIN_TEST("Async Detach"){
 	using namespace gin;
 
 	EventLoop event_loop;
