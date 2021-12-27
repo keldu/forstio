@@ -409,7 +409,7 @@ public:
 
 		Builder asBuilder() { return Builder{message}; }
 
-		std::string_view get() { return message.container.get(); }
+		const std::string_view get() const { return message.container.get(); }
 	};
 };
 
