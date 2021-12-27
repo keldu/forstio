@@ -214,12 +214,15 @@ template <> class MessageContainer<schema::String> {
 public:
 	using SchemaType = schema::String;
 	using ValueType = std::string;
+	using ValueViewType = std::string_view;
 
 private:
 	ValueType value;
 
 public:
+	void set(ValueType &&v) { value = std::move(v); }
 	void set(const ValueType &v) { value = v; }
+	void set(const ValueViewType v) { value = std::string{v}; }
 
 	const ValueType &get() const { return value; }
 };

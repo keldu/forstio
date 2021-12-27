@@ -487,7 +487,12 @@ Error ProtoKelCodec::decode(
 	}
 
 	if (packet_length > limits.packet_size) {
-		return criticalError("Packet size too big");
+		return criticalError(
+			[packet_length]() {
+				return std::string{"Packet size too big: "} +
+					   std::to_string(packet_length);
+			},
+			"Packet size too big");
 	}
 
 	{

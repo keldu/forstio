@@ -395,7 +395,9 @@ public:
 
 		Reader asReader() { return Reader{message}; }
 
-		void set(const std::string &str) { message.container.set(str); }
+		void set(std::string &&str) { message.container.set(std::move(str)); }
+		void set(const std::string_view str) { message.container.set(str); }
+		void set(const char *str) { set(std::string_view{str}); }
 	};
 
 	class Reader {
