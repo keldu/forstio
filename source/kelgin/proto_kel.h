@@ -13,6 +13,7 @@ namespace gin {
  * bigger than uint32_t max. At least I hope noone would do this
  */
 using msg_union_id_t = uint32_t;
+using msg_array_length_t = uint64_t;
 using msg_packet_length_t = uint64_t;
 
 class ProtoKelCodec {
@@ -271,6 +272,48 @@ struct ProtoKelEncodeImpl<
 		return sizeof(msg_union_id_t) + sizeMembers<0>(reader);
 	}
 };
+
+template <class T, class Container>
+struct ProtoKelEncodeImpl<Message<schema::Array<T>, Container>> {
+	static Error
+	encode(typename Message<schema::Array<T>, Container>::Reader data,
+		   Buffer &buffer) {
+		msg_array_length_t array_length = data.size();
+		{
+			Error error =
+				StreamValue<msg_array_length_t>::encode(array_length, buffer);
+			if (error.failed()) {
+				return error;
+			}
+		}
+
+		for (size_t i = 0; i < array_length; ++i) {
+			Error error =
+				ProtoKelEncodeImpl<typename Container::ElementType>::encode(
+					data.get(i), buffer);
+			if (error.failed()) {
+				return error;
+			}
+		}
+		return noError();
+	}
+
+	/*
+	 *
+	 */
+	static size_t
+	size(typename Message<schema::Array<T>, Container>::Reader data) {
+		size_t members = sizeof(msg_array_length_t);
+		for (size_t i = 0; i < data.size(); ++i) {
+			members +=
+				ProtoKelEncodeImpl<typename Container::ElementType>::size(
+					data.get(i));
+		}
+
+		return members;
+	}
+};
+
 /*
  * Decode Implementations
  */
@@ -433,6 +476,32 @@ struct ProtoKelDecodeImpl<
 		}
 
 		return decodeMembers<0>(builder, buffer, id);
+	}
+};
+
+template <class T, class Container>
+struct ProtoKelDecodeImpl<Message<schema::Array<T>, Container>> {
+	static Error
+	decode(typename Message<schema::Array<T>, Container>::Builder data,
+		   Buffer &buffer) {
+		msg_array_length_t array_length = 0;
+		{
+			Error error =
+				StreamValue<msg_array_length_t>::decode(array_length, buffer);
+			if (error.failed()) {
+				return error;
+			}
+		}
+
+		for (size_t i = 0; i < array_length; ++i) {
+			Error error =
+				ProtoKelDecodeImpl<typename Container::ElementType>::decode(
+					data.init(i), buffer);
+			if (error.failed()) {
+				return error;
+			}
+		}
+		return noError();
 	}
 };
 

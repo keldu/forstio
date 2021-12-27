@@ -88,15 +88,7 @@ GIN_TEST("Message Struct"){
 
 using TestArray = schema::Array<schema::UInt32>;
 
-using TestArrayStruct = schema::Struct<
-	schema::NamedMember<TestArray, "array">
->;
-
-GIN_TEST("Message Array"){
-	auto root = gin::heapMessageRoot<TestArray>();
-
-	auto builder = root.build(3);
-
+void arrayCheck(gin::Message<TestArray>::Builder builder){
 	auto one = builder.init(0);
 	auto two = builder.init(1);
 	auto three = builder.init(2);
@@ -105,8 +97,30 @@ GIN_TEST("Message Array"){
 	two.set(45);
 	three.set(1230);
 
-	auto reader = root.read();
+	auto reader = builder.asReader();
 
 	GIN_EXPECT(reader.get(0).get() == 24 && reader.get(1).get() == 45 && reader.get(2).get(), "Wrong values");
+}
+
+GIN_TEST("Message Array"){
+	auto root = gin::heapMessageRoot<TestArray>();
+
+	auto builder = root.build(3);
+
+	arrayCheck(builder);
+}
+
+using TestArrayStruct = schema::Struct<
+	schema::NamedMember<TestArray, "array">
+>;
+
+GIN_TEST("Message Array in Struct"){
+	auto root = gin::heapMessageRoot<TestArrayStruct>();
+
+	auto builder = root.build();
+
+	auto array = builder.init<"array">(3);
+
+	arrayCheck(array);
 }
 }
