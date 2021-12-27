@@ -83,6 +83,30 @@ GIN_TEST("Message Struct"){
 	 */
 	test_string = "foo2";
 
-	GIN_EXPECT(uint_reader.get() == 23 && string_reader.get() != test_string && string_reader.get() == "foo" && name_reader.get() == "test_name", "wrong values");
+	GIN_EXPECT(uint_reader.get() == 23 && string_reader.get() != test_string && string_reader.get() == "foo" && name_reader.get() == "test_name", "Wrong values");
+}
+
+using TestArray = schema::Array<schema::UInt32>;
+
+using TestArrayStruct = schema::Struct<
+	schema::NamedMember<TestArray, "array">
+>;
+
+GIN_TEST("Message Array"){
+	auto root = gin::heapMessageRoot<TestArray>();
+
+	auto builder = root.build(3);
+
+	auto one = builder.init(0);
+	auto two = builder.init(1);
+	auto three = builder.init(2);
+
+	one.set(24);
+	two.set(45);
+	three.set(1230);
+
+	auto reader = root.read();
+
+	GIN_EXPECT(reader.get(0).get() == 24 && reader.get(1).get() == 45 && reader.get(2).get(), "Wrong values");
 }
 }

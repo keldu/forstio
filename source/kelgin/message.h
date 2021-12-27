@@ -327,7 +327,7 @@ public:
 		Reader asReader() { return Reader{message}; }
 
 		typename Container::ElementType::Builder init(size_t i) {
-			return typename Container::MessageType::Builder{
+			return typename Container::ElementType::Builder{
 				message.container.get(i)};
 		}
 
