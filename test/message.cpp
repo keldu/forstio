@@ -21,7 +21,7 @@ GIN_TEST("MessageList"){
 	auto uint = builder.init<0>();
 	uint.set(10);
 	auto string = builder.init<1>();
-	string.set(test_string_1);
+	string.set(std::string_view{test_string_1});
 
 	auto reader = root.read();
 	auto uint_reader = reader.get<0>();
