@@ -73,7 +73,11 @@ public:
 		 * Initialize a member by index
 		 */
 		template <size_t i>
-		typename Container::template ElementType<i>::Builder init() {
+		typename std::enable_if<
+			!SchemaIsArray<
+				typename MessageParameterPackType<i, V...>::Type>::Value,
+			typename Container::template ElementType<i>::Builder>::type
+		init() {
 			return typename Container::template ElementType<i>::Builder{
 				message.container.template get<i>()};
 		}
@@ -83,13 +87,48 @@ public:
 		 * This is the preferred method for schema::Struct messages
 		 */
 		template <StringLiteral Literal>
-		typename Container::template ElementType<
-			MessageParameterKeyPackIndex<Literal, Keys...>::Value>::Builder
+		typename std::enable_if<
+			!SchemaIsArray<typename MessageParameterPackType<
+				MessageParameterKeyPackIndex<Literal, Keys...>::Value,
+				V...>::Type>::Value,
+			typename Container::template ElementType<
+				MessageParameterKeyPackIndex<Literal,
+											 Keys...>::Value>::Builder>::type
 		init() {
 			constexpr size_t i =
 				MessageParameterKeyPackIndex<Literal, Keys...>::Value;
 
 			return init<i>();
+		}
+
+		template <size_t i>
+		typename std::enable_if<
+			SchemaIsArray<
+				typename MessageParameterPackType<i, V...>::Type>::Value,
+			typename Container::template ElementType<i>::Builder>::type
+		init(size_t size) {
+			auto array_builder =
+				typename Container::template ElementType<i>::Builder{
+					message.container.template get<i>(), size};
+			return array_builder;
+		}
+
+		/*
+		 * Version for array schema type
+		 */
+		template <StringLiteral Literal>
+		typename std::enable_if<
+			SchemaIsArray<typename MessageParameterPackType<
+				MessageParameterKeyPackIndex<Literal, Keys...>::Value,
+				V...>::Type>::Value,
+			typename Container::template ElementType<
+				MessageParameterKeyPackIndex<Literal,
+											 Keys...>::Value>::Builder>::type
+		init(size_t size) {
+			constexpr size_t i =
+				MessageParameterKeyPackIndex<Literal, Keys...>::Value;
+
+			return init<i>(size);
 		}
 	};
 
@@ -162,19 +201,57 @@ public:
 		Reader asReader() { return Reader{message}; }
 
 		template <size_t i>
-		typename Container::template ElementType<i>::Builder init() {
+		typename std::enable_if<
+			!SchemaIsArray<
+				typename MessageParameterPackType<i, V...>::Type>::Value,
+			typename Container::template ElementType<i>::Builder>::type
+
+		init() {
 			return typename Container::template ElementType<i>::Builder{
 				message.container.template get<i>()};
 		}
 
 		template <StringLiteral Literal>
-		typename Container::template ElementType<
-			MessageParameterKeyPackIndex<Literal, Keys...>::Value>::Builder
+		typename std::enable_if<
+			!SchemaIsArray<typename MessageParameterPackType<
+				MessageParameterKeyPackIndex<Literal, Keys...>::Value,
+				V...>::Type>::Value,
+			typename Container::template ElementType<
+				MessageParameterKeyPackIndex<Literal,
+											 Keys...>::Value>::Builder>::type
 		init() {
 			constexpr size_t i =
 				MessageParameterKeyPackIndex<Literal, Keys...>::Value;
 
 			return init<i>();
+		}
+
+		/*
+		 * If Schema is Array
+		 */
+		template <size_t i>
+		typename std::enable_if<
+			SchemaIsArray<
+				typename MessageParameterPackType<i, V...>::Type>::Value,
+			typename Container::template ElementType<i>::Builder>::type
+		init(size_t size) {
+			return typename Container::template ElementType<i>::Builder{
+				message.container.template get<i>(), size};
+		}
+
+		template <StringLiteral Literal>
+		typename std::enable_if<
+			SchemaIsArray<typename MessageParameterPackType<
+				MessageParameterKeyPackIndex<Literal, Keys...>::Value,
+				V...>::Type>::Value,
+			typename Container::template ElementType<
+				MessageParameterKeyPackIndex<Literal,
+											 Keys...>::Value>::Builder>::type
+		init(size_t size) {
+			constexpr size_t i =
+				MessageParameterKeyPackIndex<Literal, Keys...>::Value;
+
+			return init<i>(size);
 		}
 	};
 
@@ -219,11 +296,8 @@ public:
 
 /*
  * Array message class. Wrapper around an array schema element
- * @todo Array class needs either a resize function or each message class has an
- * individual call for Array children
  */
-/*
-template<class T, class Container>
+template <class T, class Container>
 class Message<schema::Array<T>, Container> final : public MessageBase {
 private:
 	using SchemaType = schema::Array<T>;
@@ -241,35 +315,42 @@ public:
 	class Reader;
 	class Builder {
 	private:
-		MessageType & message;
+		MessageType &message;
+
 	public:
-		Builder(MessageType& msg):message{msg}{}
-
-		Reader asReader(){return Reader{message};}
-
-		template<size_t i>
-		typename Container::MessageType::Builder init(){
-			return typename
-Container::MessageType::Builder{message.container.get<i>()};
+		Builder(MessageType &msg, size_t size) : message{msg} {
+			if (size > 0) {
+				message.container.resize(size);
+			}
 		}
+
+		Reader asReader() { return Reader{message}; }
+
+		typename Container::ElementType::Builder init(size_t i) {
+			return typename Container::MessageType::Builder{
+				message.container.get(i)};
+		}
+
+		size_t size() const { return message.container.size(); }
 	};
 
 	class Reader {
 	private:
-		MessageType& message;
+		MessageType &message;
+
 	public:
-		Reader(MessageType& msg):message{msg}{}
+		Reader(MessageType &msg) : message{msg} {}
 
-		Builder asBuilder(){return Builder{message};}
+		Builder asBuilder() { return Builder{message, 0}; }
 
-		template<size_t i>
-		typename Container::MessageType::Reader get(){
-			return typename
-Container::MessageType::Reader{message.container.get<i>()};
+		typename Container::ElementType::Reader get(size_t i) {
+			return typename Container::ElementType::Reader{
+				message.container.get(i)};
 		}
+
+		size_t size() const { return message.container.size(); }
 	};
 };
-*/
 
 /*
  * Tuple message class. Wrapper around a tuple schema
@@ -424,6 +505,28 @@ public:
 	typename Message<Schema, Container>::Builder build() {
 		assert(root);
 		return typename Message<Schema, Container>::Builder{*root};
+	}
+
+	typename Message<Schema, Container>::Reader read() {
+		assert(root);
+		return typename Message<Schema, Container>::Reader{*root};
+	}
+};
+
+template <class T, class Container>
+class HeapMessageRoot<schema::Array<T>, Container> {
+public:
+	using Schema = schema::Array<T>;
+
+private:
+	Own<Message<Schema, Container>> root;
+
+public:
+	HeapMessageRoot(Own<Message<Schema, Container>> r) : root{std::move(r)} {}
+
+	typename Message<Schema, Container>::Builder build(size_t size) {
+		assert(root);
+		return typename Message<Schema, Container>::Builder{*root, size};
 	}
 
 	typename Message<Schema, Container>::Reader read() {
