@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <stdexcept>
+#include <type_traits>
 
 #include "common.h"
 
@@ -35,7 +36,8 @@ public:
 	}GIN_UNIQUE_NAME(testCase); \
 	void GIN_UNIQUE_NAME(TestCase)::run()
 
-#define GIN_EXPECT(expr, msg) \
+#define GIN_EXPECT(expr, msg_split) \
 	if( ! (expr) ){ \
-		throw std::runtime_error{msg}; \
+		auto msg = msg_split; \
+		throw std::runtime_error{std::string{msg}};\
 	}

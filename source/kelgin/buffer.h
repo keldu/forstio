@@ -20,7 +20,7 @@ protected:
 public:
 	virtual size_t readPosition() const = 0;
 	virtual size_t readCompositeLength() const = 0;
-	virtual size_t readSegmentLength() const = 0;
+	virtual size_t readSegmentLength(size_t offset = 0) const = 0;
 	virtual void readAdvance(size_t bytes) = 0;
 
 	virtual uint8_t &read(size_t i = 0) = 0;
@@ -28,7 +28,7 @@ public:
 
 	virtual size_t writePosition() const = 0;
 	virtual size_t writeCompositeLength() const = 0;
-	virtual size_t writeSegmentLength() const = 0;
+	virtual size_t writeSegmentLength(size_t offset = 0) const = 0;
 	virtual void writeAdvance(size_t bytes) = 0;
 
 	virtual uint8_t &write(size_t i = 0) = 0;
@@ -50,6 +50,42 @@ public:
 	std::string toString() const;
 	std::string toHex() const;
 };
+
+/*
+ *	A viewer class for buffers.
+ *	Working on the reference buffer invalidates the buffer view
+ */
+class BufferView : public Buffer {
+private:
+	Buffer &buffer;
+	size_t read_offset;
+	size_t write_offset;
+
+public:
+	BufferView(Buffer &);
+
+	size_t readPosition() const override;
+	size_t readCompositeLength() const override;
+	size_t readSegmentLength(size_t offset = 0) const override;
+	void readAdvance(size_t bytes) override;
+
+	uint8_t &read(size_t i = 0) override;
+	const uint8_t &read(size_t i = 0) const override;
+
+	size_t writePosition() const override;
+	size_t writeCompositeLength() const override;
+	size_t writeSegmentLength(size_t offset = 0) const override;
+	void writeAdvance(size_t bytes) override;
+
+	uint8_t &write(size_t i = 0) override;
+	const uint8_t &write(size_t i = 0) const override;
+
+	Error writeRequireLength(size_t bytes) override;
+
+	size_t readOffset() const;
+	size_t writeOffset() const;
+};
+
 /*
  * Buffer size meant for default allocation size of the ringbuffer since
  * this class currently doesn't support proper resizing
@@ -76,7 +112,7 @@ public:
 
 	size_t readPosition() const override;
 	size_t readCompositeLength() const override;
-	size_t readSegmentLength() const override;
+	size_t readSegmentLength(size_t offset = 0) const override;
 	void readAdvance(size_t bytes) override;
 
 	uint8_t &read(size_t i = 0) override;
@@ -84,7 +120,7 @@ public:
 
 	size_t writePosition() const override;
 	size_t writeCompositeLength() const override;
-	size_t writeSegmentLength() const override;
+	size_t writeSegmentLength(size_t offset = 0) const override;
 	void writeAdvance(size_t bytes) override;
 
 	uint8_t &write(size_t i = 0) override;
@@ -108,7 +144,7 @@ public:
 
 	size_t readPosition() const override;
 	size_t readCompositeLength() const override;
-	size_t readSegmentLength() const override;
+	size_t readSegmentLength(size_t offset = 0) const override;
 	void readAdvance(size_t bytes) override;
 
 	uint8_t &read(size_t i = 0) override;
@@ -116,7 +152,7 @@ public:
 
 	size_t writePosition() const override;
 	size_t writeCompositeLength() const override;
-	size_t writeSegmentLength() const override;
+	size_t writeSegmentLength(size_t offset = 0) const override;
 	void writeAdvance(size_t bytes) override;
 
 	uint8_t &write(size_t i = 0) override;
@@ -137,7 +173,7 @@ public:
 
 	size_t readPosition() const override;
 	size_t readCompositeLength() const override;
-	size_t readSegmentLength() const override;
+	size_t readSegmentLength(size_t offset = 0) const override;
 	void readAdvance(size_t bytes) override;
 
 	uint8_t &read(size_t i = 0) override;
@@ -145,7 +181,7 @@ public:
 
 	size_t writePosition() const override;
 	size_t writeCompositeLength() const override;
-	size_t writeSegmentLength() const override;
+	size_t writeSegmentLength(size_t offset = 0) const override;
 	void writeAdvance(size_t bytes) override;
 
 	uint8_t &write(size_t i = 0) override;

@@ -7,6 +7,7 @@
 #include <csignal>
 #include <sys/signalfd.h>
 
+#include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
@@ -25,9 +26,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "io.h"
+#include "./io.h"
+#include "kelgin/io.h"
 
 namespace gin {
+namespace unix {
 constexpr int MAX_EPOLL_EVENTS = 256;
 
 class UnixEventPort;
@@ -107,7 +110,6 @@ private:
 
 			if (nfds < 0) {
 				/// @todo error_handling
-				assert(false);
 				return false;
 			}
 
@@ -130,7 +132,7 @@ private:
 						continue;
 					}
 					while (1) {
-						ssize_t n = ::read(pipefds[0], &i, sizeof(i));
+						ssize_t n = ::recv(pipefds[0], &i, sizeof(i), 0);
 						if (n < 0) {
 							break;
 						}
@@ -169,7 +171,7 @@ public:
 		event.data.u64 = 0;
 		::epoll_ctl(epoll_fd, EPOLL_CTL_ADD, signal_fd, &event);
 
-		int rc = ::pipe(pipefds);
+		int rc = ::pipe2(pipefds, O_NONBLOCK | O_CLOEXEC);
 		if (rc < 0) {
 			return;
 		}
@@ -232,7 +234,7 @@ public:
 			return;
 		}
 		uint8_t i = 0;
-		::write(pipefds[1], &i, sizeof(i));
+		::send(pipefds[1], &i, sizeof(i), MSG_DONTWAIT);
 	}
 
 	void subscribe(IFdOwner &owner, int fd, uint32_t event_mask) {
@@ -261,44 +263,40 @@ public:
 	}
 };
 
+ssize_t unixRead(int fd, void *buffer, size_t length);
+ssize_t unixWrite(int fd, const void *buffer, size_t length);
+
 class UnixIoStream final : public IoStream, public IFdOwner {
 private:
-	struct WriteIoTask {
-		const void *buffer;
-		size_t length;
-	};
-	std::queue<WriteIoTask> write_tasks;
-	Own<ConveyorFeeder<size_t>> write_done = nullptr;
-	Own<ConveyorFeeder<void>> write_ready = nullptr;
-
-	struct ReadIoTask {
-		void *buffer;
-		size_t min_length;
-		size_t max_length;
-	};
-	std::queue<ReadIoTask> read_tasks;
-	Own<ConveyorFeeder<size_t>> read_done = nullptr;
 	Own<ConveyorFeeder<void>> read_ready = nullptr;
-
 	Own<ConveyorFeeder<void>> on_read_disconnect = nullptr;
-
-private:
-	void readStep();
-	void writeStep();
+	Own<ConveyorFeeder<void>> write_ready = nullptr;
 
 public:
 	UnixIoStream(UnixEventPort &event_port, int file_descriptor, int fd_flags,
 				 uint32_t event_mask);
 
-	void read(void *buffer, size_t min_length, size_t max_length) override;
-	Conveyor<size_t> readDone() override;
+	ErrorOr<size_t> read(void *buffer, size_t length) override;
+
 	Conveyor<void> readReady() override;
 
 	Conveyor<void> onReadDisconnected() override;
 
-	void write(const void *buffer, size_t length) override;
-	Conveyor<size_t> writeDone() override;
+	ErrorOr<size_t> write(const void *buffer, size_t length) override;
+
 	Conveyor<void> writeReady() override;
+
+	/*
+		void read(void *buffer, size_t min_length, size_t max_length) override;
+		Conveyor<size_t> readDone() override;
+		Conveyor<void> readReady() override;
+
+		Conveyor<void> onReadDisconnected() override;
+
+		void write(const void *buffer, size_t length) override;
+		Conveyor<size_t> writeDone() override;
+		Conveyor<void> writeReady() override;
+	*/
 
 	void notify(uint32_t mask) override;
 };
@@ -346,12 +344,13 @@ public:
 		return result;
 	}
 
-	void bind(int fd) const {
+	bool bind(int fd) const {
 		if (wildcard) {
 			int value = 0;
 			::setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &value, sizeof(value));
 		}
-		::bind(fd, &address.generic, address_length);
+		int error = ::bind(fd, &address.generic, address_length);
+		return error < 0;
 	}
 
 	const struct ::sockaddr *getRaw() const { return &address.generic; }
@@ -392,39 +391,52 @@ public:
 class UnixNetworkAddress final : public NetworkAddress {
 private:
 	UnixEventPort &event_port;
-	AsyncIoProvider &io_provider;
 	const std::string path;
 	uint16_t port_hint;
 	std::list<SocketAddress> addresses;
 
 public:
-	UnixNetworkAddress(UnixEventPort &event_port, AsyncIoProvider &io_provider,
-					   const std::string &path, uint16_t port_hint,
-					   std::list<SocketAddress> &&addr)
-		: event_port{event_port}, io_provider{io_provider}, path{path},
-		  port_hint{port_hint}, addresses{std::move(addr)} {}
+	UnixNetworkAddress(UnixEventPort &event_port, const std::string &path,
+					   uint16_t port_hint, std::list<SocketAddress> &&addr)
+		: event_port{event_port}, path{path}, port_hint{port_hint},
+		  addresses{std::move(addr)} {}
 
 	Own<Server> listen() override;
-	Own<IoStream> connect() override;
+	Conveyor<Own<IoStream>> connect() override;
 
 	std::string toString() const override;
+
+	const std::string &address() const override;
+
+	uint16_t port() const override;
 };
 
-class UnixAsyncIoProvider final : public AsyncIoProvider {
+class UnixNetwork final : public Network {
+private:
+	UnixEventPort &event_port;
+
+public:
+	UnixNetwork(UnixEventPort &event_port);
+
+	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &address,
+											   uint16_t port_hint = 0) override;
+};
+
+class UnixIoProvider final : public IoProvider {
 private:
 	UnixEventPort &event_port;
 	EventLoop event_loop;
-	WaitScope wait_scope;
+
+	UnixNetwork unix_network;
 
 public:
-	UnixAsyncIoProvider(UnixEventPort &port_ref, Own<EventPort> &&port);
+	UnixIoProvider(UnixEventPort &port_ref, Own<EventPort> port);
 
-	Own<NetworkAddress> parseAddress(const std::string &,
-									 uint16_t port_hint = 0) override;
+	Network &network() override;
 
 	Own<InputStream> wrapInputFd(int fd) override;
 
 	EventLoop &eventLoop();
-	WaitScope &waitScope();
 };
+} // namespace unix
 } // namespace gin

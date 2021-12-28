@@ -1,6 +1,6 @@
 #include "suite/suite.h"
 
-#include "source/async.h"
+#include "source/kelgin/async.h"
 
 namespace {
 GIN_TEST("Async Immediate"){
@@ -19,7 +19,7 @@ GIN_TEST("Async Immediate"){
 
 	ErrorOr<bool> error_or_number = is_number.take();
 
-	GIN_EXPECT(!error_or_number.isError(), "Return is an error: " + error_or_number.error().message());
+	GIN_EXPECT(!error_or_number.isError(), error_or_number.error().message());
 	GIN_EXPECT(error_or_number.isValue(), "Return is not a value");
 	GIN_EXPECT(error_or_number.value(), "Value is not 5");
 }
@@ -36,7 +36,7 @@ GIN_TEST("Async Adapt"){
 
 	ErrorOr<size_t> foo = feeder_conveyor.conveyor.take();
 
-	GIN_EXPECT(!foo.isError(), "Return is an error: " + foo.error().message());
+	GIN_EXPECT(!foo.isError(), foo.error().message());
 	GIN_EXPECT(foo.isValue(), "Return is not a value");
 	GIN_EXPECT(foo.value() == 5, "Values not 5, but " + std::to_string(foo.value()));
 }
@@ -54,7 +54,7 @@ GIN_TEST("Async Adapt Multiple"){
 
 	ErrorOr<size_t> foo = feeder_conveyor.conveyor.take();
 
-	GIN_EXPECT(!foo.isError(), "Return is an error: " + foo.error().message());
+	GIN_EXPECT(!foo.isError(), foo.error().message());
 	GIN_EXPECT(foo.isValue(), "Return is not a value");
 	GIN_EXPECT(foo.value() == 5, "Values not 5, but " + std::to_string(foo.value()));
 
@@ -62,7 +62,7 @@ GIN_TEST("Async Adapt Multiple"){
 
 	ErrorOr<size_t> bar = feeder_conveyor.conveyor.take();
 
-	GIN_EXPECT(!bar.isError(), "Return is an error: " + bar.error().message());
+	GIN_EXPECT(!foo.isError(), bar.error().message());
 	GIN_EXPECT(bar.isValue(), "Return is not a value");
 	GIN_EXPECT(bar.value() == 10, "Values not 10, but " + std::to_string(bar.value()));
 
@@ -72,11 +72,11 @@ GIN_TEST("Async Adapt Multiple"){
 	ErrorOr<size_t> a = feeder_conveyor.conveyor.take();
 	ErrorOr<size_t> b = feeder_conveyor.conveyor.take();
 
-	GIN_EXPECT(!a.isError(), "Return is an error: " + a.error().message());
+	GIN_EXPECT(!foo.isError(), a.error().message());
 	GIN_EXPECT(a.isValue(), "Return is not a value");
 	GIN_EXPECT(a.value() == 2, "Values not 2, but " + std::to_string(a.value()));
 
-	GIN_EXPECT(!b.isError(), "Return is an error: " + b.error().message());
+	GIN_EXPECT(!foo.isError(), b.error().message());
 	GIN_EXPECT(b.isValue(), "Return is not a value");
 	GIN_EXPECT(b.value() == 4234, "Values not 4234, but " + std::to_string(b.value()));
 }
@@ -97,7 +97,7 @@ GIN_TEST("Async Conversion"){
 
 	ErrorOr<std::string> foo = string_conveyor.take();
 
-	GIN_EXPECT(!foo.isError(), "Return is an error: " + foo.error().message());
+	GIN_EXPECT(!foo.isError(), foo.error().message());
 	GIN_EXPECT(foo.isValue(), "Return is not a value");
 	GIN_EXPECT(foo.value() == std::to_string(10), "Values is not 10, but " + foo.value());
 }
@@ -122,7 +122,7 @@ GIN_TEST("Async Conversion Multistep"){
 
 	ErrorOr<bool> foo = conveyor.take();
 
-	GIN_EXPECT(!foo.isError(), "Return is an error: " + foo.error().message());
+	GIN_EXPECT(!foo.isError(), foo.error().message());
 	GIN_EXPECT(foo.isValue(), "Return is not a value");
 	GIN_EXPECT(foo.value(), "Values is not true");
 }
@@ -165,20 +165,66 @@ GIN_TEST("Async Scheduling"){
 
 	ErrorOr<std::string> foo_10 = string_conveyor.take();
 
-	GIN_EXPECT(!foo_10.isError(), "Return is an error: " + foo_10.error().message());
+	GIN_EXPECT(!foo_10.isError(), foo_10.error().message());
 	GIN_EXPECT(foo_10.isValue(), "Return is not a value");
 	GIN_EXPECT(foo_10.value() == (std::string{"pre"} + std::to_string(11) + std::string{"post"}), "Values is not pre11post, but " + foo_10.value());
 
 	ErrorOr<std::string> foo_20 = string_conveyor.take();
 
-	GIN_EXPECT(!foo_20.isError(), "Return is an error: " + foo_20.error().message());
+	GIN_EXPECT(!foo_20.isError(), foo_20.error().message());
 	GIN_EXPECT(foo_20.isValue(), "Return is not a value");
 	GIN_EXPECT(foo_20.value() == (std::string{"pre"} + std::to_string(22) + std::string{"post"}), "Values is not pre22post, but " + foo_20.value());
 
 	ErrorOr<std::string> foo_30 = string_conveyor.take();
 
-	GIN_EXPECT(!foo_30.isError(), "Return is an error: " + foo_30.error().message());
+	GIN_EXPECT(!foo_30.isError(), foo_30.error().message());
 	GIN_EXPECT(foo_30.isValue(), "Return is not a value");
 	GIN_EXPECT(foo_30.value() == (std::string{"pre"} + std::to_string(33) + std::string{"post"}), "Values is not pre33post, but " + foo_30.value());
+}
+
+GIN_TEST("Async Detach"){
+	using namespace gin;
+
+	EventLoop event_loop;
+	WaitScope wait_scope{event_loop};
+
+	int num = 0;
+
+	Conveyor<int>{10}.then([&num](int bar){
+		num = bar;
+	}).detach();
+
+	wait_scope.poll();
+
+	GIN_EXPECT(num == 10, std::string{"Bad value: Expected 10, but got "} + std::to_string(num));
+}
+
+GIN_TEST("Async Merge"){
+	using namespace gin;
+
+	EventLoop event_loop;
+	WaitScope wait_scope{event_loop};
+
+	auto cam = Conveyor<int>{10}.merge();
+
+	cam.second.attach(Conveyor<int>{11});
+
+	cam.second.attach(Conveyor<int>{14});
+
+	size_t elements_passed = 0;
+	bool wrong_value = false;
+
+	auto sink = cam.first.then([&elements_passed, &wrong_value](int foo){
+		if(foo == 10 || foo == 11 || 14){
+			++elements_passed;
+		}else{
+			wrong_value = true;
+		}
+	}).sink();
+
+	wait_scope.poll();
+
+	GIN_EXPECT(!wrong_value, std::string{"Expected values 10 or 11"});
+	GIN_EXPECT(elements_passed == 3, std::string{"Expected 2 passed elements, got only "} + std::to_string(elements_passed));
 }
 }

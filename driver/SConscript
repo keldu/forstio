@@ -9,5 +9,7 @@ Import('env')
 
 dir_path = Dir('.').abspath
 
-env.sources += sorted(glob.glob(dir_path + "/*.cpp"))
-env.headers += sorted(glob.glob(dir_path + "/*.h"))
+env.driver_sources += sorted(glob.glob(dir_path + "/tls/*.cpp"))
+
+env.driver_sources += sorted(glob.glob(dir_path + "/*.cpp"))
+env.driver_headers += sorted(glob.glob(dir_path + "/*.h"))

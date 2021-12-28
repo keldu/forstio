@@ -14,11 +14,19 @@ EventLoop &currentEventLoop() {
 }
 } // namespace
 
-ConveyorNode::ConveyorNode() : child{nullptr} {}
+ConveyorNode::ConveyorNode() {}
 
-ConveyorNode::ConveyorNode(Own<ConveyorNode> &&node) : child{std::move(node)} {}
+ConveyorStorage::ConveyorStorage(ConveyorStorage *c) : child_storage{c} {}
 
-void ConveyorStorage::setParent(ConveyorStorage *p) {
+ConveyorStorage::~ConveyorStorage() {
+	if (parent) {
+		parent->unlinkChild();
+	}
+}
+
+void ConveyorStorage::unlinkChild() { child_storage = nullptr; }
+
+void ConveyorEventStorage::setParent(ConveyorStorage *p) {
 	/*
 	 * parent check isn't needed, but is used
 	 * for the assert, because the storage should
@@ -27,18 +35,23 @@ void ConveyorStorage::setParent(ConveyorStorage *p) {
 	 */
 	if (/*!parent && */ p && !isArmed() && queued() > 0) {
 		assert(!parent);
-		armNext();
+		if (p->space() > 0) {
+			armLater();
+		}
 	}
+
 	parent = p;
 }
+
+ConveyorEventStorage::ConveyorEventStorage(ConveyorStorage *c)
+	: ConveyorStorage{c} {}
 
 ConveyorBase::ConveyorBase(Own<ConveyorNode> &&node_p,
 						   ConveyorStorage *storage_p)
 	: node{std::move(node_p)}, storage{storage_p} {}
 
 Error PropagateError::operator()(const Error &error) const {
-	Error err{error};
-	return err;
+	return error.copyError();
 }
 
 Error PropagateError::operator()(Error &&error) { return std::move(error); }
@@ -142,6 +155,8 @@ void Event::disarm() {
 }
 
 bool Event::isArmed() const { return prev != nullptr; }
+
+SinkConveyor::SinkConveyor() : node{nullptr} {}
 
 SinkConveyor::SinkConveyor(Own<ConveyorNode> &&node_p)
 	: node{std::move(node_p)} {}
@@ -263,6 +278,12 @@ void WaitScope::wait(const std::chrono::steady_clock::time_point &time_point) {
 
 void WaitScope::poll() { loop.poll(); }
 
+ImmediateConveyorNodeBase::ImmediateConveyorNodeBase()
+	: ConveyorEventStorage{nullptr} {}
+
+MergeConveyorNodeBase::MergeConveyorNodeBase()
+	: ConveyorEventStorage{nullptr} {}
+
 void ConveyorSinks::destroySinkConveyorNode(ConveyorNode &node) {
 	if (!isArmed()) {
 		armLast();
@@ -275,15 +296,23 @@ void ConveyorSinks::fail(Error &&error) {
 	/// @todo call error_handler
 }
 
+ConveyorSinks::ConveyorSinks(EventLoop &event_loop) : Event{event_loop} {}
+
 void ConveyorSinks::add(Conveyor<void> &&sink) {
 	auto nas = Conveyor<void>::fromConveyor(std::move(sink));
-	Own<SinkConveyorNode> sink_node =
-		heap<SinkConveyorNode>(std::move(nas.first), *this);
+
+	Own<SinkConveyorNode> sink_node = nullptr;
+	try {
+		sink_node =
+			heap<SinkConveyorNode>(nas.second, std::move(nas.first), *this);
+	} catch (std::bad_alloc &) {
+		return;
+	}
 	if (nas.second) {
 		nas.second->setParent(sink_node.get());
 	}
 
-	sink_nodes.push_back(std::move(sink_node));
+	sink_nodes.emplace_back(std::move(sink_node));
 }
 
 void ConveyorSinks::fire() {
@@ -298,13 +327,13 @@ void ConveyorSinks::fire() {
 }
 
 ConvertConveyorNodeBase::ConvertConveyorNodeBase(Own<ConveyorNode> &&dep)
-	: ConveyorNode{std::move(dep)} {}
+	: child{std::move(dep)} {}
 
 void ConvertConveyorNodeBase::getResult(ErrorOrValue &err_or_val) {
 	getImpl(err_or_val);
 }
 
-void AttachConveyorNodeBase::getResult(ErrorOrValue &err_or_val) {
+void AttachConveyorNodeBase::getResult(ErrorOrValue &err_or_val) noexcept {
 	if (child) {
 		child->getResult(err_or_val);
 	}

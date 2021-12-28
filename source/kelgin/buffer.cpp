@@ -80,6 +80,117 @@ std::string Buffer::toHex() const {
 	return oss.str();
 }
 
+BufferView::BufferView(Buffer &buffer)
+	: buffer{buffer}, read_offset{0}, write_offset{0} {}
+
+size_t BufferView::readPosition() const {
+	return read_offset + buffer.readPosition();
+}
+
+size_t BufferView::readCompositeLength() const {
+	assert(read_offset <= buffer.readCompositeLength());
+	if (read_offset > buffer.readCompositeLength()) {
+		return 0;
+	}
+
+	return buffer.readCompositeLength() - read_offset;
+}
+
+size_t BufferView::readSegmentLength(size_t offset) const {
+	size_t off = offset + read_offset;
+	assert(off <= buffer.readCompositeLength());
+	if (off > buffer.readCompositeLength()) {
+		return 0;
+	}
+
+	return buffer.readSegmentLength(off);
+}
+
+void BufferView::readAdvance(size_t bytes) {
+	size_t offset = bytes + read_offset;
+	assert(offset <= buffer.readCompositeLength());
+	if (offset > buffer.readCompositeLength()) {
+		read_offset += buffer.readCompositeLength();
+		return;
+	}
+
+	read_offset += bytes;
+}
+
+uint8_t &BufferView::read(size_t i) {
+	size_t pos = i + read_offset;
+
+	assert(pos < buffer.readCompositeLength());
+
+	return buffer.read(pos);
+}
+
+const uint8_t &BufferView::read(size_t i) const {
+	size_t pos = i + read_offset;
+
+	assert(pos < buffer.readCompositeLength());
+
+	return buffer.read(pos);
+}
+
+size_t BufferView::writePosition() const {
+	return write_offset + buffer.writePosition();
+}
+
+size_t BufferView::writeCompositeLength() const {
+	assert(write_offset <= buffer.writeCompositeLength());
+	if (write_offset > buffer.writeCompositeLength()) {
+		return 0;
+	}
+
+	return buffer.writeCompositeLength() - write_offset;
+}
+
+size_t BufferView::writeSegmentLength(size_t offset) const {
+	size_t off = offset + write_offset;
+	assert(off <= buffer.writeCompositeLength());
+	if (off > buffer.writeCompositeLength()) {
+		return 0;
+	}
+
+	return buffer.writeSegmentLength(off);
+}
+
+void BufferView::writeAdvance(size_t bytes) {
+	size_t offset = bytes + write_offset;
+	assert(offset <= buffer.writeCompositeLength());
+	if (offset > buffer.writeCompositeLength()) {
+		write_offset += buffer.writeCompositeLength();
+		return;
+	}
+
+	write_offset += bytes;
+}
+
+uint8_t &BufferView::write(size_t i) {
+	size_t pos = i + write_offset;
+
+	assert(pos < buffer.writeCompositeLength());
+
+	return buffer.write(pos);
+}
+
+const uint8_t &BufferView::write(size_t i) const {
+	size_t pos = i + write_offset;
+
+	assert(pos < buffer.writeCompositeLength());
+
+	return buffer.write(pos);
+}
+
+Error BufferView::writeRequireLength(size_t bytes) {
+	return buffer.writeRequireLength(bytes + write_offset);
+}
+
+size_t BufferView::readOffset() const { return read_offset; }
+
+size_t BufferView::writeOffset() const { return write_offset; }
+
 RingBuffer::RingBuffer() : read_position{0}, write_position{0} {
 	buffer.resize(RING_BUFFER_MAX_SIZE);
 }
@@ -106,19 +217,42 @@ size_t RingBuffer::readCompositeLength() const {
  * If write is ahead then it's the simple distance again. If read is ahead it's
  * until the end of the buffer/segment
  */
-size_t RingBuffer::readSegmentLength() const {
-	return writePosition() < readPosition()
-			   ? (buffer.size() - readPosition())
-			   : (write_reached_read
-					  ? (buffer.size() - readPosition())
-					  : writePosition() -
-							readPosition()); //(writePosition() -
-											 // readPosition()) :
-											 //(write_reached_read ? () : 0 );
+size_t RingBuffer::readSegmentLength(size_t offset) const {
+	size_t read_composite = readCompositeLength();
+	assert(offset <= read_composite);
+	offset = std::min(offset, read_composite);
+	size_t remaining = read_composite - offset;
+
+	size_t read_offset = readPosition() + offset;
+	read_offset = read_offset >= buffer.size() ? read_offset - buffer.size()
+											   : read_offset;
+
+	// case 1 write is located before read and reached read
+	// then offset can be used normally
+	// case 2 write is located at read, but read reached write
+	// then it is set to zero by readCompositeLength()
+	// case 3 write is located after read
+	// since std::min you can use simple subtraction
+	if (writePosition() < read_offset) {
+		return buffer.size() - read_offset;
+	}
+
+	if (writePosition() == read_offset) {
+		if (remaining > 0) {
+			return buffer.size() - read_offset;
+		} else {
+			return 0;
+		}
+	}
+
+	return writePosition() - read_offset;
 }
 
 void RingBuffer::readAdvance(size_t bytes) {
-	assert(bytes <= readCompositeLength());
+	size_t read_composite = readCompositeLength();
+
+	assert(bytes <= read_composite);
+	bytes = std::min(bytes, read_composite);
 	size_t advanced = read_position + bytes;
 	read_position = advanced >= buffer.size() ? advanced - buffer.size()
 											  : advanced;
@@ -149,10 +283,24 @@ size_t RingBuffer::writeCompositeLength() const {
 					  : buffer.size() - (writePosition() - readPosition()));
 }
 
-size_t RingBuffer::writeSegmentLength() const {
-	return readPosition() > writePosition()
-			   ? (readPosition() - writePosition())
-			   : (write_reached_read ? 0 : (buffer.size() - writePosition()));
+size_t RingBuffer::writeSegmentLength(size_t offset) const {
+	size_t write_composite = writeCompositeLength();
+	assert(offset <= write_composite);
+	offset = std::min(offset, write_composite);
+
+	size_t write_offset = writePosition() + offset;
+	write_offset = write_offset >= buffer.size() ? write_offset - buffer.size()
+												 : write_offset;
+
+	if (read_position > write_offset) {
+		return read_position - write_offset;
+	}
+
+	if (write_reached_read) {
+		return 0;
+	}
+
+	return buffer.size() - write_offset;
 }
 
 void RingBuffer::writeAdvance(size_t bytes) {
@@ -214,8 +362,14 @@ size_t ArrayBuffer::readCompositeLength() const {
 	return write_position - read_position;
 }
 
-size_t ArrayBuffer::readSegmentLength() const {
-	return write_position - read_position;
+size_t ArrayBuffer::readSegmentLength(size_t offset) const {
+	size_t read_composite = readCompositeLength();
+	assert(offset <= read_composite);
+
+	offset = std::min(read_composite, offset);
+	size_t read_offset = read_position + offset;
+
+	return write_position - read_offset;
 }
 
 void ArrayBuffer::readAdvance(size_t bytes) {
@@ -242,9 +396,15 @@ size_t ArrayBuffer::writeCompositeLength() const {
 	return buffer.size() - write_position;
 }
 
-size_t ArrayBuffer::writeSegmentLength() const {
+size_t ArrayBuffer::writeSegmentLength(size_t offset) const {
 	assert(write_position <= buffer.size());
-	return buffer.size() - write_position;
+	size_t write_composite = writeCompositeLength();
+
+	assert(offset <= write_composite);
+	offset = std::min(write_composite, offset);
+	size_t write_offset = write_position + offset;
+
+	return buffer.size() - write_offset;
 }
 
 void ArrayBuffer::writeAdvance(size_t bytes) {
