@@ -47,13 +47,13 @@ Async features.
 ## External events  
 
 Since a lot of external events may occur which originate from the OS in some way, we require an additional class called ```EventPort```.  
-You can create your async context by calling ```setupAsyncIo()```.  
-This creates an ```EventLoop``` as well, so only the ```WaitScope``` has to be created afterwards to activate these classes.  
+You can create your async context by calling ```setupAsyncIo()``` which creates this OS dependent ```EventPort``` for you.  
+Only the ```WaitScope``` has to be created afterwards to these classes active on the current thread.  
 Most of the times you want to create the ```AsyncIoContext``` on the main thread while in the future other threads can or should have a custom implementation
-of ```EventPort``` to allow for external events arriving for these threads as well. External means outside of that thread.  
+of ```EventPort``` to allow for external events arriving for these threads as well. In the context of threads external means outside of the mentioned thread.  
 
-Cross-Thread communication currently is done differently though due to missing features. Either by implementing your own thread-safe data transfer or using
-the network features to communicate across threads.  
+Cross-Thread communication currently is implemented differently due to missing features. It is done either by implementing your own thread-safe data
+transfer or using the network features to communicate across threads.  
 
 # Schema Structure  
 
