@@ -3,8 +3,12 @@
 Asynchronous framework mostly inspired by [Capn'Proto](https://github.com/capnproto/capnproto) with the key difference of not
 using Promises, but more reusable Pipelines/Conveyors. This introduces some challenges since I can't assume that only one
 element gets passed along the chain, but it is managable. The advantage is that you have zero heap overhead by not recreating the chain after every use.  
+The asynchronous interfaces are very similar to [Capn'Proto](https://github.com/capnproto/capnproto). At least similar to the 0.7.0 version.  
+The other elements like schema, serialization, network interfaces are designed in another manner.  
 
-Very early stage. I am currently rewriting my software to find a good interface solution by checking if I am comfortable with the current design.  
+Early stage of development. I am currently rewriting my software to find a good interface solution by checking if I am comfortable with the current design.  
+Schema description has been rewritten once already and the current version is probably here to stay. The default container will be changed in the future, so
+no parsing will be necessary with my binary format.  
 
 # Dependencies  
 
@@ -14,7 +18,7 @@ You will need
 * scons  
 * gnutls  
 
-Currently the build script explicitly calls clang++ due to some occasional compiler error on archlinux with g++.  
+Currently the build script explicitly calls clang++ due to some occasional internal compiler error on archlinux with g++.  
 Optional dependencies are  
 
 * clang-format  
@@ -27,6 +31,29 @@ It's that simple.
 `scons test` build the test cases.  
 `scons format` formats the sources.  
 `scons install` installs the library + headers locally.  
+`scons all` to format the sources and build the library and the tests.  
+
+# Async  
+
+The main interface for async events is the ```Conveyor``` class.  
+This class is the builder object for creating new nodes in the graph of relations. At the same time it stores the end nodes of this graph.  
+Most of the times this async relationship graph is started by using ```newConveyorAndFeeder``` which return a connected input and output
+class. You can provide the templated data to the feeder and if you have built up a graph with the Conveyor class, it will get passed along the
+chain.  
+
+It is necessary to create an ```EventLoop``` instance and activate it on the current thread by creating a ```WaitScope``` class before using the
+Async features.  
+
+## External events  
+
+Since a lot of external events may occur which originate from the OS in some way, we require an additional class called ```EventPort```.  
+You can create your async context by calling ```setupAsyncIo()```.  
+This creates an ```EventLoop``` as well, so only the ```WaitScope``` has to be created afterwards to activate these classes.  
+Most of the times you want to create the ```AsyncIoContext``` on the main thread while in the future other threads can or should have a custom implementation
+of ```EventPort``` to allow for external events arriving for these threads as well. External means outside of that thread.  
+
+Cross-Thread communication currently is done differently though due to missing features. Either by implementing your own thread-safe data transfer or using
+the network features to communicate across threads.  
 
 # Schema Structure  
 
