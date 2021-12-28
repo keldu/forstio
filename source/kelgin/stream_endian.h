@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include <iostream>
+
 namespace gin {
 /**
  * Helper class to encode/decode any primtive type into/from litte endian.
@@ -40,7 +42,7 @@ public:
 		uint16_t raw = 0;
 
 		for (size_t i = 0; i < sizeof(T); ++i) {
-			raw |= buffer.read(i) << (i * 8);
+			raw |= (static_cast<uint16_t>(buffer.read(i)) << (i * 8));
 		}
 		memcpy(&val, &raw, sizeof(T));
 		buffer.readAdvance(sizeof(T));
@@ -78,7 +80,7 @@ public:
 		uint32_t raw = 0;
 
 		for (size_t i = 0; i < sizeof(T); ++i) {
-			raw |= buffer.read(i) << (i * 8);
+			raw |= (static_cast<uint32_t>(buffer.read(i)) << (i * 8));
 		}
 		memcpy(&val, &raw, sizeof(T));
 		buffer.readAdvance(sizeof(T));
@@ -116,8 +118,9 @@ public:
 		uint64_t raw = 0;
 
 		for (size_t i = 0; i < sizeof(T); ++i) {
-			raw |= buffer.read(i) << (i * 8);
+			raw |= (static_cast<uint64_t>(buffer.read(i)) << (i * 8));
 		}
+
 		memcpy(&val, &raw, sizeof(T));
 		buffer.readAdvance(sizeof(T));
 

@@ -2,7 +2,7 @@
 
 Asynchronous framework mostly inspired by [Capn'Proto](https://github.com/capnproto/capnproto) with the key difference of not
 using Promises, but more reusable Pipelines/Conveyors. This introduces some challenges since I can't assume that only one
-element gets passed along the chain, but it is managable. The advantage is that you have zero heap overhead by recreating the chain after every use.  
+element gets passed along the chain, but it is managable. The advantage is that you have zero heap overhead by not recreating the chain after every use.  
 
 Very early stage. I am currently rewriting my software to find a good interface solution by checking if I am comfortable with the current design.  
 

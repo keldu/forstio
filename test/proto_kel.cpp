@@ -195,4 +195,33 @@ GIN_TEST("Union Decoding"){
 	auto str_rd = reader.get<"test_string">();
 	GIN_EXPECT(str_rd.get() == "foo", "Wrong value: " + std::string{str_rd.get()});
 }
+
+using TestArrayStruct = schema::Array<
+	TestStruct
+>;
+
+GIN_TEST("Array Encoding"){
+	using namespace gin;
+	
+	ProtoKelCodec codec;
+	auto root = heapMessageRoot<TestArrayStruct>();
+	auto builder = root.build(2);
+
+	auto one = builder.init(0);
+	auto two = builder.init(1);
+
+	one.init<"test_uint">().set(4);
+	one.init<"test_string">().set("foo");
+	one.init<"test_name">().set("Fedor");
+	
+	two.init<"test_uint">().set(9);
+	two.init<"test_string">().set("bar");
+	two.init<"test_name">().set("Bravo");
+
+	RingBuffer buffer;
+
+	Error error = codec.encode<TestArrayStruct>(root.read(), buffer);
+
+	GIN_EXPECT(!error.failed(), "Error occured");
+}
 }

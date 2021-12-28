@@ -13,7 +13,7 @@ namespace schema {
 
 using TestTuple = schema::Tuple<schema::UInt32, schema::String>;
 
-GIN_TEST("MessageList"){
+GIN_TEST("Message Tuple"){
 	std::string test_string_1 = "banana";
 	
 	auto root = gin::heapMessageRoot<TestTuple>();
@@ -21,7 +21,7 @@ GIN_TEST("MessageList"){
 	auto uint = builder.init<0>();
 	uint.set(10);
 	auto string = builder.init<1>();
-	string.set(test_string_1);
+	string.set(std::string_view{test_string_1});
 
 	auto reader = root.read();
 	auto uint_reader = reader.get<0>();
@@ -32,7 +32,7 @@ GIN_TEST("MessageList"){
 
 using NestedTestTuple = schema::Tuple<schema::Tuple<schema::UInt32, schema::String>, schema::String>;
 
-GIN_TEST("MessageList nested"){
+GIN_TEST("Message Tuple nested"){
 	std::string test_string_1 = "banana";
 	std::string test_string_2 = "bat";
 	
@@ -62,7 +62,7 @@ using TestStruct = schema::Struct<
 	schema::NamedMember<schema::String, "test_name">
 >;
 
-GIN_TEST("MessageStruct"){
+GIN_TEST("Message Struct"){
 	std::string test_string = "foo";
 	auto root = gin::heapMessageRoot<TestStruct>();
 	auto builder = root.build();
@@ -83,6 +83,44 @@ GIN_TEST("MessageStruct"){
 	 */
 	test_string = "foo2";
 
-	GIN_EXPECT(uint_reader.get() == 23 && string_reader.get() != test_string && string_reader.get() == "foo" && name_reader.get() == "test_name", "wrong values");
+	GIN_EXPECT(uint_reader.get() == 23 && string_reader.get() != test_string && string_reader.get() == "foo" && name_reader.get() == "test_name", "Wrong values");
+}
+
+using TestArray = schema::Array<schema::UInt32>;
+
+void arrayCheck(gin::Message<TestArray>::Builder builder){
+	auto one = builder.init(0);
+	auto two = builder.init(1);
+	auto three = builder.init(2);
+
+	one.set(24);
+	two.set(45);
+	three.set(1230);
+
+	auto reader = builder.asReader();
+
+	GIN_EXPECT(reader.get(0).get() == 24 && reader.get(1).get() == 45 && reader.get(2).get(), "Wrong values");
+}
+
+GIN_TEST("Message Array"){
+	auto root = gin::heapMessageRoot<TestArray>();
+
+	auto builder = root.build(3);
+
+	arrayCheck(builder);
+}
+
+using TestArrayStruct = schema::Struct<
+	schema::NamedMember<TestArray, "array">
+>;
+
+GIN_TEST("Message Array in Struct"){
+	auto root = gin::heapMessageRoot<TestArrayStruct>();
+
+	auto builder = root.build();
+
+	auto array = builder.init<"array">(3);
+
+	arrayCheck(array);
 }
 }

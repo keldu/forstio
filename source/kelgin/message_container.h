@@ -5,7 +5,7 @@
 namespace gin {
 template <class T> class MessageContainer;
 
-template <class T, class Container> class Message;
+template <class T, class Container = MessageContainer<T>> class Message;
 
 template <size_t N, class... T> struct MessageParameterPackType;
 
@@ -57,6 +57,14 @@ struct MessageParameterKeyPackIndex {
 				  "Provided StringLiteral doesn't exist in searched list");
 };
 
+template <class T> struct SchemaIsArray {
+	constexpr static bool Value = false;
+};
+
+template <class T> struct SchemaIsArray<schema::Array<T>> {
+	constexpr static bool Value = true;
+};
+
 template <class... V, StringLiteral... Keys>
 class MessageContainer<schema::Struct<schema::NamedMember<V, Keys>...>> {
 private:
@@ -104,20 +112,24 @@ public:
  * Array storage
  */
 
-/*
-template<class T>
-class MessageContainer<schema::Array> {
+template <class T> class MessageContainer<schema::Array<T>> {
 private:
-	using ValueType = std::vector<Message<T,MessageContainer<T>>>;
+	using ValueType = std::vector<Message<T, MessageContainer<T>>>;
 	ValueType values;
+
 public:
 	using SchemaType = schema::Array<T>;
 
-	template<size_t i> Message<T,MessageContainer<T>>& get(){
-		return values.at(i);
+	using ElementType = Message<T, MessageContainer<T>>;
+
+	Message<T, MessageContainer<T>> &get(size_t index) {
+		return values.at(index);
 	}
+
+	void resize(size_t size) { values.resize(size); }
+
+	size_t size() const { return values.size(); }
 };
-*/
 
 /*
  * Tuple storage
@@ -214,12 +226,15 @@ template <> class MessageContainer<schema::String> {
 public:
 	using SchemaType = schema::String;
 	using ValueType = std::string;
+	using ValueViewType = std::string_view;
 
 private:
 	ValueType value;
 
 public:
+	void set(ValueType &&v) { value = std::move(v); }
 	void set(const ValueType &v) { value = v; }
+	void set(const ValueViewType v) { value = std::string{v}; }
 
 	const ValueType &get() const { return value; }
 };
