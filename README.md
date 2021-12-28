@@ -48,7 +48,7 @@ Async features.
 
 Since a lot of external events may occur which originate from the OS in some way, we require an additional class called ```EventPort```.  
 You can create your async context by calling ```setupAsyncIo()``` which creates this OS dependent ```EventPort``` for you.  
-Only the ```WaitScope``` has to be created afterwards to these classes active on the current thread.  
+Only the ```WaitScope``` has to be created afterwards so these classes are active on the current thread.  
 Most of the times you want to create the ```AsyncIoContext``` on the main thread while in the future other threads can or should have a custom implementation
 of ```EventPort``` to allow for external events arriving for these threads as well. In the context of threads external means outside of the mentioned thread.  
 
