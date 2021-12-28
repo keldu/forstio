@@ -57,7 +57,7 @@ transfer or using the network features to communicate across threads.
 
 # Schema Structure  
 
-Message description currently is achieved by a series of templated schema classes found in ```kelgin/schema.h``` as seen below
+Message description is achieved by a series of templated schema description classes found in ```kelgin/schema.h``` as seen below
 
 ```
 using BasicStruct = schema::Struct<
@@ -65,9 +65,9 @@ using BasicStruct = schema::Struct<
 	schema::NamedMember<String, "bar">	
 >;
 ```  
-These schema classes are just meant to describe the schema itself. By itself, it can't do anything.  
+These schema classes are just meant to describe the schema structure. By itself, it can't do anything.  
 For a message we create an instance of any MessageRoot class such as `HeapMessageRoot`.  
-Using those schemas and appropriate container classes, we can now build a message class
+Using those schema classes and an appropriate container class, we can now build a message class as seen below.  
 
 ```
 HeapMessageRoot<BasicStruct, MessageContainer<BasicStruct>> buildBasicMessage(){
@@ -84,7 +84,7 @@ HeapMessageRoot<BasicStruct, MessageContainer<BasicStruct>> buildBasicMessage(){
 }
 ```
 
-The current default message container stores each value in stl containers as `std::string`, `std::vector`, `std::tuple`, `std::variant`
+The current default message container stores each value in stl containers such as `std::string`, `std::vector`, `std::tuple`, `std::variant`
 or in its primitive form.  
 Though it is planned to allow storing those directly in buffers.  
 
@@ -98,7 +98,7 @@ this library. Though no schema or io features are used there.
 
 * Zerocopy for message templates during parsing  
 * Tls with gnutls (Client side partly done. Server side missing)  
-* Windows/Mac Support  
+* Windows/Mac/Wasm Support  
 * Multithreaded conveyor communication  
-* Logger implementation  
+* Minimal logger implementation to help describe the async graphs with dot files  
 * Reintroduce JSON without dynamic message parsing or at least with more streaming support  
