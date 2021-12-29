@@ -7,7 +7,7 @@
 
 #include <iostream>
 
-namespace gin {
+namespace saw {
 
 template <typename Func> ConveyorResult<Func, void> execLater(Func &&func) {
 	Conveyor<void> conveyor{FixVoid<void>{}};
@@ -65,7 +65,7 @@ template <typename T> Conveyor<T> Conveyor<T>::buffer(size_t size) {
 												  size);
 	ConveyorStorage *storage_ptr =
 		static_cast<ConveyorStorage *>(storage_node.get());
-	GIN_ASSERT(storage) { return Conveyor<T>{nullptr, nullptr}; }
+	SAW_ASSERT(storage) { return Conveyor<T>{nullptr, nullptr}; }
 
 	storage->setParent(storage_ptr);
 	return Conveyor<T>{std::move(storage_node), storage_ptr};
@@ -104,7 +104,7 @@ SinkConveyor Conveyor<void>::sink(ErrorFunc &&error_func) {
 	ConveyorStorage *storage_ptr =
 		static_cast<ConveyorStorage *>(sink_node.get());
 
-	GIN_ASSERT(storage) { return SinkConveyor{}; }
+	SAW_ASSERT(storage) { return SinkConveyor{}; }
 	storage->setParent(storage_ptr);
 
 	return SinkConveyor{std::move(sink_node)};
@@ -228,7 +228,7 @@ template <typename T> void QueueBufferConveyorNode<T>::childHasFired() {
 }
 
 template <typename T> void QueueBufferConveyorNode<T>::parentHasFired() {
-	GIN_ASSERT(parent) { return; }
+	SAW_ASSERT(parent) { return; }
 
 	if (parent->space() == 0) {
 		return;
@@ -261,7 +261,7 @@ template <typename T> void ImmediateConveyorNode<T>::childHasFired() {
 }
 
 template <typename T> void ImmediateConveyorNode<T>::parentHasFired() {
-	GIN_ASSERT(parent) { return; }
+	SAW_ASSERT(parent) { return; }
 	assert(parent->space() > 0);
 
 	if (queued() > 0) {
@@ -287,7 +287,7 @@ template <typename T> MergeConveyor<T>::~MergeConveyor() {}
 
 template <typename T> void MergeConveyor<T>::attach(Conveyor<T> conveyor) {
 	auto sp = data.lock();
-	GIN_ASSERT(sp) { return; }
+	SAW_ASSERT(sp) { return; }
 
 	sp->attach(std::move(conveyor));
 }
@@ -295,7 +295,7 @@ template <typename T> void MergeConveyor<T>::attach(Conveyor<T> conveyor) {
 template <typename T>
 MergeConveyorNode<T>::MergeConveyorNode(Our<MergeConveyorNodeData<T>> d)
 	: data{d} {
-	GIN_ASSERT(data) { return; }
+	SAW_ASSERT(data) { return; }
 
 	data->merger = this;
 }
@@ -306,7 +306,7 @@ template <typename T>
 void MergeConveyorNode<T>::getResult(ErrorOrValue &eov) noexcept {
 	ErrorOr<FixVoid<T>> &err_or_val = eov.as<FixVoid<T>>();
 
-	GIN_ASSERT(data) { return; }
+	SAW_ASSERT(data) { return; }
 
 	/// @todo search appendages for result
 
@@ -334,7 +334,7 @@ void MergeConveyorNode<T>::getResult(ErrorOrValue &eov) noexcept {
 }
 
 template <typename T> void MergeConveyorNode<T>::fire() {
-	GIN_ASSERT(queued() > 0) { return; }
+	SAW_ASSERT(queued() > 0) { return; }
 
 	if (parent) {
 		parent->childHasFired();
@@ -348,7 +348,7 @@ template <typename T> void MergeConveyorNode<T>::fire() {
 template <typename T> size_t MergeConveyorNode<T>::space() const { return 0; }
 
 template <typename T> size_t MergeConveyorNode<T>::queued() const {
-	GIN_ASSERT(data) { return 0; }
+	SAW_ASSERT(data) { return 0; }
 
 	size_t queue_count = 0;
 
@@ -365,7 +365,7 @@ template <typename T> void MergeConveyorNode<T>::childHasFired() {
 }
 
 template <typename T> void MergeConveyorNode<T>::parentHasFired() {
-	GIN_ASSERT(parent) { return; }
+	SAW_ASSERT(parent) { return; }
 	if (queued() > 0) {
 		if (parent->space() > 0) {
 			armLater();
@@ -374,7 +374,7 @@ template <typename T> void MergeConveyorNode<T>::parentHasFired() {
 }
 
 template <typename T> size_t MergeConveyorNode<T>::Appendage::space() const {
-	GIN_ASSERT(merger) { return 0; }
+	SAW_ASSERT(merger) { return 0; }
 
 	if (error_or_value.has_value()) {
 		return 0;
@@ -384,7 +384,7 @@ template <typename T> size_t MergeConveyorNode<T>::Appendage::space() const {
 }
 
 template <typename T> size_t MergeConveyorNode<T>::Appendage::queued() const {
-	GIN_ASSERT(merger) { return 0; }
+	SAW_ASSERT(merger) { return 0; }
 
 	if (error_or_value.has_value()) {
 		return 1;
@@ -397,7 +397,7 @@ template <typename T>
 void MergeConveyorNode<T>::Appendage::getAppendageResult(ErrorOrValue &eov) {
 	ErrorOr<FixVoid<T>> &err_or_val = eov.as<FixVoid<T>>();
 
-	GIN_ASSERT(queued() > 0) {
+	SAW_ASSERT(queued() > 0) {
 		err_or_val = criticalError("No element queued in Merge Appendage Node");
 		return;
 	}
@@ -407,7 +407,7 @@ void MergeConveyorNode<T>::Appendage::getAppendageResult(ErrorOrValue &eov) {
 }
 
 template <typename T> void MergeConveyorNode<T>::Appendage::childHasFired() {
-	GIN_ASSERT(!error_or_value.has_value()) { return; }
+	SAW_ASSERT(!error_or_value.has_value()) { return; }
 	ErrorOr<FixVoid<T>> eov;
 	child->getResult(eov);
 
@@ -426,9 +426,9 @@ template <typename T> void MergeConveyorNode<T>::Appendage::parentHasFired() {
 
 template <typename T>
 void MergeConveyorNode<T>::Appendage::setParent(ConveyorStorage *par) {
-	GIN_ASSERT(merger) { return; }
+	SAW_ASSERT(merger) { return; }
 
-	GIN_ASSERT(child) { return; }
+	SAW_ASSERT(child) { return; }
 
 	parent = par;
 }
@@ -541,7 +541,7 @@ template <typename T> void AdaptConveyorNode<T>::childHasFired() {
 }
 
 template <typename T> void AdaptConveyorNode<T>::parentHasFired() {
-	GIN_ASSERT(parent) { return; }
+	SAW_ASSERT(parent) { return; }
 
 	if (parent->space() == 0) {
 		return;
@@ -644,4 +644,4 @@ template <typename T> void OneTimeConveyorNode<T>::fire() {
 	}
 }
 
-} // namespace gin
+} // namespace saw

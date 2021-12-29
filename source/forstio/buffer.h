@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace gin {
+namespace saw {
 /*
  * Access class to reduce templated BufferSegments bloat
  */
@@ -189,4 +189,4 @@ public:
 
 	Error writeRequireLength(size_t bytes) override;
 };
-} // namespace gin
+} // namespace saw

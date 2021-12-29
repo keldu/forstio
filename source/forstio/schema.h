@@ -2,7 +2,7 @@
 
 #include "string_literal.h"
 
-namespace gin {
+namespace saw {
 namespace schema {
 
 template <class T, StringLiteral Literal> struct NamedMember {};
@@ -48,4 +48,4 @@ using Float32 = Primitive<FloatingPoint, 4>;
 using Float64 = Primitive<FloatingPoint, 8>;
 
 } // namespace schema
-} // namespace gin
+} // namespace saw

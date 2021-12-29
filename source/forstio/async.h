@@ -10,7 +10,7 @@
 #include <queue>
 #include <type_traits>
 
-namespace gin {
+namespace saw {
 class ConveyorNode {
 public:
 	ConveyorNode();
@@ -409,11 +409,11 @@ template <typename Func> ConveyorResult<Func, void> yieldNext(Func &&func);
 template <typename Func> ConveyorResult<Func, void> yieldLater(Func &&func);
 
 template <typename Func> ConveyorResult<Func, void> yieldLast(Func &&func);
-} // namespace gin
+} // namespace saw
 
 // Secret stuff
 // Aka private semi hidden classes
-namespace gin {
+namespace saw {
 
 template <typename Out, typename In> struct FixVoidCaller {
 	template <typename Func> static Out apply(Func &func, In &&in) {
@@ -878,6 +878,6 @@ public:
 
 */
 
-} // namespace gin
+} // namespace saw
 
 #include "async.tmpl.h"

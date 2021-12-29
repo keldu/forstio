@@ -1,6 +1,6 @@
 #include "error.h"
 
-namespace gin {
+namespace saw {
 Error::Error() : error_{static_cast<Error::Code>(0)} {}
 
 Error::Error(const std::string_view &msg, Error::Code code)
@@ -70,4 +70,4 @@ Error recoverableError(const std::string_view &generic, Error::Code c) {
 
 Error noError() { return Error{}; }
 
-} // namespace gin
+} // namespace saw

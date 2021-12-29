@@ -3,7 +3,7 @@
 #include "async.h"
 #include "io.h"
 
-namespace gin {
+namespace saw {
 
 template <typename Codec, typename Incoming, typename Outgoing>
 class StreamingIoPeer {
@@ -22,4 +22,4 @@ public:
 	Conveyor<Incoming> startReadPump();
 };
 
-} // namespace gin
+} // namespace saw

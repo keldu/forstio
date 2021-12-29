@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-namespace gin {
+namespace saw {
 
 AsyncIoStream::AsyncIoStream(Own<IoStream> str)
 	: stream{std::move(str)}, read_ready{stream->readReady()
@@ -22,9 +22,9 @@ AsyncIoStream::AsyncIoStream(Own<IoStream> str)
 							.sink()} {}
 
 void AsyncIoStream::read(void *buffer, size_t min_length, size_t max_length) {
-	GIN_ASSERT(buffer && max_length >= min_length && min_length > 0) { return; }
+	SAW_ASSERT(buffer && max_length >= min_length && min_length > 0) { return; }
 
-	GIN_ASSERT(!read_stepper.read_task.has_value()) { return; }
+	SAW_ASSERT(!read_stepper.read_task.has_value()) { return; }
 
 	read_stepper.read_task =
 		ReadTaskAndStepHelper::ReadIoTask{buffer, min_length, max_length, 0};
@@ -44,9 +44,9 @@ Conveyor<void> AsyncIoStream::onReadDisconnected() {
 }
 
 void AsyncIoStream::write(const void *buffer, size_t length) {
-	GIN_ASSERT(buffer && length > 0) { return; }
+	SAW_ASSERT(buffer && length > 0) { return; }
 
-	GIN_ASSERT(!write_stepper.write_task.has_value()) { return; }
+	SAW_ASSERT(!write_stepper.write_task.has_value()) { return; }
 
 	write_stepper.write_task =
 		WriteTaskAndStepHelper::WriteIoTask{buffer, length, 0};
@@ -58,4 +58,4 @@ Conveyor<size_t> AsyncIoStream::writeDone() {
 	write_stepper.write_done = std::move(caf.feeder);
 	return std::move(caf.conveyor);
 }
-} // namespace gin
+} // namespace saw

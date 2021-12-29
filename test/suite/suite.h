@@ -7,7 +7,7 @@
 
 #include "common.h"
 
-namespace gin {
+namespace saw {
 namespace test {
 class TestRunner;
 class TestCase {
@@ -28,15 +28,15 @@ public:
 };
 }
 }
-#define GIN_TEST(description) \
-	class GIN_UNIQUE_NAME(TestCase) : public ::gin::test::TestCase { \
+#define SAW_TEST(description) \
+	class SAW_UNIQUE_NAME(TestCase) : public ::saw::test::TestCase { \
 	public: \
-		GIN_UNIQUE_NAME(TestCase)(): ::gin::test::TestCase(__FILE__,__LINE__,description) {} \
+		SAW_UNIQUE_NAME(TestCase)(): ::saw::test::TestCase(__FILE__,__LINE__,description) {} \
 		void run() override; \
-	}GIN_UNIQUE_NAME(testCase); \
-	void GIN_UNIQUE_NAME(TestCase)::run()
+	}SAW_UNIQUE_NAME(testCase); \
+	void SAW_UNIQUE_NAME(TestCase)::run()
 
-#define GIN_EXPECT(expr, msg_split) \
+#define SAW_EXPECT(expr, msg_split) \
 	if( ! (expr) ){ \
 		auto msg = msg_split; \
 		throw std::runtime_error{std::string{msg}};\

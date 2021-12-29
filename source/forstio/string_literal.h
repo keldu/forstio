@@ -3,7 +3,7 @@
 #include <array>
 #include <string_view>
 
-namespace gin {
+namespace saw {
 /**
  * Helper object which creates a templated string from the provided string
  * literal. It guarantees compile time uniqueness and thus allows using strings
@@ -34,7 +34,7 @@ public:
 };
 
 template <typename T, T... Chars>
-constexpr gin::StringLiteral<T, sizeof...(Chars)> operator""_key() {
-	return gin::StringLiteral<T, sizeof...(Chars) + 1u>{Chars..., '\0'};
+constexpr StringLiteral<T, sizeof...(Chars)> operator""_key() {
+	return StringLiteral<T, sizeof...(Chars) + 1u>{Chars..., '\0'};
 }
-} // namespace gin
+} // namespace saw

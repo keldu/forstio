@@ -6,7 +6,7 @@
 
 #include "common.h"
 
-namespace gin {
+namespace saw {
 /**
  * Utility class for generating errors. Has a base distinction between
  * critical and recoverable errors. Additional code ids can be provided to the
@@ -31,7 +31,7 @@ public:
 	Error(std::string &&msg, Error::Code code);
 	Error(Error &&error);
 
-	GIN_FORBID_COPY(Error);
+	SAW_FORBID_COPY(Error);
 
 	Error &operator=(Error &&) = default;
 
@@ -138,4 +138,4 @@ private:
 	ErrorOr() = delete;
 };
 
-} // namespace gin
+} // namespace saw

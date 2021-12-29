@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <optional>
 
-namespace gin {
+namespace saw {
 /*
  * Helper classes for the specific driver implementations
  */
@@ -50,4 +50,4 @@ public:
 public:
 	void writeStep(OutputStream &writer);
 };
-} // namespace gin
+} // namespace saw

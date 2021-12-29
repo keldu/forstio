@@ -14,7 +14,7 @@
 #include "schema.h"
 #include "string_literal.h"
 
-namespace gin {
+namespace saw {
 class MessageBase {
 protected:
 	bool set_explicitly = false;
@@ -106,7 +106,7 @@ public:
 			SchemaIsArray<
 				typename MessageParameterPackType<i, V...>::Type>::Value,
 			typename Container::template ElementType<i>::Builder>::type
-		init(size_t size) {
+		init(size_t size = 0) {
 			auto array_builder =
 				typename Container::template ElementType<i>::Builder{
 					message.container.template get<i>(), size};
@@ -234,7 +234,7 @@ public:
 			SchemaIsArray<
 				typename MessageParameterPackType<i, V...>::Type>::Value,
 			typename Container::template ElementType<i>::Builder>::type
-		init(size_t size) {
+		init(size_t size = 0) {
 			return typename Container::template ElementType<i>::Builder{
 				message.container.template get<i>(), size};
 		}
@@ -332,6 +332,8 @@ public:
 		}
 
 		size_t size() const { return message.container.size(); }
+
+		void resize(size_t size) { message.container.resize(size); }
 	};
 
 	class Reader {
@@ -394,7 +396,7 @@ public:
 			SchemaIsArray<
 				typename MessageParameterPackType<i, T...>::Type>::Value,
 			typename Container::template ElementType<i>::Builder>::type
-		init(size_t size) {
+		init(size_t size = 0) {
 			return typename Container::template ElementType<i>::Builder{
 				message.container.template get<i>(), size};
 		}
@@ -557,4 +559,4 @@ inline HeapMessageRoot<Schema, Container> heapMessageRoot() {
 	Own<Message<Schema, Container>> root = heap<Message<Schema, Container>>();
 	return HeapMessageRoot<Schema, Container>{std::move(root)};
 }
-} // namespace gin
+} // namespace saw

@@ -2,7 +2,7 @@
 
 #include <sstream>
 
-namespace gin {
+namespace saw {
 namespace unix {
 IFdOwner::IFdOwner(UnixEventPort &event_port, int file_descriptor, int fd_flags,
 				   uint32_t event_mask)
@@ -279,4 +279,4 @@ ErrorOr<AsyncIoContext> setupAsyncIo() {
 		return criticalError("Out of memory");
 	}
 }
-} // namespace gin
+} // namespace saw

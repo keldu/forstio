@@ -5,7 +5,7 @@
 #include <chrono>
 #include <iostream>
 
-namespace gin {
+namespace saw {
 namespace test {
 
 	TestCase* testCaseHead = nullptr;
@@ -100,10 +100,10 @@ namespace test {
 }
 }
 
-#if GIN_COMPILE_TEST_BINARY
+#if SAW_COMPILE_TEST_BINARY
 
 int main() {
-	gin::test::TestRunner runner;
+	saw::test::TestRunner runner;
 	runner.allowAll();
 	int rv = runner.run();
 	return rv<0?-1:0;
