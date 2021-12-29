@@ -57,7 +57,7 @@ transfer or using the network features to communicate across threads.
 
 # Schema Structure  
 
-Message description is achieved by a series of templated schema description classes found in ```kelgin/schema.h``` as seen below
+Message description is achieved by a series of templated schema description classes found in ```forstio/schema.h``` as seen below
 
 ```
 using BasicStruct = schema::Struct<
@@ -91,7 +91,7 @@ Though it is planned to allow storing those directly in buffers.
 # Examples  
 
 Currently no examples except in test.  
-But [kelgin-graphics](https://github.com/keldu/kelgin-graphics) contains some programs which heavily use
+But [forstio-graphics](https://github.cim/keldu/kelgin-graphics) contains some programs which heavily use
 this library. Though no schema or io features are used there.  
 
 # Roadmap  
