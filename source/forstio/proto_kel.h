@@ -4,8 +4,6 @@
 #include "message.h"
 #include "stream_endian.h"
 
-#include <iostream>
-
 namespace saw {
 /// @todo replace types with these
 /*
@@ -492,6 +490,8 @@ struct ProtoKelDecodeImpl<Message<schema::Array<T>, Container>> {
 				return error;
 			}
 		}
+
+		data.resize(array_length);
 
 		for (size_t i = 0; i < array_length; ++i) {
 			Error error =
