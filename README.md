@@ -1,4 +1,4 @@
-# kelgin
+# forst-io
 
 Asynchronous framework mostly inspired by [Capn'Proto](https://github.com/capnproto/capnproto) with the key difference of not
 using Promises, but more reusable Pipelines/Conveyors. This introduces some challenges since I can't assume that only one

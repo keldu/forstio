@@ -29,7 +29,7 @@ def add_kel_source_files(self, sources, filetype, lib_env=None, shared=False, ta
             sources.append( self.StaticObject( target=target_name, source=path ) )
     pass
 
-env=Environment(ENV=os.environ, CPPPATH=['#source/kelgin','#source','#','#driver'],
+env=Environment(ENV=os.environ, CPPPATH=['#source/forst-io','#source','#','#driver'],
     CXX='clang++',
     CPPDEFINES=['GIN_UNIX'],
     CXXFLAGS=['-std=c++20','-g','-Wall','-Wextra'],

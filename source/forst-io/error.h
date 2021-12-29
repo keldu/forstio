@@ -6,7 +6,7 @@
 
 #include "common.h"
 
-namespace gin {
+namespace saw {
 /**
  * Utility class for generating errors. Has a base distinction between
  * critical and recoverable errors. Additional code ids can be provided to the
@@ -138,4 +138,4 @@ private:
 	ErrorOr() = delete;
 };
 
-} // namespace gin
+} // namespace saw

@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-namespace gin {
+namespace saw {
 /**
  * Helper class to encode/decode any primtive type into/from litte endian.
  * The shift class does this by shifting bytes. This type of procedure is
@@ -149,4 +149,4 @@ public:
 
 template <typename T> using StreamValue = ShiftStreamValue<T>;
 
-} // namespace gin
+} // namespace saw

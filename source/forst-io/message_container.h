@@ -2,7 +2,7 @@
 
 #include "schema.h"
 
-namespace gin {
+namespace saw {
 template <class T> class MessageContainer;
 
 template <class T, class Container = MessageContainer<T>> class Message;
@@ -238,4 +238,4 @@ public:
 
 	const ValueType &get() const { return value; }
 };
-} // namespace gin
+} // namespace saw

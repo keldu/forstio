@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-namespace gin {
+namespace saw {
 /// @todo replace types with these
 /*
  * I'm not really sure if anyone will use a union which is
@@ -582,4 +582,4 @@ Error ProtoKelCodec::decode(
 	return noError();
 }
 
-} // namespace gin
+} // namespace saw

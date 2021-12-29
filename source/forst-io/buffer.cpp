@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace gin {
+namespace saw {
 Error Buffer::push(const uint8_t &value) {
 	size_t write_remain = writeCompositeLength();
 	if (write_remain > 0) {
@@ -429,4 +429,4 @@ Error ArrayBuffer::writeRequireLength(size_t bytes) {
 	return noError();
 }
 
-} // namespace gin
+} // namespace saw

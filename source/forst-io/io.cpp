@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-namespace gin {
+namespace saw {
 
 AsyncIoStream::AsyncIoStream(Own<IoStream> str)
 	: stream{std::move(str)}, read_ready{stream->readReady()
@@ -58,4 +58,4 @@ Conveyor<size_t> AsyncIoStream::writeDone() {
 	write_stepper.write_done = std::move(caf.feeder);
 	return std::move(caf.conveyor);
 }
-} // namespace gin
+} // namespace saw

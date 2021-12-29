@@ -4,7 +4,7 @@
 
 #include <cassert>
 
-namespace gin {
+namespace saw {
 void ReadTaskAndStepHelper::readStep(InputStream &reader) {
 	while (read_task.has_value()) {
 		ReadIoTask &task = *read_task;
@@ -82,4 +82,4 @@ void WriteTaskAndStepHelper::writeStep(OutputStream &writer) {
 	}
 }
 
-} // namespace gin
+} // namespace saw

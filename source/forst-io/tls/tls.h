@@ -6,7 +6,7 @@
 #include <optional>
 #include <variant>
 
-namespace gin {
+namespace saw {
 class Tls {
 private:
 	class Impl;
@@ -66,4 +66,4 @@ public:
 
 std::optional<Own<TlsNetwork>> setupTlsNetwork(Network &network);
 
-} // namespace gin
+} // namespace saw

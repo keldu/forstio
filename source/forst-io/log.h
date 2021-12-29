@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-namespace gin {
+namespace saw {
 class EventLoop;
 class LogIo;
 class Log {
@@ -23,4 +23,4 @@ private:
 public:
 	LogIo(EventLoop &loop);
 };
-} // namespace gin
+} // namespace saw

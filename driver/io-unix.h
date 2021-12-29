@@ -29,7 +29,7 @@
 #include "./io.h"
 #include "kelgin/io.h"
 
-namespace gin {
+namespace saw {
 namespace unix {
 constexpr int MAX_EPOLL_EVENTS = 256;
 
@@ -439,4 +439,4 @@ public:
 	EventLoop &eventLoop();
 };
 } // namespace unix
-} // namespace gin
+} // namespace saw

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cassert>
 
-namespace gin {
+namespace saw {
 namespace {
 thread_local EventLoop *local_loop = nullptr;
 
@@ -344,4 +344,4 @@ void detachConveyor(Conveyor<void> &&conveyor) {
 	ConveyorSinks &sink = loop.daemon();
 	sink.add(std::move(conveyor));
 }
-} // namespace gin
+} // namespace saw

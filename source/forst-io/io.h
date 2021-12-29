@@ -6,7 +6,7 @@
 
 #include <string>
 
-namespace gin {
+namespace saw {
 /*
  * Input stream
  */
@@ -132,4 +132,4 @@ struct AsyncIoContext {
 };
 
 ErrorOr<AsyncIoContext> setupAsyncIo();
-} // namespace gin
+} // namespace saw

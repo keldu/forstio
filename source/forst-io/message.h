@@ -14,7 +14,7 @@
 #include "schema.h"
 #include "string_literal.h"
 
-namespace gin {
+namespace saw {
 class MessageBase {
 protected:
 	bool set_explicitly = false;
@@ -557,4 +557,4 @@ inline HeapMessageRoot<Schema, Container> heapMessageRoot() {
 	Own<Message<Schema, Container>> root = heap<Message<Schema, Container>>();
 	return HeapMessageRoot<Schema, Container>{std::move(root)};
 }
-} // namespace gin
+} // namespace saw

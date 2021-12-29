@@ -7,7 +7,7 @@
 
 #include <iostream>
 
-namespace gin {
+namespace saw {
 
 template <typename Func> ConveyorResult<Func, void> execLater(Func &&func) {
 	Conveyor<void> conveyor{FixVoid<void>{}};
@@ -644,4 +644,4 @@ template <typename T> void OneTimeConveyorNode<T>::fire() {
 	}
 }
 
-} // namespace gin
+} // namespace saw
