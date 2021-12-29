@@ -28,9 +28,9 @@ public:
 	}
 };
 
-static ssize_t kelgin_tls_push_func(gnutls_transport_ptr_t p, const void *data,
+static ssize_t forst_tls_push_func(gnutls_transport_ptr_t p, const void *data,
 						 size_t size);
-static ssize_t kelgin_tls_pull_func(gnutls_transport_ptr_t p, void *data, size_t size);
+static ssize_t forst_tls_pull_func(gnutls_transport_ptr_t p, void *data, size_t size);
 
 Tls::Tls() : impl{heap<Tls::Impl>()} {}
 
@@ -90,7 +90,7 @@ public:
 TlsServer::TlsServer(Own<Server> srv) : internal{std::move(srv)} {}
 
 Conveyor<Own<IoStream>> TlsServer::accept() {
-	GIN_ASSERT(internal) { return Conveyor<Own<IoStream>>{nullptr, nullptr}; }
+	SAW_ASSERT(internal) { return Conveyor<Own<IoStream>>{nullptr, nullptr}; }
 	return internal->accept().then([](Own<IoStream> stream) -> Own<IoStream> {
 		/// @todo handshake
 
@@ -117,7 +117,7 @@ public:
 	{}
 
 	void setupTurn(){
-		GIN_ASSERT(stream){
+		SAW_ASSERT(stream){
 			return;
 		}
 
@@ -133,7 +133,7 @@ public:
 	void turn(){
 		if(stream){
 			// Guarantee that the receiving end is already setup
-			GIN_ASSERT(feeder){
+			SAW_ASSERT(feeder){
 				return;
 			}
 
@@ -159,12 +159,12 @@ TlsNetworkAddress::TlsNetworkAddress(Own<NetworkAddress> net_addr, const std::st
 	: internal{std::move(net_addr)}, host_name{host_name_}, tls{tls_} {}
 
 Own<Server> TlsNetworkAddress::listen() {
-	GIN_ASSERT(internal) { return nullptr; }
+	SAW_ASSERT(internal) { return nullptr; }
 	return heap<TlsServer>(internal->listen());
 }
 
 Conveyor<Own<IoStream>> TlsNetworkAddress::connect() {
-	GIN_ASSERT(internal) { return Conveyor<Own<IoStream>>{nullptr, nullptr}; }
+	SAW_ASSERT(internal) { return Conveyor<Own<IoStream>>{nullptr, nullptr}; }
 
 	// Helper setups
 	auto caf = newConveyorAndFeeder<Own<IoStream>>();
@@ -192,8 +192,8 @@ Conveyor<Own<IoStream>> TlsNetworkAddress::connect() {
 		gnutls_session_set_verify_cert(session, addr.c_str(), 0);
 
 		gnutls_transport_set_ptr(session, reinterpret_cast<gnutls_transport_ptr_t>(inner_stream));
-		gnutls_transport_set_push_function(session, kelgin_tls_push_func);
-		gnutls_transport_set_pull_function(session, kelgin_tls_pull_func);
+		gnutls_transport_set_push_function(session, forst_tls_push_func);
+		gnutls_transport_set_pull_function(session, forst_tls_pull_func);
 
 		// gnutls_handshake_set_timeout(session, GNUTLS_DEFAULT_HANDSHAKE_TIMEOUT);
 
@@ -209,7 +209,7 @@ Conveyor<Own<IoStream>> TlsNetworkAddress::connect() {
 	return caf.conveyor.attach(std::move(helper));
 }
 
-static ssize_t kelgin_tls_push_func(gnutls_transport_ptr_t p, const void *data,
+static ssize_t forst_tls_push_func(gnutls_transport_ptr_t p, const void *data,
 						 size_t size) {
 	IoStream *stream = reinterpret_cast<IoStream *>(p);
 	if (!stream) {
@@ -224,7 +224,7 @@ static ssize_t kelgin_tls_push_func(gnutls_transport_ptr_t p, const void *data,
 	return static_cast<ssize_t>(length.value());
 }
 
-static ssize_t kelgin_tls_pull_func(gnutls_transport_ptr_t p, void *data, size_t size) {
+static ssize_t forst_tls_pull_func(gnutls_transport_ptr_t p, void *data, size_t size) {
 	IoStream *stream = reinterpret_cast<IoStream *>(p);
 	if (!stream) {
 		return -1;

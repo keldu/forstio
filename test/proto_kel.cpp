@@ -1,12 +1,12 @@
 #include "suite/suite.h"
 
-#include "source/kelgin/proto_kel.h"
+#include "source/forstio/proto_kel.h"
 
 #include <iostream>
 
 namespace {
 namespace schema {
-	using namespace gin::schema;
+	using namespace saw::schema;
 }
 using TestSize = schema::UInt32;
 
@@ -23,8 +23,8 @@ using TestUnion = schema::Union<
 	schema::NamedMember<schema::String, "test_string">
 >;
 
-GIN_TEST("Primitive Encoding"){
-	using namespace gin;
+SAW_TEST("Primitive Encoding"){
+	using namespace saw;
 	uint32_t value = 5;
 
 	auto root = heapMessageRoot<TestSize>();
@@ -37,14 +37,14 @@ GIN_TEST("Primitive Encoding"){
 
 	Error error = codec.encode<TestSize>(root.read(), temp_buffer);
 
-	GIN_EXPECT(!error.failed(), error.message());
-	GIN_EXPECT(temp_buffer.readCompositeLength() == (sizeof(value)+sizeof(msg_packet_length_t)), "Bad Size: " + std::to_string(temp_buffer.readCompositeLength()));
+	SAW_EXPECT(!error.failed(), error.message());
+	SAW_EXPECT(temp_buffer.readCompositeLength() == (sizeof(value)+sizeof(msg_packet_length_t)), "Bad Size: " + std::to_string(temp_buffer.readCompositeLength()));
 	constexpr size_t pkt_shift = sizeof(msg_packet_length_t);
-	GIN_EXPECT(temp_buffer[pkt_shift] == 5 && temp_buffer[pkt_shift+1] == 0 && temp_buffer[pkt_shift+2] == 0 && temp_buffer[pkt_shift+3] == 0, "Wrong encoded values");
+	SAW_EXPECT(temp_buffer[pkt_shift] == 5 && temp_buffer[pkt_shift+1] == 0 && temp_buffer[pkt_shift+2] == 0 && temp_buffer[pkt_shift+3] == 0, "Wrong encoded values");
 }
 
-GIN_TEST("List Encoding"){
-	using namespace gin;
+SAW_TEST("List Encoding"){
+	using namespace saw;
 
 	auto root = heapMessageRoot<TestTuple>();
 	auto builder = root.build();
@@ -59,13 +59,13 @@ GIN_TEST("List Encoding"){
 
 	Error error = codec.encode<TestTuple>(root.read(), buffer);
 
-	GIN_EXPECT(!error.failed(), error.message());
-	GIN_EXPECT(buffer.readCompositeLength() == 14, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
-	GIN_EXPECT("06 00 00 00\n00 00 00 00\nbf 94 20 00\n5f ab" == buffer.toHex(), "Not equal encoding\n"+buffer.toHex());
+	SAW_EXPECT(!error.failed(), error.message());
+	SAW_EXPECT(buffer.readCompositeLength() == 14, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
+	SAW_EXPECT("06 00 00 00\n00 00 00 00\nbf 94 20 00\n5f ab" == buffer.toHex(), "Not equal encoding\n"+buffer.toHex());
 }
 
-GIN_TEST("Struct Encoding"){
-	using namespace gin;
+SAW_TEST("Struct Encoding"){
+	using namespace saw;
 
 	auto root = heapMessageRoot<TestStruct>();
 	auto builder = root.build();
@@ -85,14 +85,14 @@ GIN_TEST("Struct Encoding"){
 
 	Error error = codec.encode<TestStruct>(builder.asReader(), buffer);
 
-	GIN_EXPECT(!error.failed(), error.message());
-	GIN_EXPECT(buffer.readCompositeLength() == 40, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
-	GIN_EXPECT("20 00 00 00\n00 00 00 00\n17 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f 09\n00 00 00 00\n00 00 00 74\n65 73 74 5f\n6e 61 6d 65"
+	SAW_EXPECT(!error.failed(), error.message());
+	SAW_EXPECT(buffer.readCompositeLength() == 40, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
+	SAW_EXPECT("20 00 00 00\n00 00 00 00\n17 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f 09\n00 00 00 00\n00 00 00 74\n65 73 74 5f\n6e 61 6d 65"
 		== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
 }
 
-GIN_TEST("Union Encoding"){
-	using namespace gin;
+SAW_TEST("Union Encoding"){
+	using namespace saw;
 	{
 		auto root = heapMessageRoot<TestUnion>();
 		auto builder = root.build();
@@ -105,9 +105,9 @@ GIN_TEST("Union Encoding"){
 
 		Error error = codec.encode<TestUnion>(builder.asReader(), buffer);
 
-		GIN_EXPECT(!error.failed(), error.message());
-		GIN_EXPECT(buffer.readCompositeLength() == 16, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
-		GIN_EXPECT("08 00 00 00\n00 00 00 00\n00 00 00 00\n17 00 00 00"
+		SAW_EXPECT(!error.failed(), error.message());
+		SAW_EXPECT(buffer.readCompositeLength() == 16, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
+		SAW_EXPECT("08 00 00 00\n00 00 00 00\n00 00 00 00\n17 00 00 00"
 			== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
 	}
 	{
@@ -122,15 +122,15 @@ GIN_TEST("Union Encoding"){
 
 		Error error = codec.encode<TestUnion>(builder.asReader(), buffer);
 
-		GIN_EXPECT(!error.failed(), error.message());
-		GIN_EXPECT(buffer.readCompositeLength() == 23, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
-		GIN_EXPECT("0f 00 00 00\n00 00 00 00\n01 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f"
+		SAW_EXPECT(!error.failed(), error.message());
+		SAW_EXPECT(buffer.readCompositeLength() == 23, "Bad Size: " + std::to_string(buffer.readCompositeLength()));
+		SAW_EXPECT("0f 00 00 00\n00 00 00 00\n01 00 00 00\n03 00 00 00\n00 00 00 00\n66 6f 6f"
 			== buffer.toHex(), "Not equal encoding:\n"+buffer.toHex());
 	}
 }
 
-GIN_TEST("Tuple Decoding"){
-	using namespace gin;
+SAW_TEST("Tuple Decoding"){
+	using namespace saw;
 	const uint8_t buffer_raw[] = {0x06, 0, 0, 0, 0, 0, 0, 0, 0xbf, 0x94, 0x20, 0x00, 0x5f, 0xab};
 
 	RingBuffer buffer;
@@ -142,18 +142,18 @@ GIN_TEST("Tuple Decoding"){
 	auto builder = root.build();
 
 	Error error = codec.decode<TestTuple>(builder, buffer);
-	GIN_EXPECT(!error.failed(), error.message());
+	SAW_EXPECT(!error.failed(), error.message());
 	
 	auto reader = builder.asReader();
 
 	auto first = reader.get<0>();
 	auto second = reader.get<1>();
 
-	GIN_EXPECT(first.get() == 2135231 && second.get() == 43871, "Values not correctly decoded");
+	SAW_EXPECT(first.get() == 2135231 && second.get() == 43871, "Values not correctly decoded");
 }
 
-GIN_TEST("Struct Decoding"){
-	using namespace gin;
+SAW_TEST("Struct Decoding"){
+	using namespace saw;
 	const uint8_t buffer_raw[] = {0x20,0,0,0,0,0,0,0,0x17,0,0,0,0x03,0,0,0,0,0,0,0,0x66,0x6f,0x6f,0x09,0,0,0,0,0,0,0,0x74,0x65,0x73,0x74,0x5f,0x6e,0x61,0x6d,0x65};
 
 	RingBuffer buffer;
@@ -171,12 +171,12 @@ GIN_TEST("Struct Decoding"){
 	auto test_uint = reader.get<"test_uint">();
 	auto test_name = reader.get<"test_name">();
 
-	GIN_EXPECT(!error.failed(), error.message());
-	GIN_EXPECT(foo_string.get() == "foo" && test_uint.get() == 23 && test_name.get() == "test_name", "Values not correctly decoded");
+	SAW_EXPECT(!error.failed(), error.message());
+	SAW_EXPECT(foo_string.get() == "foo" && test_uint.get() == 23 && test_name.get() == "test_name", "Values not correctly decoded");
 }
 
-GIN_TEST("Union Decoding"){
-	using namespace gin;
+SAW_TEST("Union Decoding"){
+	using namespace saw;
 	const uint8_t buffer_raw[] = {0x0f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x66,0x6f,0x6f};
 
 	RingBuffer buffer;
@@ -190,18 +190,18 @@ GIN_TEST("Union Decoding"){
 
 	Error error = codec.decode<TestUnion>(builder, buffer);
 
-	GIN_EXPECT(!error.failed(), error.message());
-	GIN_EXPECT(reader.hasAlternative<"test_string">(), "Wrong union value");
+	SAW_EXPECT(!error.failed(), error.message());
+	SAW_EXPECT(reader.hasAlternative<"test_string">(), "Wrong union value");
 	auto str_rd = reader.get<"test_string">();
-	GIN_EXPECT(str_rd.get() == "foo", "Wrong value: " + std::string{str_rd.get()});
+	SAW_EXPECT(str_rd.get() == "foo", "Wrong value: " + std::string{str_rd.get()});
 }
 
 using TestArrayStruct = schema::Array<
 	TestStruct
 >;
 
-GIN_TEST("Array Encoding"){
-	using namespace gin;
+SAW_TEST("Array Encoding"){
+	using namespace saw;
 	
 	ProtoKelCodec codec;
 	auto root = heapMessageRoot<TestArrayStruct>();
@@ -222,6 +222,6 @@ GIN_TEST("Array Encoding"){
 
 	Error error = codec.encode<TestArrayStruct>(root.read(), buffer);
 
-	GIN_EXPECT(!error.failed(), "Error occured");
+	SAW_EXPECT(!error.failed(), "Error occured");
 }
 }

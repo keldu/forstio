@@ -10,7 +10,7 @@ dir_path = Dir('.').abspath
 env.test_sources = sorted(glob.glob(dir_path + "/*.cpp"))
 
 env_test = env.Clone()
-env_test.Append(CPPDEFINES=['GIN_COMPILE_TEST_BINARY'])
+env_test.Append(CPPDEFINES=['SAW_COMPILE_TEST_BINARY'])
 env.test_objects = []
 env.test_sources.append(dir_path+'/suite/suite.cpp')
 env.test_headers = [dir_path + '/suite/suite.h']

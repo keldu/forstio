@@ -1,10 +1,10 @@
 #include "suite/suite.h"
 
-#include "source/kelgin/async.h"
+#include "source/forstio/async.h"
 
 namespace {
-GIN_TEST("Async Immediate"){
-	using namespace gin;
+SAW_TEST("Async Immediate"){
+	using namespace saw;
 
 	EventLoop event_loop;
 	WaitScope wait_scope{event_loop};
@@ -19,13 +19,13 @@ GIN_TEST("Async Immediate"){
 
 	ErrorOr<bool> error_or_number = is_number.take();
 
-	GIN_EXPECT(!error_or_number.isError(), error_or_number.error().message());
-	GIN_EXPECT(error_or_number.isValue(), "Return is not a value");
-	GIN_EXPECT(error_or_number.value(), "Value is not 5");
+	SAW_EXPECT(!error_or_number.isError(), error_or_number.error().message());
+	SAW_EXPECT(error_or_number.isValue(), "Return is not a value");
+	SAW_EXPECT(error_or_number.value(), "Value is not 5");
 }
 
-GIN_TEST("Async Adapt"){
-	using namespace gin;
+SAW_TEST("Async Adapt"){
+	using namespace saw;
 
 	EventLoop event_loop;
 	WaitScope wait_scope{event_loop};
@@ -36,14 +36,14 @@ GIN_TEST("Async Adapt"){
 
 	ErrorOr<size_t> foo = feeder_conveyor.conveyor.take();
 
-	GIN_EXPECT(!foo.isError(), foo.error().message());
-	GIN_EXPECT(foo.isValue(), "Return is not a value");
-	GIN_EXPECT(foo.value() == 5, "Values not 5, but " + std::to_string(foo.value()));
+	SAW_EXPECT(!foo.isError(), foo.error().message());
+	SAW_EXPECT(foo.isValue(), "Return is not a value");
+	SAW_EXPECT(foo.value() == 5, "Values not 5, but " + std::to_string(foo.value()));
 }
 
 
-GIN_TEST("Async Adapt Multiple"){
-	using namespace gin;
+SAW_TEST("Async Adapt Multiple"){
+	using namespace saw;
 
 	EventLoop event_loop;
 	WaitScope wait_scope{event_loop};
@@ -54,17 +54,17 @@ GIN_TEST("Async Adapt Multiple"){
 
 	ErrorOr<size_t> foo = feeder_conveyor.conveyor.take();
 
-	GIN_EXPECT(!foo.isError(), foo.error().message());
-	GIN_EXPECT(foo.isValue(), "Return is not a value");
-	GIN_EXPECT(foo.value() == 5, "Values not 5, but " + std::to_string(foo.value()));
+	SAW_EXPECT(!foo.isError(), foo.error().message());
+	SAW_EXPECT(foo.isValue(), "Return is not a value");
+	SAW_EXPECT(foo.value() == 5, "Values not 5, but " + std::to_string(foo.value()));
 
 	feeder_conveyor.feeder->feed(10);
 
 	ErrorOr<size_t> bar = feeder_conveyor.conveyor.take();
 
-	GIN_EXPECT(!foo.isError(), bar.error().message());
-	GIN_EXPECT(bar.isValue(), "Return is not a value");
-	GIN_EXPECT(bar.value() == 10, "Values not 10, but " + std::to_string(bar.value()));
+	SAW_EXPECT(!foo.isError(), bar.error().message());
+	SAW_EXPECT(bar.isValue(), "Return is not a value");
+	SAW_EXPECT(bar.value() == 10, "Values not 10, but " + std::to_string(bar.value()));
 
 	feeder_conveyor.feeder->feed(2);
 	feeder_conveyor.feeder->feed(4234);
@@ -72,17 +72,17 @@ GIN_TEST("Async Adapt Multiple"){
 	ErrorOr<size_t> a = feeder_conveyor.conveyor.take();
 	ErrorOr<size_t> b = feeder_conveyor.conveyor.take();
 
-	GIN_EXPECT(!foo.isError(), a.error().message());
-	GIN_EXPECT(a.isValue(), "Return is not a value");
-	GIN_EXPECT(a.value() == 2, "Values not 2, but " + std::to_string(a.value()));
+	SAW_EXPECT(!foo.isError(), a.error().message());
+	SAW_EXPECT(a.isValue(), "Return is not a value");
+	SAW_EXPECT(a.value() == 2, "Values not 2, but " + std::to_string(a.value()));
 
-	GIN_EXPECT(!foo.isError(), b.error().message());
-	GIN_EXPECT(b.isValue(), "Return is not a value");
-	GIN_EXPECT(b.value() == 4234, "Values not 4234, but " + std::to_string(b.value()));
+	SAW_EXPECT(!foo.isError(), b.error().message());
+	SAW_EXPECT(b.isValue(), "Return is not a value");
+	SAW_EXPECT(b.value() == 4234, "Values not 4234, but " + std::to_string(b.value()));
 }
 
-GIN_TEST("Async Conversion"){
-	using namespace gin;
+SAW_TEST("Async Conversion"){
+	using namespace saw;
 
 	EventLoop event_loop;
 	WaitScope wait_scope{event_loop};
@@ -97,13 +97,13 @@ GIN_TEST("Async Conversion"){
 
 	ErrorOr<std::string> foo = string_conveyor.take();
 
-	GIN_EXPECT(!foo.isError(), foo.error().message());
-	GIN_EXPECT(foo.isValue(), "Return is not a value");
-	GIN_EXPECT(foo.value() == std::to_string(10), "Values is not 10, but " + foo.value());
+	SAW_EXPECT(!foo.isError(), foo.error().message());
+	SAW_EXPECT(foo.isValue(), "Return is not a value");
+	SAW_EXPECT(foo.value() == std::to_string(10), "Values is not 10, but " + foo.value());
 }
 
-GIN_TEST("Async Conversion Multistep"){
-	using namespace gin;
+SAW_TEST("Async Conversion Multistep"){
+	using namespace saw;
 
 	EventLoop event_loop;
 	WaitScope wait_scope{event_loop};
@@ -122,13 +122,13 @@ GIN_TEST("Async Conversion Multistep"){
 
 	ErrorOr<bool> foo = conveyor.take();
 
-	GIN_EXPECT(!foo.isError(), foo.error().message());
-	GIN_EXPECT(foo.isValue(), "Return is not a value");
-	GIN_EXPECT(foo.value(), "Values is not true");
+	SAW_EXPECT(!foo.isError(), foo.error().message());
+	SAW_EXPECT(foo.isValue(), "Return is not a value");
+	SAW_EXPECT(foo.value(), "Values is not true");
 }
 
-GIN_TEST("Async Scheduling"){
-	using namespace gin;
+SAW_TEST("Async Scheduling"){
+	using namespace saw;
 
 	EventLoop event_loop;
 	WaitScope wait_scope{event_loop};
@@ -165,25 +165,25 @@ GIN_TEST("Async Scheduling"){
 
 	ErrorOr<std::string> foo_10 = string_conveyor.take();
 
-	GIN_EXPECT(!foo_10.isError(), foo_10.error().message());
-	GIN_EXPECT(foo_10.isValue(), "Return is not a value");
-	GIN_EXPECT(foo_10.value() == (std::string{"pre"} + std::to_string(11) + std::string{"post"}), "Values is not pre11post, but " + foo_10.value());
+	SAW_EXPECT(!foo_10.isError(), foo_10.error().message());
+	SAW_EXPECT(foo_10.isValue(), "Return is not a value");
+	SAW_EXPECT(foo_10.value() == (std::string{"pre"} + std::to_string(11) + std::string{"post"}), "Values is not pre11post, but " + foo_10.value());
 
 	ErrorOr<std::string> foo_20 = string_conveyor.take();
 
-	GIN_EXPECT(!foo_20.isError(), foo_20.error().message());
-	GIN_EXPECT(foo_20.isValue(), "Return is not a value");
-	GIN_EXPECT(foo_20.value() == (std::string{"pre"} + std::to_string(22) + std::string{"post"}), "Values is not pre22post, but " + foo_20.value());
+	SAW_EXPECT(!foo_20.isError(), foo_20.error().message());
+	SAW_EXPECT(foo_20.isValue(), "Return is not a value");
+	SAW_EXPECT(foo_20.value() == (std::string{"pre"} + std::to_string(22) + std::string{"post"}), "Values is not pre22post, but " + foo_20.value());
 
 	ErrorOr<std::string> foo_30 = string_conveyor.take();
 
-	GIN_EXPECT(!foo_30.isError(), foo_30.error().message());
-	GIN_EXPECT(foo_30.isValue(), "Return is not a value");
-	GIN_EXPECT(foo_30.value() == (std::string{"pre"} + std::to_string(33) + std::string{"post"}), "Values is not pre33post, but " + foo_30.value());
+	SAW_EXPECT(!foo_30.isError(), foo_30.error().message());
+	SAW_EXPECT(foo_30.isValue(), "Return is not a value");
+	SAW_EXPECT(foo_30.value() == (std::string{"pre"} + std::to_string(33) + std::string{"post"}), "Values is not pre33post, but " + foo_30.value());
 }
 
-GIN_TEST("Async Detach"){
-	using namespace gin;
+SAW_TEST("Async Detach"){
+	using namespace saw;
 
 	EventLoop event_loop;
 	WaitScope wait_scope{event_loop};
@@ -196,11 +196,11 @@ GIN_TEST("Async Detach"){
 
 	wait_scope.poll();
 
-	GIN_EXPECT(num == 10, std::string{"Bad value: Expected 10, but got "} + std::to_string(num));
+	SAW_EXPECT(num == 10, std::string{"Bad value: Expected 10, but got "} + std::to_string(num));
 }
 
-GIN_TEST("Async Merge"){
-	using namespace gin;
+SAW_TEST("Async Merge"){
+	using namespace saw;
 
 	EventLoop event_loop;
 	WaitScope wait_scope{event_loop};
@@ -224,7 +224,7 @@ GIN_TEST("Async Merge"){
 
 	wait_scope.poll();
 
-	GIN_EXPECT(!wrong_value, std::string{"Expected values 10 or 11"});
-	GIN_EXPECT(elements_passed == 3, std::string{"Expected 2 passed elements, got only "} + std::to_string(elements_passed));
+	SAW_EXPECT(!wrong_value, std::string{"Expected values 10 or 11"});
+	SAW_EXPECT(elements_passed == 3, std::string{"Expected 2 passed elements, got only "} + std::to_string(elements_passed));
 }
 }

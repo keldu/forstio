@@ -31,7 +31,7 @@ public:
 	Error(std::string &&msg, Error::Code code);
 	Error(Error &&error);
 
-	GIN_FORBID_COPY(Error);
+	SAW_FORBID_COPY(Error);
 
 	Error &operator=(Error &&) = default;
 

@@ -34,7 +34,7 @@ public:
 };
 
 template <typename T, T... Chars>
-constexpr gin::StringLiteral<T, sizeof...(Chars)> operator""_key() {
-	return gin::StringLiteral<T, sizeof...(Chars) + 1u>{Chars..., '\0'};
+constexpr StringLiteral<T, sizeof...(Chars)> operator""_key() {
+	return StringLiteral<T, sizeof...(Chars) + 1u>{Chars..., '\0'};
 }
 } // namespace saw

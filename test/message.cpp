@@ -3,20 +3,20 @@
 #include <cstdint>
 #include <string>
 
-#include "source/kelgin/message.h"
-#include "source/kelgin/schema.h"
+#include "source/forstio/message.h"
+#include "source/forstio/schema.h"
 
 namespace {
 namespace schema {
-	using namespace gin::schema;
+	using namespace saw::schema;
 }
 
 using TestTuple = schema::Tuple<schema::UInt32, schema::String>;
 
-GIN_TEST("Message Tuple"){
+SAW_TEST("Message Tuple"){
 	std::string test_string_1 = "banana";
 	
-	auto root = gin::heapMessageRoot<TestTuple>();
+	auto root = saw::heapMessageRoot<TestTuple>();
 	auto builder = root.build();
 	auto uint = builder.init<0>();
 	uint.set(10);
@@ -27,16 +27,16 @@ GIN_TEST("Message Tuple"){
 	auto uint_reader = reader.get<0>();
 	auto string_reader = reader.get<1>();
 	
-	GIN_EXPECT( uint_reader.get() == 10 && string_reader.get() == test_string_1, "wrong values");
+	SAW_EXPECT( uint_reader.get() == 10 && string_reader.get() == test_string_1, "wrong values");
 }
 
 using NestedTestTuple = schema::Tuple<schema::Tuple<schema::UInt32, schema::String>, schema::String>;
 
-GIN_TEST("Message Tuple nested"){
+SAW_TEST("Message Tuple nested"){
 	std::string test_string_1 = "banana";
 	std::string test_string_2 = "bat";
 	
-	auto root = gin::heapMessageRoot<NestedTestTuple>();
+	auto root = saw::heapMessageRoot<NestedTestTuple>();
 	auto builder = root.build();
 	auto inner_list = builder.init<0>();
 	auto uint = inner_list.init<0>();
@@ -53,7 +53,7 @@ GIN_TEST("Message Tuple nested"){
 	auto inner_string_reader = inner_reader.get<1>();
 	auto string_reader = root_reader.get<1>();
 	
-	GIN_EXPECT(uint_reader.get() == 20 && inner_string_reader.get() == test_string_2 && string_reader.get() == test_string_1, "wrong values");
+	SAW_EXPECT(uint_reader.get() == 20 && inner_string_reader.get() == test_string_2 && string_reader.get() == test_string_1, "wrong values");
 }
 
 using TestStruct = schema::Struct<
@@ -62,9 +62,9 @@ using TestStruct = schema::Struct<
 	schema::NamedMember<schema::String, "test_name">
 >;
 
-GIN_TEST("Message Struct"){
+SAW_TEST("Message Struct"){
 	std::string test_string = "foo";
-	auto root = gin::heapMessageRoot<TestStruct>();
+	auto root = saw::heapMessageRoot<TestStruct>();
 	auto builder = root.build();
 	auto uint = builder.init<"test_uint">();
 	uint.set(23);
@@ -83,12 +83,12 @@ GIN_TEST("Message Struct"){
 	 */
 	test_string = "foo2";
 
-	GIN_EXPECT(uint_reader.get() == 23 && string_reader.get() != test_string && string_reader.get() == "foo" && name_reader.get() == "test_name", "Wrong values");
+	SAW_EXPECT(uint_reader.get() == 23 && string_reader.get() != test_string && string_reader.get() == "foo" && name_reader.get() == "test_name", "Wrong values");
 }
 
 using TestArray = schema::Array<schema::UInt32>;
 
-void arrayCheck(gin::Message<TestArray>::Builder builder){
+void arrayCheck(saw::Message<TestArray>::Builder builder){
 	auto one = builder.init(0);
 	auto two = builder.init(1);
 	auto three = builder.init(2);
@@ -99,11 +99,11 @@ void arrayCheck(gin::Message<TestArray>::Builder builder){
 
 	auto reader = builder.asReader();
 
-	GIN_EXPECT(reader.get(0).get() == 24 && reader.get(1).get() == 45 && reader.get(2).get(), "Wrong values");
+	SAW_EXPECT(reader.get(0).get() == 24 && reader.get(1).get() == 45 && reader.get(2).get(), "Wrong values");
 }
 
-GIN_TEST("Message Array"){
-	auto root = gin::heapMessageRoot<TestArray>();
+SAW_TEST("Message Array"){
+	auto root = saw::heapMessageRoot<TestArray>();
 
 	auto builder = root.build(3);
 
@@ -114,8 +114,8 @@ using TestArrayStruct = schema::Struct<
 	schema::NamedMember<TestArray, "array">
 >;
 
-GIN_TEST("Message Array in Struct"){
-	auto root = gin::heapMessageRoot<TestArrayStruct>();
+SAW_TEST("Message Array in Struct"){
+	auto root = saw::heapMessageRoot<TestArrayStruct>();
 
 	auto builder = root.build();
 
