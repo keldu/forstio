@@ -312,6 +312,9 @@ public:
 	void notify(uint32_t mask) override;
 };
 
+/**
+ * Helper class which provides potential addresses to NetworkAddress
+ */
 class SocketAddress {
 private:
 	union {
@@ -335,8 +338,6 @@ public:
 	}
 
 	int socket(int type) const {
-		bool is_stream = type & SOCK_STREAM;
-
 		type |= SOCK_NONBLOCK | SOCK_CLOEXEC;
 
 		int result = ::socket(address.generic.sa_family, type, 0);
@@ -402,6 +403,8 @@ public:
 
 	Own<Server> listen() override;
 	Conveyor<Own<IoStream>> connect() override;
+
+	Own<Datagram> datagram() override;
 
 	std::string toString() const override;
 
