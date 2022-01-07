@@ -212,16 +212,15 @@ Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 	return Conveyor<Own<IoStream>>{std::move(io_stream)};
 }
 
-Own<Datagram> UnixNetworkAddress::datagram(){
-	SAW_ASSERT(addresses.size() > 0){
-		return nullptr;
-	}
+Own<Datagram> UnixNetworkAddress::datagram() {
+	SAW_ASSERT(addresses.size() > 0) { return nullptr; }
 
 	int fd = addresses.front().socket(SOCK_DGRAM);
 
 	int optval = 1;
-	int rc = ::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-	SAW_ASSERT(rc == 0){
+	int rc =
+		::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	SAW_ASSERT(rc == 0) {
 		::close(fd);
 		return nullptr;
 	}

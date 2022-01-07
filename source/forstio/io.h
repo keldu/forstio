@@ -92,18 +92,20 @@ public:
 	virtual Conveyor<Own<IoStream>> accept() = 0;
 };
 
+class NetworkAddress;
 /**
- * Datagram class. Bound to a local address it is able to receive inbound datagram messages
- * and send them as well as long as an address is provided as well
+ * Datagram class. Bound to a local address it is able to receive inbound
+ * datagram messages and send them as well as long as an address is provided as
+ * well
  */
 class Datagram {
 public:
 	virtual ~Datagram() = default;
 
-	virtual void write(void* buffer, size_t length, NetworkAddress& dest) = 0;
+	virtual void write(void *buffer, size_t length, NetworkAddress &dest) = 0;
 	virtual Conveyor<size_t> writeDone() = 0;
 
-	virtual void read(void* buffer, size_t min_length, size_t max_length) = 0;
+	virtual void read(void *buffer, size_t min_length, size_t max_length) = 0;
 	virtual Conveyor<size_t> readDone() = 0;
 };
 

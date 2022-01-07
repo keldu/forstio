@@ -46,6 +46,8 @@ public:
 
 	Conveyor<Own<IoStream>> connect() override;
 
+	Own<Datagram> datagram() override;
+
 	std::string toString() const override;
 
 	const std::string &address() const override;

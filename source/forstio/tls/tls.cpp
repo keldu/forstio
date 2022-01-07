@@ -209,6 +209,11 @@ Conveyor<Own<IoStream>> TlsNetworkAddress::connect() {
 	return caf.conveyor.attach(std::move(helper));
 }
 
+Own<Datagram> TlsNetworkAddress::datagram(){
+	///@unimplemented
+	return nullptr;
+}
+
 static ssize_t forst_tls_push_func(gnutls_transport_ptr_t p, const void *data,
 						 size_t size) {
 	IoStream *stream = reinterpret_cast<IoStream *>(p);
