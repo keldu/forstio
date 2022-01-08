@@ -92,6 +92,11 @@ public:
 	virtual Conveyor<Own<IoStream>> accept() = 0;
 };
 
+class SocketPair {
+public:
+	std::array<Own<IoStream>, 2> stream;
+};
+
 class NetworkAddress {
 public:
 	virtual ~NetworkAddress() = default;
@@ -114,6 +119,11 @@ public:
 
 	virtual Conveyor<Own<NetworkAddress>>
 	parseAddress(const std::string &addr, uint16_t port_hint = 0) = 0;
+
+	/**
+	 * Creates an unnamed pair of bidirectional fds
+	 */
+	virtual ErrorOr<SocketPair> socketPair() = 0;
 };
 
 class IoProvider {

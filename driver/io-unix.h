@@ -419,6 +419,8 @@ public:
 
 	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &address,
 											   uint16_t port_hint = 0) override;
+
+	ErrorOr<SocketPair> socketPair() override;
 };
 
 class UnixIoProvider final : public IoProvider {
