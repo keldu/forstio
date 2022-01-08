@@ -19,7 +19,7 @@ SAW_TEST("Io Socket Pair"){
 	
 	uint8_t buffer_out[3] = {1,2,3};
 	sp.stream[0]->write(buffer_out,3);
-	uint8_t buffer_in[3];
+	uint8_t buffer_in[3] = {0,0,0};
 	sp.stream[1]->read(buffer_in, 3);
 
 	SAW_EXPECT(buffer_in[0] == 1, "Element 1 failed");
