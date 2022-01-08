@@ -302,7 +302,7 @@ Own<Datagram> UnixNetworkAddress::datagram() {
 		return nullptr;
 	}
 	/// @todo
-	return nullptr;
+	return heap<UnixDatagram>(event_port, fd, 0);
 }
 
 std::string UnixNetworkAddress::toString() const {
