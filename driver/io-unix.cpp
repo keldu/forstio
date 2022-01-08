@@ -253,7 +253,7 @@ ErrorOr<SocketPair> UnixNetwork::socketPair() {
 	int rc = ::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK,
 						  0, sv);
 	if (rc < 0) {
-		return criticalError("Failed to create");
+		return criticalError("Failed to create socket pair");
 	}
 
 	SocketPair socket_pair;
