@@ -74,7 +74,7 @@ private:
 public:
 	AsyncIoStream(Own<IoStream> str);
 
-	void read(void *buffer, size_t min_length, size_t max_length) override;
+	void read(void *buffer, size_t length, size_t max_length) override;
 
 	Conveyor<size_t> readDone() override;
 
@@ -102,11 +102,12 @@ class Datagram {
 public:
 	virtual ~Datagram() = default;
 
-	virtual void write(void *buffer, size_t length, NetworkAddress &dest) = 0;
-	virtual Conveyor<size_t> writeDone() = 0;
+	virtual ErrorOr<size_t> read(void *buffer, size_t length) = 0;
+	virtual Conveyor<void> readReady() = 0;
 
-	virtual void read(void *buffer, size_t min_length, size_t max_length) = 0;
-	virtual Conveyor<size_t> readDone() = 0;
+	virtual ErrorOr<size_t> write(void *buffer, size_t length,
+								  NetworkAddress &dest) = 0;
+	virtual Conveyor<void> writeReady() = 0;
 };
 
 class NetworkAddress {

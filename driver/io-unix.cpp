@@ -124,6 +124,73 @@ void UnixServer::notify(uint32_t mask) {
 	}
 }
 
+UnixDatagram::UnixDatagram(UnixEventPort &event_port, int file_descriptor,
+						   int fd_flags)
+	: IFdOwner{event_port, file_descriptor, fd_flags, EPOLLIN | EPOLLOUT} {}
+
+namespace {
+ssize_t unixReadMsg(int fd, void *buffer, size_t length) {
+	struct ::sockaddr_storage their_addr;
+	socklen_t addr_len = sizeof(sockaddr_storage);
+	return ::recvfrom(fd, buffer, length, 0,
+					  reinterpret_cast<struct ::sockaddr *>(&their_addr),
+					  &addr_len);
+}
+
+ssize_t unixWriteMsg(int fd, void *buffer, size_t length, ::sockaddr *dest_addr,
+					 socklen_t dest_addr_len) {
+
+	return ::sendto(fd, buffer, length, 0, dest_addr, dest_addr_len);
+}
+} // namespace
+
+ErrorOr<size_t> UnixDatagram::read(void *buffer, size_t length) {
+	ssize_t read_bytes = unixReadMsg(fd(), buffer, length);
+	if (read_bytes > 0) {
+		return static_cast<size_t>(read_bytes);
+	}
+	return recoverableError("Currently busy");
+}
+
+Conveyor<void> UnixDatagram::readReady() {
+	auto caf = newConveyorAndFeeder<void>();
+	read_ready = std::move(caf.feeder);
+	return std::move(caf.conveyor);
+}
+
+ErrorOr<size_t> UnixDatagram::write(void *buffer, size_t length,
+									NetworkAddress &dest) {
+	UnixNetworkAddress &unix_dest = static_cast<UnixNetworkAddress &>(dest);
+	SocketAddress &sock_addr = unix_dest.unixAddress();
+	socklen_t sock_addr_length = sock_addr.getRawLength();
+	ssize_t write_bytes = unixWriteMsg(fd(), buffer, length, sock_addr.getRaw(),
+									   sock_addr_length);
+	if (write_bytes > 0) {
+		return static_cast<size_t>(write_bytes);
+	}
+	return recoverableError("Currently busy");
+}
+
+Conveyor<void> UnixDatagram::writeReady() {
+	auto caf = newConveyorAndFeeder<void>();
+	write_ready = std::move(caf.feeder);
+	return std::move(caf.conveyor);
+}
+
+void UnixDatagram::notify(uint32_t mask) {
+	if (mask & EPOLLOUT) {
+		if (write_ready) {
+			write_ready->feed();
+		}
+	}
+
+	if (mask & EPOLLIN) {
+		if (read_ready) {
+			read_ready->feed();
+		}
+	}
+}
+
 namespace {
 bool beginsWith(const std::string_view &viewed,
 				const std::string_view &begins) {
@@ -144,11 +211,15 @@ Own<Server> UnixNetworkAddress::listen() {
 	}
 
 	int val = 1;
-
-	::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+	int rc = ::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+	if (rc < 0) {
+		::close(fd);
+		return nullptr;
+	}
 
 	bool failed = addresses.front().bind(fd);
 	if (failed) {
+		::close(fd);
 		return nullptr;
 	}
 
@@ -220,12 +291,16 @@ Own<Datagram> UnixNetworkAddress::datagram() {
 	int optval = 1;
 	int rc =
 		::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-	SAW_ASSERT(rc == 0) {
+	if (rc < 0) {
 		::close(fd);
 		return nullptr;
 	}
 
-	addresses.front().bind(fd);
+	bool failed = addresses.front().bind(fd);
+	if (failed) {
+		::close(fd);
+		return nullptr;
+	}
 	/// @todo
 	return nullptr;
 }
@@ -246,6 +321,14 @@ const std::string &UnixNetworkAddress::address() const { return path; }
 
 uint16_t UnixNetworkAddress::port() const { return port_hint; }
 
+SocketAddress &UnixNetworkAddress::unixAddress(size_t i) {
+	assert(i < addresses.size());
+	/// @todo change from list to vector?
+	return addresses.at(i);
+}
+
+size_t UnixNetworkAddress::unixAddressSize() const { return addresses.size(); }
+
 UnixNetwork::UnixNetwork(UnixEventPort &event) : event_port{event} {}
 
 Conveyor<Own<NetworkAddress>> UnixNetwork::parseAddress(const std::string &path,
@@ -258,7 +341,7 @@ Conveyor<Own<NetworkAddress>> UnixNetwork::parseAddress(const std::string &path,
 		}
 	}
 
-	std::list<SocketAddress> addresses =
+	std::vector<SocketAddress> addresses =
 		SocketAddress::parse(addr_view, port_hint);
 
 	return Conveyor<Own<NetworkAddress>>{heap<UnixNetworkAddress>(
