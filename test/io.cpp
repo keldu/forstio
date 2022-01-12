@@ -18,8 +18,10 @@ SAW_TEST("Io Socket Pair"){
 	SocketPair& sp = err_or_sp.value();
 	
 	uint8_t buffer_out[7] = {1,2,3,4,5,6,7};
-	sp.stream[0]->write(buffer_out,7);
 	uint8_t buffer_in[7] = {0,0,0,0,0,0,0};
+	sp.stream[0]->write(buffer_out,7);
+	sp.stream[1]->write(buffer_in,7);
+	sp.stream[0]->read(buffer_out, 7);
 	sp.stream[1]->read(buffer_in, 7);
 
 	SAW_EXPECT(buffer_in[0] == 1, "Element 1 failed");
@@ -29,5 +31,14 @@ SAW_TEST("Io Socket Pair"){
 	SAW_EXPECT(buffer_in[4] == 5, "Element 5 failed");
 	SAW_EXPECT(buffer_in[5] == 6, "Element 6 failed");
 	SAW_EXPECT(buffer_in[6] == 7, "Element 7 failed");
+	
+	SAW_EXPECT(buffer_out[0] == 0, "Element 1 failed");
+	SAW_EXPECT(buffer_out[1] == 0, "Element 2 failed");
+	SAW_EXPECT(buffer_out[2] == 0, "Element 3 failed");
+	SAW_EXPECT(buffer_out[3] == 0, "Element 4 failed");
+	SAW_EXPECT(buffer_out[4] == 0, "Element 5 failed");
+	SAW_EXPECT(buffer_out[5] == 0, "Element 6 failed");
+	SAW_EXPECT(buffer_out[6] == 0, "Element 7 failed");
 }
+
 }
