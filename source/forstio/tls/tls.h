@@ -62,6 +62,8 @@ public:
 
 	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &addr,
 											   uint16_t port = 0) override;
+
+	ErrorOr<SocketPair> socketPair() override;
 };
 
 std::optional<Own<TlsNetwork>> setupTlsNetwork(Network &network);

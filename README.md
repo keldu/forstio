@@ -26,9 +26,9 @@ Optional dependencies are
 # Build  
 
 Execute `scons`.  
-It's that simple.  
+This creates the static and dynamic libraries.    
 
-`scons test` build the test cases.  
+`scons test` builds the test cases.  
 `scons format` formats the sources.  
 `scons install` installs the library + headers locally.  
 `scons all` to format the sources and build the library and the tests.  
@@ -36,36 +36,36 @@ It's that simple.
 # Async  
 
 The main interface for async events is the ```Conveyor``` class.  
-This class is the builder object for creating new nodes in the graph of relations. At the same time it stores the end nodes of this graph.  
-Most of the times this async relationship graph is started by using ```newConveyorAndFeeder``` which return a connected input and output
-class. You can provide the templated data to the feeder and if you have built up a graph with the Conveyor class, it will get passed along the
-chain.  
+This class is the builder class responsible for creating new nodes in the directed processing graph created by it. It is also the owner of the outbound points of the chain.  
+Most of the times this async relationship graph is started by using ```newConveyorAndFeeder``` which returns a connected input and output
+class. Type safety is guaranteed since the input and output classes are fully templated.  
 
-It is necessary to create an ```EventLoop``` instance and activate it on the current thread by creating a ```WaitScope``` class before using the
+For processing to be able to happen it is necessary to create an ```EventLoop``` instance and activate it on the current thread by creating a ```WaitScope``` class before using the
 Async features.  
 
 ## External events  
 
 Since a lot of external events may occur which originate from the OS in some way, we require an additional class called ```EventPort```.  
-You can create your async context by calling ```setupAsyncIo()``` which creates this OS dependent ```EventPort``` for you.  
+You can create your async context by calling ```setupAsyncIo()``` which creates this OS dependent ```EventPort``` as well as an ```EventLoop``` and some other network related features for you.  
 Only the ```WaitScope``` has to be created afterwards so these classes are active on the current thread.  
 Most of the times you want to create the ```AsyncIoContext``` on the main thread while in the future other threads can or should have a custom implementation
 of ```EventPort``` to allow for external events arriving for these threads as well. In the context of threads external means outside of the mentioned thread.  
 
-Cross-Thread communication currently is implemented differently due to missing features. It is done either by implementing your own thread-safe data
+Cross-Thread communication currently is implemented by external means due to missing features. It is done either by implementing your own thread-safe data
 transfer or using the network features to communicate across threads.  
+It is always possible to leave the async processing graph, transfer the data and feed the data into a different processing graph.  
 
 # Schema Structure  
 
-Message description is achieved by a series of templated schema description classes found in ```kelgin/schema.h``` as seen below
+Message description is achieved by a series of templated schema description classes found in ```forstio/schema.h``` as seen below
 
 ```
 using BasicStruct = schema::Struct<
-	schema::NamedMember<Int32, "foo">,
-	schema::NamedMember<String, "bar">	
+	schema::NamedMember<schema::Int32, "foo">,
+	schema::NamedMember<schema::String, "bar">
 >;
 ```  
-These schema classes are just meant to describe the schema structure. By itself, it can't do anything.  
+These schema classes are just meant to describe the schema structure. By themselves, those can't do anything.  
 For a message we create an instance of any MessageRoot class such as `HeapMessageRoot`.  
 Using those schema classes and an appropriate container class, we can now build a message class as seen below.  
 
@@ -86,12 +86,13 @@ HeapMessageRoot<BasicStruct, MessageContainer<BasicStruct>> buildBasicMessage(){
 
 The current default message container stores each value in stl containers such as `std::string`, `std::vector`, `std::tuple`, `std::variant`
 or in its primitive form.  
-Though it is planned to allow storing those directly in buffers.  
+It is planned to allow direct encoding/decoding in buffers.  
+The advantage is that lazy decoding is made possible with this kind of buffer storage.  
 
 # Examples  
 
 Currently no examples except in test.  
-But [kelgin-graphics](https://github.com/keldu/kelgin-graphics) contains some programs which heavily use
+But [kelgin](https://github.com/keldu/kelgin) contains some programs which heavily use
 this library. Though no schema or io features are used there.  
 
 # Roadmap  
@@ -100,5 +101,5 @@ this library. Though no schema or io features are used there.
 * Tls with gnutls (Client side partly done. Server side missing)  
 * Windows/Mac/Wasm Support  
 * Multithreaded conveyor communication  
-* Minimal logger implementation to help describe the async graphs with dot files  
+* Minimal logger implementation to help display the async graphs with dot files  
 * Reintroduce JSON without dynamic message parsing or at least with more streaming support  
