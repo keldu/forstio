@@ -5,6 +5,7 @@
 #include "io_helpers.h"
 
 #include <string>
+#include <variant>
 
 namespace saw {
 /*
@@ -110,37 +111,67 @@ public:
 	virtual Conveyor<void> writeReady() = 0;
 };
 
+class OsNetworkAddress;
+class StringNetworkAddress;
+
 class NetworkAddress {
 public:
+	using ChildVariant =
+		std::variant<OsNetworkAddress *, StringNetworkAddress *>;
+
 	virtual ~NetworkAddress() = default;
 
-	/**
-	 * Set up a listener on this address
-	 */
-	virtual Own<Server> listen() = 0;
-
-	/**
-	 * Connect to a remote address
-	 */
-	virtual Conveyor<Own<IoStream>> connect() = 0;
-
-	/**
-	 * Bind a datagram socket at this address.
-	 */
-	virtual Own<Datagram> datagram() = 0;
-
-	virtual std::string toString() const = 0;
+	virtual NetworkAddress::ChildVariant representation() = 0;
 
 	virtual const std::string &address() const = 0;
 	virtual uint16_t port() const = 0;
+};
+
+class OsNetworkAddress : public NetworkAddress {
+public:
+	virtual ~OsNetworkAddress() = default;
+
+	NetworkAddress::ChildVariant representation() override { return this; }
+};
+
+class StringNetworkAddress final : public NetworkAddress {
+private:
+	std::string address_value;
+	uint16_t port_value;
+
+public:
+	StringNetworkAddress(const std::string &address, uint16_t port);
+
+	const std::string &address() const override;
+	uint16_t port() const override;
+
+	NetworkAddress::ChildVariant representation() override { return this; }
 };
 
 class Network {
 public:
 	virtual ~Network() = default;
 
+	/**
+	 * Parse the provided string and uint16 to the preferred storage method
+	 */
 	virtual Conveyor<Own<NetworkAddress>>
 	parseAddress(const std::string &addr, uint16_t port_hint = 0) = 0;
+
+	/**
+	 * Set up a listener on this address
+	 */
+	virtual Own<Server> listen(NetworkAddress &bind_addr) = 0;
+
+	/**
+	 * Connect to a remote address
+	 */
+	virtual Conveyor<Own<IoStream>> connect(NetworkAddress &address) = 0;
+
+	/**
+	 * Bind a datagram socket at this address.
+	 */
+	virtual Own<Datagram> datagram(NetworkAddress &address) = 0;
 };
 
 class IoProvider {

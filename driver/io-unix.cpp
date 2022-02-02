@@ -197,15 +197,58 @@ bool beginsWith(const std::string_view &viewed,
 	return viewed.size() >= begins.size() &&
 		   viewed.compare(0, begins.size(), begins) == 0;
 }
+
+std::variant<UnixNetworkAddress, UnixNetworkAddress *>
+translateNetworkAddressToUnixNetworkAddress(NetworkAddress &addr) {
+	auto addr_variant = addr.representation();
+	std::variant<UnixNetworkAddress, UnixNetworkAddress *> os_addr = std::visit(
+		[](auto &arg)
+			-> std::variant<UnixNetworkAddress, UnixNetworkAddress *> {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, OsNetworkAddress *>) {
+				return static_cast<UnixNetworkAddress *>(arg);
+			}
+
+			auto sock_addrs = SocketAddress::parse(
+				std::string_view{arg->address()}, arg->port());
+
+			return UnixNetworkAddress{arg->address(), arg->port(),
+									  std::move(sock_addrs)};
+		},
+		addr_variant);
+	return os_addr;
+}
+
+UnixNetworkAddress &translateToUnixAddressRef(
+	std::variant<UnixNetworkAddress, UnixNetworkAddress *> &addr_variant) {
+	return std::visit(
+		[](auto &arg) -> UnixNetworkAddress & {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, UnixNetworkAddress>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, UnixNetworkAddress *>) {
+				return *arg;
+			} else {
+				static_assert(true, "Cases exhausted");
+			}
+		},
+		addr_variant);
+}
+
 } // namespace
 
-Own<Server> UnixNetworkAddress::listen() {
-	assert(addresses.size() > 0);
-	if (addresses.size() == 0) {
+Own<Server> UnixNetwork::listen(NetworkAddress &addr) {
+	auto unix_addr_storage = translateNetworkAddressToUnixNetworkAddress(addr);
+	UnixNetworkAddress &address = translateToUnixAddressRef(unix_addr_storage);
+
+	assert(address.unixAddressSize() > 0);
+	if (address.unixAddressSize() == 0) {
 		return nullptr;
 	}
 
-	int fd = addresses.front().socket(SOCK_STREAM);
+	int fd = address.unixAddress(0).socket(SOCK_STREAM);
 	if (fd < 0) {
 		return nullptr;
 	}
@@ -217,7 +260,7 @@ Own<Server> UnixNetworkAddress::listen() {
 		return nullptr;
 	}
 
-	bool failed = addresses.front().bind(fd);
+	bool failed = address.unixAddress(0).bind(fd);
 	if (failed) {
 		::close(fd);
 		return nullptr;
@@ -228,13 +271,16 @@ Own<Server> UnixNetworkAddress::listen() {
 	return heap<UnixServer>(event_port, fd, 0);
 }
 
-Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
-	assert(addresses.size() > 0);
-	if (addresses.size() == 0) {
+Conveyor<Own<IoStream>> UnixNetwork::connect(NetworkAddress &addr) {
+	auto unix_addr_storage = translateNetworkAddressToUnixNetworkAddress(addr);
+	UnixNetworkAddress &address = translateToUnixAddressRef(unix_addr_storage);
+
+	assert(address.unixAddressSize() > 0);
+	if (address.unixAddressSize() == 0) {
 		return Conveyor<Own<IoStream>>{criticalError("No address found")};
 	}
 
-	int fd = addresses.front().socket(SOCK_STREAM);
+	int fd = address.unixAddress(0).socket(SOCK_STREAM);
 	if (fd < 0) {
 		return Conveyor<Own<IoStream>>{criticalError("Couldn't open socket")};
 	}
@@ -243,8 +289,10 @@ Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 		heap<UnixIoStream>(event_port, fd, 0, EPOLLIN | EPOLLOUT);
 
 	bool success = false;
-	for (auto iter = addresses.begin(); iter != addresses.end(); ++iter) {
-		int status = ::connect(fd, iter->getRaw(), iter->getRawLength());
+	for (size_t i = 0; i < address.unixAddressSize(); ++i) {
+		SocketAddress &addr_iter = address.unixAddress(i);
+		int status =
+			::connect(fd, addr_iter.getRaw(), addr_iter.getRawLength());
 		if (status < 0) {
 			int error = errno;
 			/*
@@ -283,10 +331,13 @@ Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 	return Conveyor<Own<IoStream>>{std::move(io_stream)};
 }
 
-Own<Datagram> UnixNetworkAddress::datagram() {
-	SAW_ASSERT(addresses.size() > 0) { return nullptr; }
+Own<Datagram> UnixNetwork::datagram(NetworkAddress &addr) {
+	auto unix_addr_storage = translateNetworkAddressToUnixNetworkAddress(addr);
+	UnixNetworkAddress &address = translateToUnixAddressRef(unix_addr_storage);
 
-	int fd = addresses.front().socket(SOCK_DGRAM);
+	SAW_ASSERT(address.unixAddressSize() > 0) { return nullptr; }
+
+	int fd = address.unixAddress(0).socket(SOCK_DGRAM);
 
 	int optval = 1;
 	int rc =
@@ -296,7 +347,7 @@ Own<Datagram> UnixNetworkAddress::datagram() {
 		return nullptr;
 	}
 
-	bool failed = addresses.front().bind(fd);
+	bool failed = address.unixAddress(0).bind(fd);
 	if (failed) {
 		::close(fd);
 		return nullptr;
@@ -305,18 +356,6 @@ Own<Datagram> UnixNetworkAddress::datagram() {
 	return heap<UnixDatagram>(event_port, fd, 0);
 }
 
-std::string UnixNetworkAddress::toString() const {
-	try {
-		std::ostringstream oss;
-		oss << "Address: " << path;
-		if (port_hint > 0) {
-			oss << "\nPort: " << port_hint;
-		}
-		return oss.str();
-	} catch (std::bad_alloc &) {
-		return {};
-	}
-}
 const std::string &UnixNetworkAddress::address() const { return path; }
 
 uint16_t UnixNetworkAddress::port() const { return port_hint; }
@@ -344,8 +383,8 @@ Conveyor<Own<NetworkAddress>> UnixNetwork::parseAddress(const std::string &path,
 	std::vector<SocketAddress> addresses =
 		SocketAddress::parse(addr_view, port_hint);
 
-	return Conveyor<Own<NetworkAddress>>{heap<UnixNetworkAddress>(
-		event_port, path, port_hint, std::move(addresses))};
+	return Conveyor<Own<NetworkAddress>>{
+		heap<UnixNetworkAddress>(path, port_hint, std::move(addresses))};
 }
 
 UnixIoProvider::UnixIoProvider(UnixEventPort &port_ref, Own<EventPort> port)

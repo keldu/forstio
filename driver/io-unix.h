@@ -410,25 +410,16 @@ public:
 	}
 };
 
-class UnixNetworkAddress final : public NetworkAddress {
+class UnixNetworkAddress final : public OsNetworkAddress {
 private:
-	UnixEventPort &event_port;
 	const std::string path;
 	uint16_t port_hint;
 	std::vector<SocketAddress> addresses;
 
 public:
-	UnixNetworkAddress(UnixEventPort &event_port, const std::string &path,
-					   uint16_t port_hint, std::vector<SocketAddress> &&addr)
-		: event_port{event_port}, path{path}, port_hint{port_hint},
-		  addresses{std::move(addr)} {}
-
-	Own<Server> listen() override;
-	Conveyor<Own<IoStream>> connect() override;
-
-	Own<Datagram> datagram() override;
-
-	std::string toString() const override;
+	UnixNetworkAddress(const std::string &path, uint16_t port_hint,
+					   std::vector<SocketAddress> &&addr)
+		: path{path}, port_hint{port_hint}, addresses{std::move(addr)} {}
 
 	const std::string &address() const override;
 
@@ -448,6 +439,12 @@ public:
 
 	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &address,
 											   uint16_t port_hint = 0) override;
+
+	Own<Server> listen(NetworkAddress &addr) override;
+
+	Conveyor<Own<IoStream>> connect(NetworkAddress &addr) override;
+
+	Own<Datagram> datagram(NetworkAddress &addr) override;
 };
 
 class UnixIoProvider final : public IoProvider {

@@ -155,24 +155,18 @@ public:
 };
 }
 
-TlsNetworkAddress::TlsNetworkAddress(Own<NetworkAddress> net_addr, const std::string& host_name_, Tls &tls_)
-	: internal{std::move(net_addr)}, host_name{host_name_}, tls{tls_} {}
-
-Own<Server> TlsNetworkAddress::listen() {
-	SAW_ASSERT(internal) { return nullptr; }
-	return heap<TlsServer>(internal->listen());
+Own<Server> TlsNetwork::listen(NetworkAddress& address) {
+	return heap<TlsServer>(internal.listen(address));
 }
 
-Conveyor<Own<IoStream>> TlsNetworkAddress::connect() {
-	SAW_ASSERT(internal) { return Conveyor<Own<IoStream>>{nullptr, nullptr}; }
-
+Conveyor<Own<IoStream>> TlsNetwork::connect(NetworkAddress& address) {
 	// Helper setups
 	auto caf = newConveyorAndFeeder<Own<IoStream>>();
 	Own<TlsClientStreamHelper> helper = heap<TlsClientStreamHelper>(std::move(caf.feeder));
 	TlsClientStreamHelper* hlp_ptr = helper.get();
 	
 	// Conveyor entangled structure
-	auto prim_conv = internal->connect().then([this, hlp_ptr](
+	auto prim_conv = internal.connect(address).then([this, hlp_ptr, addr = address.address()](
 										Own<IoStream> stream) -> ErrorOr<void> {
 		IoStream* inner_stream = stream.get();
 		auto tls_stream = heap<TlsIoStream>(std::move(stream));
@@ -180,8 +174,6 @@ Conveyor<Own<IoStream>> TlsNetworkAddress::connect() {
 		auto &session = tls_stream->session();
 
 		gnutls_init(&session, GNUTLS_CLIENT);
-
-		const std::string &addr = this->address();
 
 		gnutls_server_name_set(session, GNUTLS_NAME_DNS, addr.c_str(),
 							   addr.size());
@@ -209,7 +201,7 @@ Conveyor<Own<IoStream>> TlsNetworkAddress::connect() {
 	return caf.conveyor.attach(std::move(helper));
 }
 
-Own<Datagram> TlsNetworkAddress::datagram(){
+Own<Datagram> TlsNetwork::datagram(NetworkAddress& address){
 	///@unimplemented
 	return nullptr;
 }
@@ -243,26 +235,13 @@ static ssize_t forst_tls_pull_func(gnutls_transport_ptr_t p, void *data, size_t 
 	return static_cast<ssize_t>(length.value());
 }
 
-const std::string &TlsNetworkAddress::address() const {
-	assert(internal);
-	return internal->address();
-}
-uint16_t TlsNetworkAddress::port() const { 
-	assert(internal);
-	return internal->port(); }
-
-std::string TlsNetworkAddress::toString() const { return internal->toString(); }
-
 TlsNetwork::TlsNetwork(Network &network) : internal{network} {}
 
 Conveyor<Own<NetworkAddress>> TlsNetwork::parseAddress(const std::string &addr,
 													   uint16_t port) {
-	return internal.parseAddress(addr, port)
-		.then(
-			[this, addr, port](Own<NetworkAddress> net) -> Own<NetworkAddress> {
-				assert(net);
-				return heap<TlsNetworkAddress>(std::move(net), addr, tls);
-			});
+	/// @todo tls server name needed. Check validity. Won't matter later on, because gnutls should fail anyway. But
+	/// it's better to find the error source sooner rather than later
+	return internal.parseAddress(addr, port);
 }
 
 std::optional<Own<TlsNetwork>> setupTlsNetwork(Network &network) {
