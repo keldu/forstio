@@ -124,31 +124,145 @@ void UnixServer::notify(uint32_t mask) {
 	}
 }
 
+UnixDatagram::UnixDatagram(UnixEventPort &event_port, int file_descriptor,
+						   int fd_flags)
+	: IFdOwner{event_port, file_descriptor, fd_flags, EPOLLIN | EPOLLOUT} {}
+
+namespace {
+ssize_t unixReadMsg(int fd, void *buffer, size_t length) {
+	struct ::sockaddr_storage their_addr;
+	socklen_t addr_len = sizeof(sockaddr_storage);
+	return ::recvfrom(fd, buffer, length, 0,
+					  reinterpret_cast<struct ::sockaddr *>(&their_addr),
+					  &addr_len);
+}
+
+ssize_t unixWriteMsg(int fd, const void *buffer, size_t length,
+					 ::sockaddr *dest_addr, socklen_t dest_addr_len) {
+
+	return ::sendto(fd, buffer, length, 0, dest_addr, dest_addr_len);
+}
+} // namespace
+
+ErrorOr<size_t> UnixDatagram::read(void *buffer, size_t length) {
+	ssize_t read_bytes = unixReadMsg(fd(), buffer, length);
+	if (read_bytes > 0) {
+		return static_cast<size_t>(read_bytes);
+	}
+	return recoverableError("Currently busy");
+}
+
+Conveyor<void> UnixDatagram::readReady() {
+	auto caf = newConveyorAndFeeder<void>();
+	read_ready = std::move(caf.feeder);
+	return std::move(caf.conveyor);
+}
+
+ErrorOr<size_t> UnixDatagram::write(const void *buffer, size_t length,
+									NetworkAddress &dest) {
+	UnixNetworkAddress &unix_dest = static_cast<UnixNetworkAddress &>(dest);
+	SocketAddress &sock_addr = unix_dest.unixAddress();
+	socklen_t sock_addr_length = sock_addr.getRawLength();
+	ssize_t write_bytes = unixWriteMsg(fd(), buffer, length, sock_addr.getRaw(),
+									   sock_addr_length);
+	if (write_bytes > 0) {
+		return static_cast<size_t>(write_bytes);
+	}
+	return recoverableError("Currently busy");
+}
+
+Conveyor<void> UnixDatagram::writeReady() {
+	auto caf = newConveyorAndFeeder<void>();
+	write_ready = std::move(caf.feeder);
+	return std::move(caf.conveyor);
+}
+
+void UnixDatagram::notify(uint32_t mask) {
+	if (mask & EPOLLOUT) {
+		if (write_ready) {
+			write_ready->feed();
+		}
+	}
+
+	if (mask & EPOLLIN) {
+		if (read_ready) {
+			read_ready->feed();
+		}
+	}
+}
+
 namespace {
 bool beginsWith(const std::string_view &viewed,
 				const std::string_view &begins) {
 	return viewed.size() >= begins.size() &&
 		   viewed.compare(0, begins.size(), begins) == 0;
 }
+
+std::variant<UnixNetworkAddress, UnixNetworkAddress *>
+translateNetworkAddressToUnixNetworkAddress(NetworkAddress &addr) {
+	auto addr_variant = addr.representation();
+	std::variant<UnixNetworkAddress, UnixNetworkAddress *> os_addr = std::visit(
+		[](auto &arg)
+			-> std::variant<UnixNetworkAddress, UnixNetworkAddress *> {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, OsNetworkAddress *>) {
+				return static_cast<UnixNetworkAddress *>(arg);
+			}
+
+			auto sock_addrs = SocketAddress::parse(
+				std::string_view{arg->address()}, arg->port());
+
+			return UnixNetworkAddress{arg->address(), arg->port(),
+									  std::move(sock_addrs)};
+		},
+		addr_variant);
+	return os_addr;
+}
+
+UnixNetworkAddress &translateToUnixAddressRef(
+	std::variant<UnixNetworkAddress, UnixNetworkAddress *> &addr_variant) {
+	return std::visit(
+		[](auto &arg) -> UnixNetworkAddress & {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, UnixNetworkAddress>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, UnixNetworkAddress *>) {
+				return *arg;
+			} else {
+				static_assert(true, "Cases exhausted");
+			}
+		},
+		addr_variant);
+}
+
 } // namespace
 
-Own<Server> UnixNetworkAddress::listen() {
-	assert(addresses.size() > 0);
-	if (addresses.size() == 0) {
+Own<Server> UnixNetwork::listen(NetworkAddress &addr) {
+	auto unix_addr_storage = translateNetworkAddressToUnixNetworkAddress(addr);
+	UnixNetworkAddress &address = translateToUnixAddressRef(unix_addr_storage);
+
+	assert(address.unixAddressSize() > 0);
+	if (address.unixAddressSize() == 0) {
 		return nullptr;
 	}
 
-	int fd = addresses.front().socket(SOCK_STREAM);
+	int fd = address.unixAddress(0).socket(SOCK_STREAM);
 	if (fd < 0) {
 		return nullptr;
 	}
 
 	int val = 1;
+	int rc = ::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+	if (rc < 0) {
+		::close(fd);
+		return nullptr;
+	}
 
-	::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
-
-	bool failed = addresses.front().bind(fd);
+	bool failed = address.unixAddress(0).bind(fd);
 	if (failed) {
+		::close(fd);
 		return nullptr;
 	}
 
@@ -157,13 +271,16 @@ Own<Server> UnixNetworkAddress::listen() {
 	return heap<UnixServer>(event_port, fd, 0);
 }
 
-Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
-	assert(addresses.size() > 0);
-	if (addresses.size() == 0) {
+Conveyor<Own<IoStream>> UnixNetwork::connect(NetworkAddress &addr) {
+	auto unix_addr_storage = translateNetworkAddressToUnixNetworkAddress(addr);
+	UnixNetworkAddress &address = translateToUnixAddressRef(unix_addr_storage);
+
+	assert(address.unixAddressSize() > 0);
+	if (address.unixAddressSize() == 0) {
 		return Conveyor<Own<IoStream>>{criticalError("No address found")};
 	}
 
-	int fd = addresses.front().socket(SOCK_STREAM);
+	int fd = address.unixAddress(0).socket(SOCK_STREAM);
 	if (fd < 0) {
 		return Conveyor<Own<IoStream>>{criticalError("Couldn't open socket")};
 	}
@@ -172,8 +289,10 @@ Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 		heap<UnixIoStream>(event_port, fd, 0, EPOLLIN | EPOLLOUT);
 
 	bool success = false;
-	for (auto iter = addresses.begin(); iter != addresses.end(); ++iter) {
-		int status = ::connect(fd, iter->getRaw(), iter->getRawLength());
+	for (size_t i = 0; i < address.unixAddressSize(); ++i) {
+		SocketAddress &addr_iter = address.unixAddress(i);
+		int status =
+			::connect(fd, addr_iter.getRaw(), addr_iter.getRawLength());
 		if (status < 0) {
 			int error = errno;
 			/*
@@ -212,21 +331,42 @@ Conveyor<Own<IoStream>> UnixNetworkAddress::connect() {
 	return Conveyor<Own<IoStream>>{std::move(io_stream)};
 }
 
-std::string UnixNetworkAddress::toString() const {
-	try {
-		std::ostringstream oss;
-		oss << "Address: " << path;
-		if (port_hint > 0) {
-			oss << "\nPort: " << port_hint;
-		}
-		return oss.str();
-	} catch (std::bad_alloc &) {
-		return {};
+Own<Datagram> UnixNetwork::datagram(NetworkAddress &addr) {
+	auto unix_addr_storage = translateNetworkAddressToUnixNetworkAddress(addr);
+	UnixNetworkAddress &address = translateToUnixAddressRef(unix_addr_storage);
+
+	SAW_ASSERT(address.unixAddressSize() > 0) { return nullptr; }
+
+	int fd = address.unixAddress(0).socket(SOCK_DGRAM);
+
+	int optval = 1;
+	int rc =
+		::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	if (rc < 0) {
+		::close(fd);
+		return nullptr;
 	}
+
+	bool failed = address.unixAddress(0).bind(fd);
+	if (failed) {
+		::close(fd);
+		return nullptr;
+	}
+	/// @todo
+	return heap<UnixDatagram>(event_port, fd, 0);
 }
+
 const std::string &UnixNetworkAddress::address() const { return path; }
 
 uint16_t UnixNetworkAddress::port() const { return port_hint; }
+
+SocketAddress &UnixNetworkAddress::unixAddress(size_t i) {
+	assert(i < addresses.size());
+	/// @todo change from list to vector?
+	return addresses.at(i);
+}
+
+size_t UnixNetworkAddress::unixAddressSize() const { return addresses.size(); }
 
 UnixNetwork::UnixNetwork(UnixEventPort &event) : event_port{event} {}
 
@@ -240,11 +380,11 @@ Conveyor<Own<NetworkAddress>> UnixNetwork::parseAddress(const std::string &path,
 		}
 	}
 
-	std::list<SocketAddress> addresses =
+	std::vector<SocketAddress> addresses =
 		SocketAddress::parse(addr_view, port_hint);
 
-	return Conveyor<Own<NetworkAddress>>{heap<UnixNetworkAddress>(
-		event_port, path, port_hint, std::move(addresses))};
+	return Conveyor<Own<NetworkAddress>>{
+		heap<UnixNetworkAddress>(path, port_hint, std::move(addresses))};
 }
 
 ErrorOr<SocketPair> UnixNetwork::socketPair() {

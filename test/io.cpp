@@ -3,6 +3,7 @@
 #include "source/forstio/io.h"
 
 namespace {
+/*
 SAW_TEST("Io Socket Pair"){
 	using namespace saw;
 
@@ -40,5 +41,5 @@ SAW_TEST("Io Socket Pair"){
 	SAW_EXPECT(buffer_out[5] == 0, "Element 6 failed");
 	SAW_EXPECT(buffer_out[6] == 0, "Element 7 failed");
 }
-
+*/
 }

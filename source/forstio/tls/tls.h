@@ -33,25 +33,6 @@ public:
 	Conveyor<Own<IoStream>> accept() override;
 };
 
-class TlsNetworkAddress final : public NetworkAddress {
-private:
-	Own<NetworkAddress> internal;
-	std::string host_name;
-	Tls &tls;
-
-public:
-	TlsNetworkAddress(Own<NetworkAddress> net_addr, const std::string& host_name_, Tls &tls_);
-
-	Own<Server> listen() override;
-
-	Conveyor<Own<IoStream>> connect() override;
-
-	std::string toString() const override;
-
-	const std::string &address() const override;
-	uint16_t port() const override;
-};
-
 class TlsNetwork final : public Network {
 private:
 	Tls tls;
@@ -60,10 +41,13 @@ private:
 public:
 	TlsNetwork(Network &network);
 
-	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &addr,
-											   uint16_t port = 0) override;
+	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &addr, uint16_t port = 0) override;
+	
+	Own<Server> listen(NetworkAddress& address) override;
 
-	ErrorOr<SocketPair> socketPair() override;
+	Conveyor<Own<IoStream>> connect(NetworkAddress& address) override;
+
+	Own<Datagram> datagram(NetworkAddress& address) override;
 };
 
 std::optional<Own<TlsNetwork>> setupTlsNetwork(Network &network);

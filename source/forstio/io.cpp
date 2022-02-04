@@ -58,4 +58,14 @@ Conveyor<size_t> AsyncIoStream::writeDone() {
 	write_stepper.write_done = std::move(caf.feeder);
 	return std::move(caf.conveyor);
 }
+
+StringNetworkAddress::StringNetworkAddress(const std::string &address,
+										   uint16_t port)
+	: address_value{address}, port_value{port} {}
+
+const std::string &StringNetworkAddress::address() const {
+	return address_value;
+}
+
+uint16_t StringNetworkAddress::port() const { return port_value; }
 } // namespace saw
