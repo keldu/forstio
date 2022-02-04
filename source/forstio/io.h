@@ -106,7 +106,7 @@ public:
 	virtual ErrorOr<size_t> read(void *buffer, size_t length) = 0;
 	virtual Conveyor<void> readReady() = 0;
 
-	virtual ErrorOr<size_t> write(void *buffer, size_t length,
+	virtual ErrorOr<size_t> write(const void *buffer, size_t length,
 								  NetworkAddress &dest) = 0;
 	virtual Conveyor<void> writeReady() = 0;
 };

@@ -323,7 +323,7 @@ public:
 	ErrorOr<size_t> read(void *buffer, size_t length) override;
 	Conveyor<void> readReady() override;
 
-	ErrorOr<size_t> write(void *buffer, size_t length,
+	ErrorOr<size_t> write(const void *buffer, size_t length,
 						  NetworkAddress &dest) override;
 	Conveyor<void> writeReady() override;
 

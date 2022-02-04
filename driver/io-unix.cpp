@@ -137,8 +137,8 @@ ssize_t unixReadMsg(int fd, void *buffer, size_t length) {
 					  &addr_len);
 }
 
-ssize_t unixWriteMsg(int fd, void *buffer, size_t length, ::sockaddr *dest_addr,
-					 socklen_t dest_addr_len) {
+ssize_t unixWriteMsg(int fd, const void *buffer, size_t length,
+					 ::sockaddr *dest_addr, socklen_t dest_addr_len) {
 
 	return ::sendto(fd, buffer, length, 0, dest_addr, dest_addr_len);
 }
@@ -158,7 +158,7 @@ Conveyor<void> UnixDatagram::readReady() {
 	return std::move(caf.conveyor);
 }
 
-ErrorOr<size_t> UnixDatagram::write(void *buffer, size_t length,
+ErrorOr<size_t> UnixDatagram::write(const void *buffer, size_t length,
 									NetworkAddress &dest) {
 	UnixNetworkAddress &unix_dest = static_cast<UnixNetworkAddress &>(dest);
 	SocketAddress &sock_addr = unix_dest.unixAddress();
