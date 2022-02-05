@@ -387,24 +387,6 @@ Conveyor<Own<NetworkAddress>> UnixNetwork::parseAddress(const std::string &path,
 		heap<UnixNetworkAddress>(path, port_hint, std::move(addresses))};
 }
 
-ErrorOr<SocketPair> UnixNetwork::socketPair() {
-	int sv[2];
-
-	int rc = ::socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK,
-						  0, sv);
-	if (rc < 0) {
-		return criticalError("Failed to create socket pair");
-	}
-
-	SocketPair socket_pair;
-	socket_pair.stream[0] =
-		heap<UnixIoStream>(event_port, sv[0], 0, EPOLLIN | EPOLLOUT);
-	socket_pair.stream[1] =
-		heap<UnixIoStream>(event_port, sv[1], 0, EPOLLIN | EPOLLOUT);
-
-	return socket_pair;
-}
-
 UnixIoProvider::UnixIoProvider(UnixEventPort &port_ref, Own<EventPort> port)
 	: event_port{port_ref}, event_loop{std::move(port)}, unix_network{
 															 port_ref} {}
