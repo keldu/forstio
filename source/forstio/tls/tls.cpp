@@ -244,10 +244,6 @@ Conveyor<Own<NetworkAddress>> TlsNetwork::parseAddress(const std::string &addr,
 	return internal.parseAddress(addr, port);
 }
 
-ErrorOr<SocketPair> TlsNetwork::socketPair(){
-	return criticalError("Unimplemented");
-}
-
 std::optional<Own<TlsNetwork>> setupTlsNetwork(Network &network) {
 	return std::nullopt;
 }
