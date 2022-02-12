@@ -36,6 +36,8 @@ env=Environment(ENV=os.environ, CPPPATH=['#source/forstio','#source','#','#drive
     LIBS=['gnutls'])
 env.__class__.add_source_files = add_kel_source_files
 
+print(os.environ)
+
 env.objects = []
 env.sources = []
 env.headers = []
