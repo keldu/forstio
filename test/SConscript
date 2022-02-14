@@ -15,4 +15,4 @@ env.test_objects = []
 env.test_sources.append(dir_path+'/suite/suite.cpp')
 env.test_headers = [dir_path + '/suite/suite.h']
 
-env.test_program = env_test.Program('#bin/test', [env.test_sources, env.library_static])
+env.test_program = env_test.Program('#build/test', [env.test_sources, env.library_static])

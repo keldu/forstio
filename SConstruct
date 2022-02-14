@@ -29,14 +29,25 @@ def add_kel_source_files(self, sources, filetype, lib_env=None, shared=False, ta
             sources.append( self.StaticObject( target=target_name, source=path ) )
     pass
 
-env=Environment(ENV=os.environ, CPPPATH=['#source/forstio','#source','#','#driver'],
+def isAbsolutePath(key, dirname, env):
+	assert os.path.isabs(dirname), "%r must have absolute path syntax" % (key,)
+
+env_vars = Variables(
+	args=ARGUMENTS
+)
+
+env_vars.Add('prefix',
+	help='Installation target location of build results and headers',
+	default='/usr/local/',
+	validator=isAbsolutePath
+)
+
+env=Environment(ENV=os.environ, variables=env_vars, CPPPATH=['#source/forstio','#source','#','#driver'],
     CXX='clang++',
     CPPDEFINES=['SAW_UNIX'],
     CXXFLAGS=['-std=c++20','-g','-Wall','-Wextra'],
     LIBS=['gnutls'])
 env.__class__.add_source_files = add_kel_source_files
-
-print(os.environ)
 
 env.objects = []
 env.sources = []
@@ -58,11 +69,11 @@ env_library = env.Clone()
 
 env.objects_shared = []
 env_library.add_source_files(env.objects_shared, env.sources + env.driver_sources + env.tls_sources, shared=True)
-env.library_shared = env_library.SharedLibrary('#bin/forstio', [env.objects_shared])
+env.library_shared = env_library.SharedLibrary('#build/forstio', [env.objects_shared])
 
 env.objects_static = []
 env_library.add_source_files(env.objects_static, env.sources + env.driver_sources + env.tls_sources)
-env.library_static = env_library.StaticLibrary('#bin/forstio', [env.objects_static])
+env.library_static = env_library.StaticLibrary('#build/forstio', [env.objects_static])
 
 env.Alias('library', [env.library_shared, env.library_static])
 env.Alias('library_shared', env.library_shared)
@@ -89,9 +100,9 @@ env.Alias('format', env.format_actions)
 
 env.Alias('all', ['format', 'library_shared', 'library_static', 'test'])
 
-env.Install('/usr/local/lib/', [env.library_shared, env.library_static])
-env.Install('/usr/local/include/forstio/', [env.headers])
-env.Install('/usr/local/include/forstio/tls/', [env.tls_headers])
+env.Install('$prefix/lib/', [env.library_shared, env.library_static])
+env.Install('$prefix/include/forstio/', [env.headers])
+env.Install('$prefix/include/forstio/tls/', [env.tls_headers])
 
-env.Install('/usr/local/include/forstio/test/', [env.test_headers])
-env.Alias('install', '/usr/local/')
+env.Install('$prefix/include/forstio/test/', [env.test_headers])
+env.Alias('install', '$prefix')

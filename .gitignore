@@ -59,7 +59,7 @@ Mkfile.old
 dkms.conf
 
 # binary files
-bin/
+build/
 # test files
 assets/
 # custom build tracking
