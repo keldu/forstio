@@ -312,6 +312,27 @@ public:
 	void notify(uint32_t mask) override;
 };
 
+class UnixDatagram final : public Datagram, public IFdOwner {
+private:
+	Own<ConveyorFeeder<void>> read_ready = nullptr;
+	Own<ConveyorFeeder<void>> write_ready = nullptr;
+
+public:
+	UnixDatagram(UnixEventPort &event_port, int file_descriptor, int fd_flags);
+
+	ErrorOr<size_t> read(void *buffer, size_t length) override;
+	Conveyor<void> readReady() override;
+
+	ErrorOr<size_t> write(const void *buffer, size_t length,
+						  NetworkAddress &dest) override;
+	Conveyor<void> writeReady() override;
+
+	void notify(uint32_t mask) override;
+};
+
+/**
+ * Helper class which provides potential addresses to NetworkAddress
+ */
 class SocketAddress {
 private:
 	union {
@@ -335,8 +356,6 @@ public:
 	}
 
 	int socket(int type) const {
-		bool is_stream = type & SOCK_STREAM;
-
 		type |= SOCK_NONBLOCK | SOCK_CLOEXEC;
 
 		int result = ::socket(address.generic.sa_family, type, 0);
@@ -352,13 +371,17 @@ public:
 		return error < 0;
 	}
 
+	struct ::sockaddr *getRaw() {
+		return &address.generic;
+	}
+
 	const struct ::sockaddr *getRaw() const { return &address.generic; }
 
 	socklen_t getRawLength() const { return address_length; }
 
-	static std::list<SocketAddress> parse(std::string_view str,
-										  uint16_t port_hint) {
-		std::list<SocketAddress> results;
+	static std::vector<SocketAddress> parse(std::string_view str,
+											uint16_t port_hint) {
+		std::vector<SocketAddress> results;
 
 		struct ::addrinfo *head;
 		struct ::addrinfo hints;
@@ -387,27 +410,24 @@ public:
 	}
 };
 
-class UnixNetworkAddress final : public NetworkAddress {
+class UnixNetworkAddress final : public OsNetworkAddress {
 private:
-	UnixEventPort &event_port;
 	const std::string path;
 	uint16_t port_hint;
-	std::list<SocketAddress> addresses;
+	std::vector<SocketAddress> addresses;
 
 public:
-	UnixNetworkAddress(UnixEventPort &event_port, const std::string &path,
-					   uint16_t port_hint, std::list<SocketAddress> &&addr)
-		: event_port{event_port}, path{path}, port_hint{port_hint},
-		  addresses{std::move(addr)} {}
-
-	Own<Server> listen() override;
-	Conveyor<Own<IoStream>> connect() override;
-
-	std::string toString() const override;
+	UnixNetworkAddress(const std::string &path, uint16_t port_hint,
+					   std::vector<SocketAddress> &&addr)
+		: path{path}, port_hint{port_hint}, addresses{std::move(addr)} {}
 
 	const std::string &address() const override;
 
 	uint16_t port() const override;
+
+	// Custom address info
+	SocketAddress &unixAddress(size_t i = 0);
+	size_t unixAddressSize() const;
 };
 
 class UnixNetwork final : public Network {
@@ -420,7 +440,11 @@ public:
 	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &address,
 											   uint16_t port_hint = 0) override;
 
-	ErrorOr<SocketPair> socketPair() override;
+	Own<Server> listen(NetworkAddress &addr) override;
+
+	Conveyor<Own<IoStream>> connect(NetworkAddress &addr) override;
+
+	Own<Datagram> datagram(NetworkAddress &addr) override;
 };
 
 class UnixIoProvider final : public IoProvider {

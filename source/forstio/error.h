@@ -91,11 +91,11 @@ public:
 	virtual ~ErrorOrValue() = default;
 
 	template <typename T> ErrorOr<UnfixVoid<T>> &as() {
-		return dynamic_cast<ErrorOr<UnfixVoid<T>> &>(*this);
+		return static_cast<ErrorOr<UnfixVoid<T>> &>(*this);
 	}
 
 	template <typename T> const ErrorOr<UnfixVoid<T>> &as() const {
-		return dynamic_cast<const ErrorOr<UnfixVoid<T>> &>(*this);
+		return static_cast<const ErrorOr<UnfixVoid<T>> &>(*this);
 	}
 };
 
