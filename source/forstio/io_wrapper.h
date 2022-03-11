@@ -1,25 +1,27 @@
 #pragma once
 
 #include "async.h"
+#include "message.h"
 #include "io.h"
 
 namespace saw {
 
-template <typename Codec, typename Incoming, typename Outgoing>
+template <typename Codec, typename Incoming, typename Outgoing, class InContainer = MessageContainer<Incoming>, class OutContainer = MessageContainer<Outgoing>>
 class StreamingIoPeer {
 private:
 	Codec codec;
 
 	Own<AsyncIoStream> io_stream;
 
-	Own<ConveyorFeeder<Incoming>> incoming_feeder = nullptr;
-
+	Own<ConveyorFeeder<HeapMessageRoot<Incoming, InContainer>>> incoming_feeder = nullptr;
 public:
 	StreamingIoPeer(Own<AsyncIoStream> stream);
 
-	void send(Outgoing outgoing, Own<MessageBuilder> builder);
+	void send(HeapMessageRoot<Outgoing, OutContainer> builder);
 
-	Conveyor<Incoming> startReadPump();
+	Conveyor<HeapMessageRootIncoming> startReadPump();
 };
+
+
 
 } // namespace saw
