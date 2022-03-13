@@ -52,14 +52,14 @@ Own<AsyncIoStream> stream_, Codec codec_, BufferT in_, BufferT out_):
 		})
 	},
 	sink_write{
-		io_stream->writeDone().then([this](size_bytes) -> ErrorOr<void> {
+		io_stream->writeDone().then([this](size_t bytes) -> ErrorOr<void> {
 			out_buffer.readAdvance(bytes);
 			if(out_buffer.readCompositeLength() > 0){
 				io_stream->write(&out_buffer.read(), out_buffer.readSegmengtLength());
 			}
 
 			return Void{};
-		}).sink();
+		}).sink()
 	}
 {
 	io_stream->read(&in_buffer.write(), 1, in_buffer.writeSegmentLength());
