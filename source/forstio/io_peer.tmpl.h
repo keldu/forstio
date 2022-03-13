@@ -11,13 +11,13 @@ Own<AsyncIoStream> str
 
 template <typename Codec, typename Incoming, typename Outgoing, typename InContainer, typename OutContainer, typename BufferT>
 StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, BufferT>::StreamingIoPeer(
-Own<ConveyorFeeder<HeapMessageRoot<Incoming, InContainer>>> feed,
-Own<AsyncIoStream> str, Codec codec, BufferT in, BufferT out):
-	incoming_feeder{std::move(feed)},
-	io_stream{std::move(str)},
-	codec{std::move(codec)},
-	in_buffer{std::move(in)},
-	out_buffer{std::move(out)},
+Own<ConveyorFeeder<HeapMessageRoot<Incoming, InContainer>>> feed_,
+Own<AsyncIoStream> stream_, Codec codec_, BufferT in_, BufferT out_):
+	incoming_feeder{std::move(feed_)},
+	io_stream{std::move(stream_)},
+	codec{std::move(codec_)},
+	in_buffer{std::move(in_)},
+	out_buffer{std::move(out_)},
 	sink_read{
 		io_stream->readDone().then([this](size_t bytes) -> ErrorOr<void> {
 			in_buffer.writeAdvance(bytes);
