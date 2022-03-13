@@ -61,7 +61,7 @@ public:
 	virtual Conveyor<size_t> writeDone() = 0;
 };
 
-class AsyncIoStream : public AsyncInputStream, public AsyncOutputStream {
+class AsyncIoStream final : public AsyncInputStream, public AsyncOutputStream {
 private:
 	Own<IoStream> stream;
 
@@ -74,6 +74,9 @@ private:
 
 public:
 	AsyncIoStream(Own<IoStream> str);
+
+	SAW_FORBID_COPY(AsyncIoStream);
+	SAW_FORBID_MOVE(AsyncIoStream);
 
 	void read(void *buffer, size_t length, size_t max_length) override;
 
