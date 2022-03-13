@@ -39,4 +39,4 @@ std::pair<StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, 
 
 } // namespace saw
 
-#include "io_wrapper.tmpl.h"
+#include "io_peer.tmpl.h"
