@@ -23,7 +23,10 @@ private:
 
 public:
 	StreamingIoPeer(Own<ConveyorFeeder<HeapMessageRoot<Incoming, InContainer>>> feed, Own<AsyncIoStream> stream, Codec codec, BufferT in, BufferT out);
-	StreamingIoPeer(Own<ConveyorFeeder<HeapMessageRoot<Incoming, InContainer>>> feed, Own<AsyncIoStream> stream); 
+	StreamingIoPeer(Own<ConveyorFeeder<HeapMessageRoot<Incoming, InContainer>>> feed, Own<AsyncIoStream> stream);
+
+	SAW_FORBID_COPY(StreamingIoPeer);
+	SAW_FORBID_MOVE(StreamingIoPeer); 
 
 	void send(HeapMessageRoot<Outgoing, OutContainer> builder);
 

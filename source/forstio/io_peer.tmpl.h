@@ -55,7 +55,7 @@ Own<AsyncIoStream> stream_, Codec codec_, BufferT in_, BufferT out_):
 		io_stream->writeDone().then([this](size_t bytes) -> ErrorOr<void> {
 			out_buffer.readAdvance(bytes);
 			if(out_buffer.readCompositeLength() > 0){
-				io_stream->write(&out_buffer.read(), out_buffer.readSegmengtLength());
+				io_stream->write(&out_buffer.read(), out_buffer.readSegmentLength());
 			}
 
 			return Void{};
