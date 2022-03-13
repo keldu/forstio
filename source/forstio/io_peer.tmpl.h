@@ -87,10 +87,10 @@ Conveyor<void> StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContai
 }
 
 template <typename Codec, typename Incoming, typename Outgoing, typename InContainer, typename OutContainer, typename BufferT>
-std::pair<StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, BufferT>, Conveyor<HeapMessageRoot<Incoming, InContainer>>> newStreamingIoPeer(Own<AsyncIoStream> stream){
+std::pair<Own<StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, BufferT>>, Conveyor<HeapMessageRoot<Incoming, InContainer>>> newStreamingIoPeer(Own<AsyncIoStream> stream){
 	auto caf = newConveyorAndFeeder<HeapMessageRoot<Incoming, InContainer>>();
 
-	return {{std::move(caf.feeder), std::move(stream)}, std::move(caf.conveyor)};
+	return {heap<StreamingIoPeer<Codec,Incoming, Outgoing, InContainer, OutContainer, BufferT>>(std::move(caf.feeder), std::move(stream)), std::move(caf.conveyor)};
 }
 
 }

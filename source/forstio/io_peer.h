@@ -38,7 +38,7 @@ public:
  * This is a convenience wrapper intended for a faster setup of 
  */
 template <typename Codec, typename Incoming, typename Outgoing, typename InContainer = MessageContainer<Incoming>, typename OutContainer = MessageContainer<Outgoing>, typename BufferT = RingBuffer>
-std::pair<StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, BufferT>, Conveyor<HeapMessageRoot<Incoming, InContainer>>> newStreamingIoPeer(Own<AsyncIoStream> stream);
+std::pair<Own<StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, BufferT>>, Conveyor<HeapMessageRoot<Incoming, InContainer>>> newStreamingIoPeer(Own<AsyncIoStream> stream);
 
 } // namespace saw
 
