@@ -1,6 +1,6 @@
 namespace saw {
 
-template <typename Codec, typename Incoming, typename Outgoing, typename InContainer = MessageContainer<Incoming>, typename OutContainer = MessageContainer<Outgoing>, typename BufferT = RingBuffer>
+template <typename Codec, typename Incoming, typename Outgoing, typename InContainer, typename OutContainer, typename BufferT>
 StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, BufferT>::StreamingIoPeer(
 Own<ConveyorFeeder<HeapMessageRoot<Incoming, InContainer>>> feed,
 Own<AsyncIoStream> str
@@ -9,7 +9,7 @@ Own<AsyncIoStream> str
 {
 }
 
-template <typename Codec, typename Incoming, typename Outgoing, typename InContainer = MessageContainer<Incoming>, typename OutContainer = MessageContainer<Outgoing>, typename BufferT = RingBuffer>
+template <typename Codec, typename Incoming, typename Outgoing, typename InContainer, typename OutContainer, typename BufferT>
 StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, BufferT>::StreamingIoPeer(
 Own<ConveyorFeeder<HeapMessageRoot<Incoming, InContainer>>> feed,
 Own<AsyncIoStream> str, Codec codec, BufferT in, BufferT out):
@@ -65,7 +65,7 @@ Own<AsyncIoStream> str, Codec codec, BufferT in, BufferT out):
 	io_stream->read(&in_buffer.write(), 1, in_buffer.writeSegmentLength());
 }
 
-template <typename Codec, typename Incoming, typename Outgoing, typename InContainer = MessageContainer<Incoming>, typename OutContainer = MessageContainer<Outgoing>, typename BufferT = RingBuffer>
+template <typename Codec, typename Incoming, typename Outgoing, typename InContainer, typename OutContainer, typename BufferT>
 void StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, BufferT>::send(HeapMessageRoot<Outgoing, OutContainer> msg){
 	bool restart_write = out_buffer.readSegmentLength() == 0;
 	
@@ -81,12 +81,12 @@ void StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, Buffe
 	return noError();
 }
 
-template <typename Codec, typename Incoming, typename Outgoing, typename InContainer = MessageContainer<Incoming>, typename OutContainer = MessageContainer<Outgoing>, typename BufferT = RingBuffer>
+template <typename Codec, typename Incoming, typename Outgoing, typename InContainer, typename OutContainer, typename BufferT>
 Conveyor<void> StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, BufferT>::onReadDisconnected(){
 	return io_stream->onReadDisconnected();
 }
 
-template <typename Codec, typename Incoming, typename Outgoing, typename InContainer = MessageContainer<Incoming>, typename OutContainer = MessageContainer<Outgoing>, typename BufferT = RingBuffer>
+template <typename Codec, typename Incoming, typename Outgoing, typename InContainer, typename OutContainer, typename BufferT>
 std::pair<StreamingIoPeer<Codec, Incoming, Outgoing, InContainer, OutContainer, BufferT>, Conveyor<HeapMessageRoot<Incoming, InContainer>>> newStreamingIoPeer(Own<AsyncIoStream> stream){
 	auto caf = newConveyorAndFeeder<HeapMessageRoot<Incoming, InContainer>>();
 
