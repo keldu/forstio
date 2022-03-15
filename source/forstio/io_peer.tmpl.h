@@ -46,7 +46,7 @@ Own<AsyncIoStream> stream_, Codec codec_, BufferT in_, BufferT out_):
 
 			return Void{};
 		}).sink([this](Error error){
-			incoming_feeder->fail(error);
+			incoming_feeder->fail(error.copyError());
 
 			return error;
 		})
