@@ -38,7 +38,7 @@ Own<AsyncIoStream> stream_, Codec codec_, BufferT in_, BufferT out_):
 				}
 
 				if(!error.failed()){
-					incoming_feeder->handle(std::move(root));
+					incoming_feeder->feed(std::move(root));
 				}else{
 					break;
 				}
