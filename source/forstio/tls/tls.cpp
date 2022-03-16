@@ -237,7 +237,7 @@ static ssize_t forst_tls_pull_func(gnutls_transport_ptr_t p, void *data, size_t 
 
 TlsNetwork::TlsNetwork(Network &network) : internal{network} {}
 
-Conveyor<Own<NetworkAddress>> TlsNetwork::parseAddress(const std::string &addr,
+Conveyor<Own<NetworkAddress>> TlsNetwork::resolveAddress(const std::string &addr,
 													   uint16_t port) {
 	/// @todo tls server name needed. Check validity. Won't matter later on, because gnutls should fail anyway. But
 	/// it's better to find the error source sooner rather than later

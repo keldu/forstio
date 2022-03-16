@@ -41,7 +41,7 @@ private:
 public:
 	TlsNetwork(Network &network);
 
-	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &addr, uint16_t port = 0) override;
+	Conveyor<Own<NetworkAddress>> resolveAddress(const std::string &addr, uint16_t port = 0) override;
 	
 	Own<Server> listen(NetworkAddress& address) override;
 

@@ -437,7 +437,7 @@ private:
 public:
 	UnixNetwork(UnixEventPort &event_port);
 
-	Conveyor<Own<NetworkAddress>> parseAddress(const std::string &address,
+	Conveyor<Own<NetworkAddress>> resolveAddress(const std::string &address,
 											   uint16_t port_hint = 0) override;
 
 	Own<Server> listen(NetworkAddress &addr) override;

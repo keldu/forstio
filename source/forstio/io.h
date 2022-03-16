@@ -159,7 +159,7 @@ public:
 	 * Parse the provided string and uint16 to the preferred storage method
 	 */
 	virtual Conveyor<Own<NetworkAddress>>
-	parseAddress(const std::string &addr, uint16_t port_hint = 0) = 0;
+	resolveAddress(const std::string &addr, uint16_t port_hint = 0) = 0;
 
 	/**
 	 * Set up a listener on this address

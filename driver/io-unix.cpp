@@ -370,7 +370,7 @@ size_t UnixNetworkAddress::unixAddressSize() const { return addresses.size(); }
 
 UnixNetwork::UnixNetwork(UnixEventPort &event) : event_port{event} {}
 
-Conveyor<Own<NetworkAddress>> UnixNetwork::parseAddress(const std::string &path,
+Conveyor<Own<NetworkAddress>> UnixNetwork::resolveAddress(const std::string &path,
 														uint16_t port_hint) {
 	std::string_view addr_view{path};
 	{
