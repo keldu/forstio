@@ -241,7 +241,7 @@ Conveyor<Own<NetworkAddress>> TlsNetwork::resolveAddress(const std::string &addr
 													   uint16_t port) {
 	/// @todo tls server name needed. Check validity. Won't matter later on, because gnutls should fail anyway. But
 	/// it's better to find the error source sooner rather than later
-	return internal.parseAddress(addr, port);
+	return internal.resolveAddress(addr, port);
 }
 
 std::optional<Own<TlsNetwork>> setupTlsNetwork(Network &network) {
