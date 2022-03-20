@@ -282,7 +282,7 @@ public:
 		}
 
 		template <StringLiteral Literal>
-		static constexpr size_t toIndex() const noexcept {
+		static constexpr size_t toIndex() noexcept {
 			return MessageParameterKeyPackIndex<Literal, Keys...>::Value;
 		}
 
