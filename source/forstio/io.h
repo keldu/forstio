@@ -156,10 +156,17 @@ public:
 	virtual ~Network() = default;
 
 	/**
-	 * Parse the provided string and uint16 to the preferred storage method
+	 * Resolve the provided string and uint16 to the preferred storage method
 	 */
 	virtual Conveyor<Own<NetworkAddress>>
 	resolveAddress(const std::string &addr, uint16_t port_hint = 0) = 0;
+	
+	/**
+	 * Parse the provided string and uint16 to the preferred storage method
+	 * Since no dns request is made here, no async conveyors have to be used.
+	 */
+	/// @todo implement
+	//virtual Own<NetworkAddress> parseAddress(const std::string& addr, uint16_t port_hint = 0) = 0;
 
 	/**
 	 * Set up a listener on this address

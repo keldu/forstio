@@ -20,6 +20,7 @@ public:
 };
 
 class EventLoop;
+class WaitScope;
 /*
  * Event class similar to capn'proto.
  * https://github.com/capnproto/capnproto
@@ -219,9 +220,9 @@ public:
 	ErrorOr<FixVoid<T>> take();
 
 	/** @todo implement
-	 * Specifically pump elements through this chain
+	 * Specifically pump elements through this chain with the provided wait_scope
 	 */
-	void poll();
+	void poll(WaitScope& wait_scope);
 
 	// helper
 	static Conveyor<T> toConveyor(Own<ConveyorNode> node,

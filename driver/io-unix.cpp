@@ -210,7 +210,7 @@ translateNetworkAddressToUnixNetworkAddress(NetworkAddress &addr) {
 				return static_cast<UnixNetworkAddress *>(arg);
 			}
 
-			auto sock_addrs = SocketAddress::parse(
+			auto sock_addrs = SocketAddress::resolve(
 				std::string_view{arg->address()}, arg->port());
 
 			return UnixNetworkAddress{arg->address(), arg->port(),
@@ -370,8 +370,7 @@ size_t UnixNetworkAddress::unixAddressSize() const { return addresses.size(); }
 
 UnixNetwork::UnixNetwork(UnixEventPort &event) : event_port{event} {}
 
-Conveyor<Own<NetworkAddress>> UnixNetwork::resolveAddress(const std::string &path,
-														uint16_t port_hint) {
+Conveyor<Own<NetworkAddress>> UnixNetwork::resolveAddress(const std::string &path,uint16_t port_hint) {
 	std::string_view addr_view{path};
 	{
 		std::string_view begins_with = "unix:";
@@ -381,7 +380,7 @@ Conveyor<Own<NetworkAddress>> UnixNetwork::resolveAddress(const std::string &pat
 	}
 
 	std::vector<SocketAddress> addresses =
-		SocketAddress::parse(addr_view, port_hint);
+		SocketAddress::resolve(addr_view, port_hint);
 
 	return Conveyor<Own<NetworkAddress>>{
 		heap<UnixNetworkAddress>(path, port_hint, std::move(addresses))};
@@ -389,7 +388,7 @@ Conveyor<Own<NetworkAddress>> UnixNetwork::resolveAddress(const std::string &pat
 
 UnixIoProvider::UnixIoProvider(UnixEventPort &port_ref, Own<EventPort> port)
 	: event_port{port_ref}, event_loop{std::move(port)}, unix_network{
-															 port_ref} {}
+		port_ref} {}
 
 Own<InputStream> UnixIoProvider::wrapInputFd(int fd) {
 	return heap<UnixIoStream>(event_port, fd, 0, EPOLLIN);
