@@ -220,9 +220,10 @@ public:
 	ErrorOr<FixVoid<T>> take();
 
 	/** @todo implement
-	 * Specifically pump elements through this chain with the provided wait_scope
+	 * Specifically pump elements through this chain with the provided
+	 * wait_scope
 	 */
-	void poll(WaitScope& wait_scope);
+	void poll(WaitScope &wait_scope);
 
 	// helper
 	static Conveyor<T> toConveyor(Own<ConveyorNode> node,
