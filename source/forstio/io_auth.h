@@ -30,6 +30,9 @@ public:
 	virtual Conveyor<AuthenticatedIoStream> accept() = 0;
 };
 
+/**
+ * Authenticated Network class which provides a peer identity when connecting
+ */
 class AuthenticatedNetwork {
 public:
 	virtual ~AuthenticatedNetwork() = default;
@@ -46,4 +49,6 @@ public:
 	 */
 	virtual Own<AuthenticatedServer> listen() = 0;
 };
+
+
 } // namespace saw

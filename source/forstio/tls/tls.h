@@ -35,6 +35,10 @@ public:
 	Own<Datagram> datagram(NetworkAddress& address) override;
 };
 
+/**
+* Tls context class.
+* Provides tls network class which ensures the usage of tls encrypted connections
+*/
 class Tls {
 private:
 	class Impl;
