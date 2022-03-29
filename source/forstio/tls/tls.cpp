@@ -235,7 +235,7 @@ static ssize_t forst_tls_pull_func(gnutls_transport_ptr_t p, void *data, size_t 
 	return static_cast<ssize_t>(length.value());
 }
 
-TlsNetwork::TlsNetwork(Network &network) : internal{network} {}
+TlsNetwork::TlsNetwork(Tls& tls_, Network &network) : tls{tls_},internal{network} {}
 
 Conveyor<Own<NetworkAddress>> TlsNetwork::resolveAddress(const std::string &addr,
 													   uint16_t port) {

@@ -370,7 +370,8 @@ size_t UnixNetworkAddress::unixAddressSize() const { return addresses.size(); }
 
 UnixNetwork::UnixNetwork(UnixEventPort &event) : event_port{event} {}
 
-Conveyor<Own<NetworkAddress>> UnixNetwork::resolveAddress(const std::string &path,uint16_t port_hint) {
+Conveyor<Own<NetworkAddress>>
+UnixNetwork::resolveAddress(const std::string &path, uint16_t port_hint) {
 	std::string_view addr_view{path};
 	{
 		std::string_view begins_with = "unix:";
@@ -388,7 +389,7 @@ Conveyor<Own<NetworkAddress>> UnixNetwork::resolveAddress(const std::string &pat
 
 UnixIoProvider::UnixIoProvider(UnixEventPort &port_ref, Own<EventPort> port)
 	: event_port{port_ref}, event_loop{std::move(port)}, unix_network{
-		port_ref} {}
+															 port_ref} {}
 
 Own<InputStream> UnixIoProvider::wrapInputFd(int fd) {
 	return heap<UnixIoStream>(event_port, fd, 0, EPOLLIN);

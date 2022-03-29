@@ -7,21 +7,7 @@
 #include <variant>
 
 namespace saw {
-class Tls {
-private:
-	class Impl;
-	Own<Impl> impl;
-
-public:
-	Tls();
-	~Tls();
-
-	class Options {
-	public:
-	};
-
-	Impl &getImpl();
-};
+class Tls;
 
 class TlsServer final : public Server {
 private:
@@ -35,11 +21,10 @@ public:
 
 class TlsNetwork final : public Network {
 private:
-	Tls tls;
+	Tls& tls;
 	Network &internal;
-
 public:
-	TlsNetwork(Network &network);
+	TlsNetwork(Tls& tls_, Network &network_);
 
 	Conveyor<Own<NetworkAddress>> resolveAddress(const std::string &addr, uint16_t port = 0) override;
 	
@@ -48,6 +33,32 @@ public:
 	Conveyor<Own<IoStream>> connect(NetworkAddress& address) override;
 
 	Own<Datagram> datagram(NetworkAddress& address) override;
+};
+
+class Tls {
+private:
+	class Impl;
+	Own<Impl> impl;
+public:
+	Tls();
+	~Tls();
+
+	struct Version {
+		struct Tls_1_0{};
+		struct Tls_1_1{};
+		struct Tls_1_2{};
+	};
+
+	struct Options {
+	public:
+		Version version;
+	};
+
+	Network& tlsNetwork();
+
+	Impl &getImpl();
+private:
+	Options options;
 };
 
 std::optional<Own<TlsNetwork>> setupTlsNetwork(Network &network);

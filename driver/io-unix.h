@@ -380,7 +380,7 @@ public:
 	socklen_t getRawLength() const { return address_length; }
 
 	static std::vector<SocketAddress> resolve(std::string_view str,
-											uint16_t port_hint) {
+											  uint16_t port_hint) {
 		std::vector<SocketAddress> results;
 
 		struct ::addrinfo *head;
@@ -437,7 +437,8 @@ private:
 public:
 	UnixNetwork(UnixEventPort &event_port);
 
-	Conveyor<Own<NetworkAddress>> resolveAddress(const std::string &address, uint16_t port_hint = 0) override;
+	Conveyor<Own<NetworkAddress>>
+	resolveAddress(const std::string &address, uint16_t port_hint = 0) override;
 
 	Own<Server> listen(NetworkAddress &addr) override;
 
