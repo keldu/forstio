@@ -50,5 +50,4 @@ public:
 	virtual Own<AuthenticatedServer> listen() = 0;
 };
 
-
 } // namespace saw
