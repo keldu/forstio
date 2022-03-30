@@ -4,6 +4,8 @@
 #include <string_view>
 #include <variant>
 
+#include <cassert>
+
 #include "common.h"
 
 namespace saw {
