@@ -5,16 +5,12 @@
 #include "stream_endian.h"
 
 namespace saw {
-/// @todo replace types with these
-/*
- * I'm not really sure if anyone will use a union which is
- * bigger than uint32_t max. At least I hope noone would do this
- */
-using msg_union_id_t = uint32_t;
-using msg_array_length_t = uint64_t;
-using msg_packet_length_t = uint64_t;
-
 class ProtoKelCodec {
+public:
+	using UnionIdT = uint32_t;
+	using ArrayLengthT = uint64_t;
+	using PacketLengthT = uint64_t;
+
 private:
 	struct ReadContext {
 		Buffer &buffer;
@@ -27,10 +23,10 @@ private:
 
 public:
 	struct Limits {
-		msg_packet_length_t packet_size;
+		ProtoKelCodec::PacketLengthT packet_size;
 
 		Limits() : packet_size{4096} {}
-		Limits(msg_packet_length_t ps) : packet_size{ps} {}
+		Limits(ProtoKelCodec::PacketLengthT ps) : packet_size{ps} {}
 	};
 
 	struct Version {
@@ -225,7 +221,8 @@ struct ProtoKelEncodeImpl<
 							 Container>::Reader reader,
 			Buffer &buffer) {
 		if (reader.index() == i) {
-			Error error = StreamValue<msg_union_id_t>::encode(i, buffer);
+			Error error =
+				StreamValue<ProtoKelCodec::UnionIdT>::encode(i, buffer);
 			if (error.failed()) {
 				return error;
 			}
@@ -267,7 +264,7 @@ struct ProtoKelEncodeImpl<
 	static size_t
 	size(typename Message<schema::Union<schema::NamedMember<V, K>...>,
 						  Container>::Reader reader) {
-		return sizeof(msg_union_id_t) + sizeMembers<0>(reader);
+		return sizeof(ProtoKelCodec::UnionIdT) + sizeMembers<0>(reader);
 	}
 };
 
@@ -276,10 +273,10 @@ struct ProtoKelEncodeImpl<Message<schema::Array<T>, Container>> {
 	static Error
 	encode(typename Message<schema::Array<T>, Container>::Reader data,
 		   Buffer &buffer) {
-		msg_array_length_t array_length = data.size();
+		ProtoKelCodec::ArrayLengthT array_length = data.size();
 		{
-			Error error =
-				StreamValue<msg_array_length_t>::encode(array_length, buffer);
+			Error error = StreamValue<ProtoKelCodec::ArrayLengthT>::encode(
+				array_length, buffer);
 			if (error.failed()) {
 				return error;
 			}
@@ -301,7 +298,7 @@ struct ProtoKelEncodeImpl<Message<schema::Array<T>, Container>> {
 	 */
 	static size_t
 	size(typename Message<schema::Array<T>, Container>::Reader data) {
-		size_t members = sizeof(msg_array_length_t);
+		size_t members = sizeof(ProtoKelCodec::ArrayLengthT);
 		for (size_t i = 0; i < data.size(); ++i) {
 			members +=
 				ProtoKelEncodeImpl<typename Container::ElementType>::size(
@@ -438,7 +435,7 @@ struct ProtoKelDecodeImpl<
 	static typename std::enable_if<i == sizeof...(V), Error>::type
 	decodeMembers(typename Message<schema::Union<schema::NamedMember<V, K>...>,
 								   Container>::Builder,
-				  Buffer &, msg_union_id_t) {
+				  Buffer &, ProtoKelCodec::UnionIdT) {
 		return noError();
 	}
 
@@ -447,7 +444,7 @@ struct ProtoKelDecodeImpl<
 		i<sizeof...(V), Error>::type decodeMembers(
 			typename Message<schema::Union<schema::NamedMember<V, K>...>,
 							 Container>::Builder builder,
-			Buffer &buffer, msg_union_id_t id) {
+			Buffer &buffer, ProtoKelCodec::UnionIdT id) {
 
 		if (id == i) {
 			Error error =
@@ -464,8 +461,8 @@ struct ProtoKelDecodeImpl<
 	decode(typename Message<schema::Union<schema::NamedMember<V, K>...>,
 							Container>::Builder builder,
 		   Buffer &buffer) {
-		msg_union_id_t id = 0;
-		Error error = StreamValue<msg_union_id_t>::decode(id, buffer);
+		ProtoKelCodec::UnionIdT id = 0;
+		Error error = StreamValue<ProtoKelCodec::UnionIdT>::decode(id, buffer);
 		if (error.failed()) {
 			return error;
 		}
@@ -482,10 +479,10 @@ struct ProtoKelDecodeImpl<Message<schema::Array<T>, Container>> {
 	static Error
 	decode(typename Message<schema::Array<T>, Container>::Builder data,
 		   Buffer &buffer) {
-		msg_array_length_t array_length = 0;
+		ProtoKelCodec::ArrayLengthT array_length = 0;
 		{
-			Error error =
-				StreamValue<msg_array_length_t>::decode(array_length, buffer);
+			Error error = StreamValue<ProtoKelCodec::ArrayLengthT>::decode(
+				array_length, buffer);
 			if (error.failed()) {
 				return error;
 			}
@@ -510,20 +507,20 @@ Error ProtoKelCodec::encode(typename Message<Schema, Container>::Reader reader,
 							Buffer &buffer) {
 	BufferView view{buffer};
 
-	msg_packet_length_t packet_length =
+	ProtoKelCodec::PacketLengthT packet_length =
 		ProtoKelEncodeImpl<Message<Schema, Container>>::size(reader);
 	// Check the size of the packet for the first
 	// message length description
 
-	Error error =
-		view.writeRequireLength(packet_length + sizeof(msg_packet_length_t));
+	Error error = view.writeRequireLength(packet_length +
+										  sizeof(ProtoKelCodec::PacketLengthT));
 	if (error.failed()) {
 		return error;
 	}
 
 	{
-		Error error =
-			StreamValue<msg_packet_length_t>::encode(packet_length, view);
+		Error error = StreamValue<ProtoKelCodec::PacketLengthT>::encode(
+			packet_length, view);
 		if (error.failed()) {
 			return error;
 		}
@@ -546,10 +543,10 @@ Error ProtoKelCodec::decode(
 	const Limits &limits) {
 	BufferView view{buffer};
 
-	msg_packet_length_t packet_length = 0;
+	ProtoKelCodec::PacketLengthT packet_length = 0;
 	{
-		Error error =
-			StreamValue<msg_packet_length_t>::decode(packet_length, view);
+		Error error = StreamValue<ProtoKelCodec::PacketLengthT>::decode(
+			packet_length, view);
 		if (error.failed()) {
 			return error;
 		}

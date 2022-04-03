@@ -38,8 +38,8 @@ SAW_TEST("Primitive Encoding"){
 	Error error = codec.encode<TestSize>(root.read(), temp_buffer);
 
 	SAW_EXPECT(!error.failed(), error.message());
-	SAW_EXPECT(temp_buffer.readCompositeLength() == (sizeof(value)+sizeof(msg_packet_length_t)), "Bad Size: " + std::to_string(temp_buffer.readCompositeLength()));
-	constexpr size_t pkt_shift = sizeof(msg_packet_length_t);
+	SAW_EXPECT(temp_buffer.readCompositeLength() == (sizeof(value)+sizeof(ProtoKelCodec::PacketLengthT)), "Bad Size: " + std::to_string(temp_buffer.readCompositeLength()));
+	constexpr size_t pkt_shift = sizeof(ProtoKelCodec::PacketLengthT);
 	SAW_EXPECT(temp_buffer[pkt_shift] == 5 && temp_buffer[pkt_shift+1] == 0 && temp_buffer[pkt_shift+2] == 0 && temp_buffer[pkt_shift+3] == 0, "Wrong encoded values");
 }
 
